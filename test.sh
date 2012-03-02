@@ -45,27 +45,30 @@ function testfail {
 
 make -s 8cc
 
-testast '1' '1'
-testast '(+ (- (+ 1 2) 3) 4)' '1+2-3+4'
-testast '(+ (+ 1 (* 2 3)) 4)' '1+2*3+4'
-testast '(+ (* 1 2) (* 3 4))' '1*2+3*4'
-testast '(+ (/ 4 2) (/ 6 3))' '4/2+6/3'
-testast '(/ (/ 24 2) 4)' '24/2/4'
+testast '1' '1;'
+testast '(+ (- (+ 1 2) 3) 4)' '1+2-3+4;'
+testast '(+ (+ 1 (* 2 3)) 4)' '1+2*3+4;'
+testast '(+ (* 1 2) (* 3 4))' '1*2+3*4;'
+testast '(+ (/ 4 2) (/ 6 3))' '4/2+6/3;'
+testast '(/ (/ 24 2) 4)' '24/2/4;'
 
-test 0 0
-test abc '"abc"'
+testast '(= a 3)' 'a=3;'
 
-test 3 '1+2'
-test 3 '1 + 2'
-test 10 '1+2+3+4'
-test 11 '1+2*3+4'
-test 14 '1*2+3*4'
-test 4 '4/2+6/3'
-test 3 '24/2/4'
+test 0 '0;'
 
-testfail '"abc'
-testfail '0abc'
-testfail '1+'
-testfail '1+"abc"'
+test 3 '1+2;'
+test 3 '1 + 2;'
+test 10 '1+2+3+4;'
+test 11 '1+2*3+4;'
+test 14 '1*2+3*4;'
+test 4 '4/2+6/3;'
+test 3 '24/2/4;'
+
+test 2 '1;2;'
+test 3 'a=1;a+2;'
+test 102 'a=1;b=48+2;c=a+b;c*2;'
+
+testfail '0abc;'
+testfail '1+;'
 
 echo "All tests passed"
