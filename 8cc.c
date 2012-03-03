@@ -10,31 +10,34 @@
 
 enum {
   AST_INT,
-  AST_SYM,
+  AST_VAR,
   AST_STR,
   AST_FUNCALL,
 };
 
-typedef struct Var {
-  char *name;
-  int pos;
-  struct Var *next;
-} Var;
-
 typedef struct Ast {
   char type;
   union {
+    // Integer
     int ival;
+    // String
     struct {
       char *sval;
       int sid;
       struct Ast *snext;
     };
-    Var *var;
+    // Variable
+    struct {
+      char *vname;
+      int vpos;
+      struct Ast *vnext;
+    };
+    // Binary operator
     struct {
       struct Ast *left;
       struct Ast *right;
     };
+    // Function call
     struct {
       char *fname;
       int nargs;
@@ -43,7 +46,7 @@ typedef struct Ast {
   };
 } Ast;
 
-Var *vars = NULL;
+Ast *vars = NULL;
 Ast *strings = NULL;
 char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
@@ -77,10 +80,13 @@ Ast *make_ast_int(int val) {
   return r;
 }
 
-Ast *make_ast_sym(Var *var) {
+Ast *make_ast_var(char *vname) {
   Ast *r = malloc(sizeof(Ast));
-  r->type = AST_SYM;
-  r->var = var;
+  r->type = AST_VAR;
+  r->vname = vname;
+  r->vpos = vars ? vars->vpos + 1 : 1;
+  r->vnext = vars;
+  vars = r;
   return r;
 }
 
@@ -108,21 +114,12 @@ Ast *make_ast_funcall(char *fname, int nargs, Ast **args) {
   return r;
 }
 
-Var *find_var(char *name) {
-  for (Var *v = vars; v; v = v->next) {
-    if (!strcmp(name, v->name))
-      return v;
+Ast *find_var(char *name) {
+  for (Ast *p = vars; p; p = p->vnext) {
+    if (!strcmp(name, p->vname))
+      return p;
   }
   return NULL;
-}
-
-Var *make_var(char *name) {
-  Var *v = malloc(sizeof(Var));
-  v->name = name;
-  v->pos = vars ? vars->pos + 1 : 1;
-  v->next = vars;
-  vars = v;
-  return v;
 }
 
 void skip_space(void) {
@@ -204,9 +201,8 @@ Ast *read_ident_or_func(char c) {
   if (c2 == '(')
     return read_func_args(name);
   ungetc(c2, stdin);
-  Var *v = find_var(name);
-  if (!v) v = make_var(name);
-  return make_ast_sym(v);
+  Ast *v = find_var(name);
+  return v ? v : make_ast_var(name);
 }
 
 Ast *read_prim(void) {
@@ -275,9 +271,9 @@ Ast *read_expr(void) {
 void emit_binop(Ast *ast) {
   if (ast->type == '=') {
     emit_expr(ast->right);
-    if (ast->left->type != AST_SYM)
+    if (ast->left->type != AST_VAR)
       error("Symbol expected");
-    printf("mov %%eax, -%d(%%rbp)\n\t", ast->left->var->pos * 4);
+    printf("mov %%eax, -%d(%%rbp)\n\t", ast->left->vpos * 4);
     return;
   }
   char *op;
@@ -307,8 +303,8 @@ void emit_expr(Ast *ast) {
     case AST_INT:
       printf("mov $%d, %%eax\n\t", ast->ival);
       break;
-    case AST_SYM:
-      printf("mov -%d(%%rbp), %%eax\n\t", ast->var->pos * 4);
+    case AST_VAR:
+      printf("mov -%d(%%rbp), %%eax\n\t", ast->vpos * 4);
       break;
     case AST_STR:
       printf("lea .s%d(%%rip), %%rax\n\t", ast->sid);
@@ -346,8 +342,8 @@ void print_ast(Ast *ast) {
     case AST_INT:
       printf("%d", ast->ival);
       break;
-    case AST_SYM:
-      printf("%s", ast->var->name);
+    case AST_VAR:
+      printf("%s", ast->vname);
       break;
     case AST_STR:
       printf("\"");
