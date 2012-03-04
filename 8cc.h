@@ -27,7 +27,10 @@ typedef struct {
   int len;
 } String;
 
-extern void error(char *fmt, ...) __attribute__((noreturn));
+#define error(...)                              \
+  errorf(__FILE__, __LINE__, __VA_ARGS__)
+
+extern void errorf(char *fmt, ...) __attribute__((noreturn));
 
 extern String *make_string(void);
 extern char *get_cstring(String *s);

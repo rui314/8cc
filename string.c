@@ -36,15 +36,16 @@ void string_append(String *s, char c) {
 
 void string_appendf(String *s, char *fmt, ...) {
   va_list args;
-  va_start(args, fmt);
   for (;;) {
     int avail = s->nalloc - s->len;
+    va_start(args, fmt);
     int written = vsnprintf(s->body + s->len, avail, fmt, args);
+    va_end(args);
     if (avail <= written) {
       realloc_body(s);
       continue;
     }
-    s->len += written + 1;
+    s->len += written;
     return;
   }
 }
