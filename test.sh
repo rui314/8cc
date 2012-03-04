@@ -90,13 +90,12 @@ test b1 "printf(\"%c\", 'a'+1);1;"
 
 # Pointer
 test 61 'int a=61;int *b=&a;*b;'
+test 97 'char *c="ab";*c;'
+test 98 'char *c="ab"+1;*c;'
 
 testfail '0abc;'
 testfail '1+;'
 testfail '1=2;'
-
-# Incompatible type
-testfail '"a"+1;'
 
 # & is only applicable to an lvalue
 testfail '&"a";'

@@ -14,4 +14,4 @@ test: unittest
 	./test.sh
 
 clean:
-	rm -f 8cc *.o tmp.*
+	rm -f 8cc *.o tmp.* unittest
