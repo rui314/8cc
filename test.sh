@@ -55,6 +55,9 @@ testast '(/ (/ 24 2) 4)' '24/2/4;'
 testast '(decl int a 3)' 'int a=3;'
 testast "(decl char c 'a')" "char c='a';"
 testast '(decl int a 1)(decl int b 2)(= a (= b 3))' 'int a=1;int b=2;a=b=3;'
+testast '(decl int a 3)(& a)' 'int a=3;&a;'
+testast '(decl int a 3)(* (& a))' 'int a=3;*&a;'
+testast '(decl int a 3)(decl int* b (& a))(* b)' 'int a=3;int *b=&a;*b;'
 
 testast '"abc"' '"abc";'
 testast "'c'" "'c';"
@@ -62,9 +65,8 @@ testast "'c'" "'c';"
 testast 'a()' 'a();'
 testast 'a(1,2,3,4,5,6)' 'a(1,2,3,4,5,6);'
 
-# Expression
+# Basic arithmetic
 test 0 '0;'
-
 test 3 '1+2;'
 test 3 '1 + 2;'
 test 10 '1+2+3+4;'
@@ -72,18 +74,22 @@ test 11 '1+2*3+4;'
 test 14 '1*2+3*4;'
 test 4 '4/2+6/3;'
 test 3 '24/2/4;'
-
 test 98 "'a'+1;"
-
 test 2 '1;2;'
+
+# Declaration
 test 3 'int a=1;a+2;'
 test 102 'int a=1;int b=48+2;int c=a+b;c*2;'
 
+# Function call
 test 25 'sum2(20, 5);'
 test 15 'sum5(1, 2, 3, 4, 5);'
 test a3 'printf("a");3;'
 test abc5 'printf("%s", "abc");5;'
 test b1 "printf(\"%c\", 'a'+1);1;"
+
+# Pointer
+test 61 'int a=61;int *b=&a;*b;'
 
 testfail '0abc;'
 testfail '1+;'
@@ -91,5 +97,10 @@ testfail '1=2;'
 
 # Incompatible type
 testfail '"a"+1;'
+
+# & is only applicable to an lvalue
+testfail '&"a";'
+testfail '&1;'
+testfail '&a();'
 
 echo "All tests passed"

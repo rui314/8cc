@@ -30,6 +30,11 @@ typedef struct {
 #define error(...)                              \
   errorf(__FILE__, __LINE__, __VA_ARGS__)
 
+#define assert(expr)                                    \
+  do {                                                  \
+    if (!(expr)) error("Assertion failed: " #expr);     \
+  } while (0)
+
 extern void errorf(char *fmt, ...) __attribute__((noreturn));
 
 extern String *make_string(void);
