@@ -131,7 +131,7 @@ static Token *read_token_int(void) {
     case 'X': case 'Y': case 'Z': case '_':
       return read_ident(c);
     case '/': case '=': case '*': case '+': case '-': case '(': case ')':
-    case ',': case ';': case '&':
+    case ',': case ';': case '&': case '[': case ']': case '{': case '}':
       return make_punct(c);
     case EOF:
       return NULL;
