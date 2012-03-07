@@ -141,6 +141,8 @@ static Token *read_token_int(void) {
 }
 
 char *token_to_string(Token *tok) {
+  if (!tok)
+    return "(null)";
   switch (tok->type) {
     case TTYPE_IDENT:
       return tok->sval;
@@ -166,12 +168,11 @@ char *token_to_string(Token *tok) {
 }
 
 bool is_punct(Token *tok, char c) {
-  if (!tok)
-    error("Token is null");
-  return tok->type == TTYPE_PUNCT && tok->punct == c;
+  return tok && (tok->type == TTYPE_PUNCT) && (tok->punct == c);
 }
 
 void unget_token(Token *tok) {
+  if (!tok) return;
   if (ungotten)
     error("Push back buffer is already full");
   ungotten = tok;
