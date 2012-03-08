@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv) {
   int wantast = (argc > 1 && !strcmp(argv[1], "-a"));
-  Ast **block = read_block();
+  List *block = read_block();
   if (wantast) {
     printf("%s", block_to_string(block));
   } else {

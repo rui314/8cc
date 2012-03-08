@@ -2,6 +2,8 @@
 #define ECC_H
 
 #include <stdbool.h>
+#include "util.h"
+#include "list.h"
 
 enum {
   TTYPE_IDENT,
@@ -59,7 +61,6 @@ typedef struct Ctype {
 typedef struct Ast {
   char type;
   Ctype *ctype;
-  struct Ast *next;
   union {
     // Integer
     int ival;
@@ -103,7 +104,7 @@ typedef struct Ast {
     struct {
       char *fname;
       int nargs;
-      struct Ast **args;
+      struct List *args;
     };
     // Declaration
     struct {
@@ -112,29 +113,17 @@ typedef struct Ast {
     };
     // Array initializer
     struct {
-      int size;
-      struct Ast **array_init;
+      int csize;
+      struct List *arrayinit;
     };
     // If statement
     struct {
       struct Ast *cond;
-      struct Ast **then;
-      struct Ast **els;
+      struct List *then;
+      struct List *els;
     };
   };
 } Ast;
-
-#define error(...)                              \
-  errorf(__FILE__, __LINE__, __VA_ARGS__)
-
-#define assert(expr)                                    \
-  do {                                                  \
-    if (!(expr)) error("Assertion failed: " #expr);     \
-  } while (0)
-
-extern void errorf(char *file, int line, char *fmt, ...) __attribute__((noreturn));
-extern void warn(char *fmt, ...);
-extern char *quote_cstring(char *p);
 
 extern String *make_string(void);
 extern char *get_cstring(String *s);
@@ -147,16 +136,16 @@ extern void unget_token(Token *tok);
 extern Token *peek_token(void);
 extern Token *read_token(void);
 extern char *ast_to_string(Ast *ast);
-extern char *block_to_string(Ast **block);
+extern char *block_to_string(List *block);
 extern char *ctype_to_string(Ctype *ctype);
 extern void print_asm_header(void);
-extern void emit_block(Ast **block);
-extern char *make_next_label(void);
+extern void emit_block(List *block);
+extern char *make_label(void);
 
-extern Ast **read_block(void);
+extern List *read_block(void);
 
-extern Ast *globals;
-extern Ast *locals;
+extern List *globals;
+extern List *locals;
 extern Ctype *ctype_int;
 extern Ctype *ctype_char;
 

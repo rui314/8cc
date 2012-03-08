@@ -5,10 +5,9 @@
 #include "8cc.h"
 
 #define MAX_ARGS 6
-#define EXPR_LEN 50
 
-Ast *globals = NULL;
-Ast *locals = NULL;
+List *globals = EMPTY_LIST;
+List *locals = EMPTY_LIST;
 Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, NULL };
 
@@ -52,7 +51,7 @@ static Ast *ast_char(char c) {
   return r;
 }
 
-char *make_next_label(void) {
+char *make_label(void) {
   String *s = make_string();
   string_appendf(s, ".L%d", labelseq++);
   return get_cstring(s);
@@ -63,14 +62,7 @@ static Ast *ast_lvar(Ctype *ctype, char *name) {
   r->type = AST_LVAR;
   r->ctype = ctype;
   r->lname = name;
-  r->next = NULL;
-  if (locals) {
-    Ast *p;
-    for (p = locals; p->next; p = p->next);
-    p->next = r;
-  } else {
-    locals = r;
-  }
+  list_append(locals, r);
   return r;
 }
 
@@ -89,15 +81,8 @@ static Ast *ast_gvar(Ctype *ctype, char *name, bool filelocal) {
   r->type = AST_GVAR;
   r->ctype = ctype;
   r->gname = name;
-  r->glabel = filelocal ? make_next_label() : name;
-  r->next = NULL;
-  if (globals) {
-    Ast *p;
-    for (p = locals; p->next; p = p->next);
-    p->next = r;
-  } else {
-    globals = r;
-  }
+  r->glabel = filelocal ? make_label() : name;
+  list_append(globals, r);
   return r;
 }
 
@@ -115,18 +100,16 @@ static Ast *ast_string(char *str) {
   r->type = AST_STRING;
   r->ctype = make_array_type(ctype_char, strlen(str) + 1);
   r->sval = str;
-  r->slabel = make_next_label();
-  r->next = globals;
-  globals = r;
+  r->slabel = make_label();
+  list_append(globals, r);
   return r;
 }
 
-static Ast *ast_funcall(char *fname, int nargs, Ast **args) {
+static Ast *ast_funcall(char *fname, List *args) {
   Ast *r = malloc(sizeof(Ast));
   r->type = AST_FUNCALL;
   r->ctype = ctype_int;
   r->fname = fname;
-  r->nargs = nargs;
   r->args = args;
   return r;
 }
@@ -140,16 +123,16 @@ static Ast *ast_decl(Ast *var, Ast *init) {
   return r;
 }
 
-static Ast *ast_array_init(int size, Ast **array_init) {
+static Ast *ast_array_init(int csize, List *arrayinit) {
   Ast *r = malloc(sizeof(Ast));
   r->type = AST_ARRAY_INIT;
   r->ctype = NULL;
-  r->size = size;
-  r->array_init = array_init;
+  r->csize = csize;
+  r->arrayinit = arrayinit;
   return r;
 }
 
-static Ast *ast_if(Ast *cond, Ast **then, Ast **els) {
+static Ast *ast_if(Ast *cond, List *then, List *els) {
   Ast *r = malloc(sizeof(Ast));
   r->type = AST_IF;
   r->ctype = NULL;
@@ -175,12 +158,16 @@ static Ctype* make_array_type(Ctype *ctype, int size) {
 }
 
 static Ast *find_var(char *name) {
-  for (Ast *p = locals; p; p = p->next)
-    if (!strcmp(name, p->lname))
-      return p;
-  for (Ast *p = globals; p; p = p->next)
-    if (!strcmp(name, p->gname))
-      return p;
+  for (Iter *i = list_iter(locals); !iter_end(i);) {
+    Ast *v = iter_next(i);
+    if (!strcmp(name, v->lname))
+      return v;
+  }
+  for (Iter *i = list_iter(globals); !iter_end(i);) {
+    Ast *v = iter_next(i);
+    if (!strcmp(name, v->gname))
+      return v;
+  }
   return NULL;
 }
 
@@ -202,22 +189,20 @@ static int priority(char op) {
 }
 
 static Ast *read_func_args(char *fname) {
-  Ast **args = malloc(sizeof(Ast*) * (MAX_ARGS + 1));
-  int i = 0, nargs = 0;
-  for (; i < MAX_ARGS; i++) {
+  List *args = make_list();
+  for (;;) {
     Token *tok = read_token();
     if (is_punct(tok, ')')) break;
     unget_token(tok);
-    args[i] = read_expr(0);
-    nargs++;
+    list_append(args, read_expr(0));
     tok = read_token();
     if (is_punct(tok, ')')) break;
     if (!is_punct(tok, ','))
       error("Unexpected token: '%s'", token_to_string(tok));
   }
-  if (i == MAX_ARGS)
+  if (MAX_ARGS < list_len(args))
     error("Too many arguments: %s", fname);
-  return ast_funcall(fname, nargs, args);
+  return ast_funcall(fname, args);
 }
 
 static Ast *read_ident_or_func(char *name) {
@@ -388,10 +373,11 @@ static Ast *read_decl_array_initializer(Ctype *ctype) {
     return ast_string(tok->sval);
   if (!is_punct(tok, '{'))
     error("Expected an initializer list, but got %s", token_to_string(tok));
-  Ast **init = malloc(sizeof(Ast*) * ctype->size);
+  List *initlist = make_list();
   for (int i = 0; i < ctype->size; i++) {
-    init[i] = read_expr(0);
-    result_type('=', init[i]->ctype, ctype->ptr);
+    Ast *init = read_expr(0);
+    list_append(initlist, init);
+    result_type('=', init->ctype, ctype->ptr);
     tok = read_token();
     if (is_punct(tok, '}') && (i == ctype->size - 1))
       break;
@@ -404,7 +390,7 @@ static Ast *read_decl_array_initializer(Ctype *ctype) {
       break;
     }
   }
-  return ast_array_init(ctype->size, init);
+  return ast_array_init(ctype->size, initlist);
 }
 
 static Ast *read_declinitializer(Ctype *ctype) {
@@ -450,7 +436,7 @@ static Ast *read_if_stmt(void) {
   Ast *cond = read_expr(0);
   expect(')');
   expect('{');
-  Ast **then = read_block();
+  List *then = read_block();
   expect('}');
   Token *tok = read_token();
   if (!tok || tok->type != TTYPE_IDENT || strcmp(tok->sval, "else")) {
@@ -458,7 +444,7 @@ static Ast *read_if_stmt(void) {
     return ast_if(cond, then, NULL);
   }
   expect('{');
-  Ast **els = read_block();
+  List *els = read_block();
   expect('}');
   return ast_if(cond, then, els);
 }
@@ -479,19 +465,16 @@ static Ast *read_decl_or_stmt(void) {
   return is_type_keyword(tok) ? read_decl() : read_stmt();
 }
 
-Ast **read_block(void) {
-  Ast **stmts = malloc(sizeof(Ast **) * EXPR_LEN);
-  int i;
-  for (i = 0; i < EXPR_LEN - 1; i++) {
-    stmts[i] = read_decl_or_stmt();
+List *read_block(void) {
+  List *r = make_list();
+  for (;;) {
+    Ast *stmt = read_decl_or_stmt();
+    if (stmt) list_append(r, stmt);
     Token *tok = peek_token();
-    if (!stmts[i] || is_punct(tok, '}'))
+    if (!stmt || is_punct(tok, '}'))
       break;
   }
-  if (i == EXPR_LEN - 1)
-    error("Block too long");
-  stmts[i + 1] = NULL;
-  return stmts;
+  return r;
 }
 
 char *ctype_to_string(Ctype *ctype) {
@@ -548,15 +531,16 @@ static void ast_to_string_int(Ast *ast, String *buf) {
     case AST_GREF:
       string_appendf(buf, "%s[%d]", ast_to_string(ast->gref), ast->goff);
       break;
-    case AST_FUNCALL:
+    case AST_FUNCALL: {
       string_appendf(buf, "%s(", ast->fname);
-      for (int i = 0; ast->args[i]; i++) {
-        string_appendf(buf, "%s", ast_to_string(ast->args[i]));
-        if (ast->args[i + 1])
+      for (Iter *i = list_iter(ast->args); !iter_end(i);) {
+        string_appendf(buf, "%s", ast_to_string(iter_next(i)));
+        if (!iter_end(i))
           string_appendf(buf, ",");
       }
       string_appendf(buf, ")");
       break;
+    }
     case AST_DECL:
       string_appendf(buf, "(decl %s %s %s)",
                      ctype_to_string(ast->declvar->ctype),
@@ -565,9 +549,9 @@ static void ast_to_string_int(Ast *ast, String *buf) {
       break;
     case AST_ARRAY_INIT:
       string_appendf(buf, "{");
-      for (int i = 0; i < ast->size; i++) {
-        ast_to_string_int(ast->array_init[i], buf);
-        if (i != ast->size - 1)
+      for (Iter *i = list_iter(ast->arrayinit); !iter_end(i);) {
+        ast_to_string_int(iter_next(i), buf);
+        if (!iter_end(i))
           string_appendf(buf, ",");
       }
       string_appendf(buf, "}");
@@ -600,11 +584,11 @@ char *ast_to_string(Ast *ast) {
   return get_cstring(s);
 }
 
-char *block_to_string(Ast **block) {
+char *block_to_string(List *block) {
   String *s = make_string();
   string_appendf(s, "{");
-  for (int i = 0; block[i]; i++) {
-    ast_to_string_int(block[i], s);
+  for (Iter *i = list_iter(block); !iter_end(i);) {
+    ast_to_string_int(iter_next(i), s);
     string_appendf(s, ";");
   }
   string_appendf(s, "}");

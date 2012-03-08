@@ -183,25 +183,27 @@ void emit_expr(Ast *ast) {
       break;
     }
     case AST_FUNCALL: {
-      for (int i = 1; i < ast->nargs; i++)
+      for (int i = 1; i < list_len(ast->args); i++)
         printf("push %%%s\n\t", REGS[i]);
-      for (int i = 0; i < ast->nargs; i++) {
-        emit_expr(ast->args[i]);
+      for (Iter *i = list_iter(ast->args); !iter_end(i);) {
+        emit_expr(iter_next(i));
         printf("push %%rax\n\t");
       }
-      for (int i = ast->nargs - 1; i >= 0; i--)
+      for (int i = list_len(ast->args) - 1; i >= 0; i--)
         printf("pop %%%s\n\t", REGS[i]);
       printf("mov $0, %%eax\n\t");
       printf("call %s\n\t", ast->fname);
-      for (int i = ast->nargs - 1; i > 0; i--)
+      for (int i = list_len(ast->args) - 1; i > 0; i--)
         printf("pop %%%s\n\t", REGS[i]);
       break;
     }
     case AST_DECL: {
       if (ast->declinit->type == AST_ARRAY_INIT) {
-        for (int i = 0; i < ast->declinit->size; i++) {
-          emit_expr(ast->declinit->array_init[i]);
+        int i = 0;
+        for (Iter *iter = list_iter(ast->declinit->arrayinit); !iter_end(iter);) {
+          emit_expr(iter_next(iter));
           emit_lsave(ast->declvar->ctype->ptr, ast->declvar->loff, -i);
+          i++;
         }
       } else if (ast->declvar->ctype->type == CTYPE_ARRAY) {
         assert(ast->declinit->type == AST_STRING);
@@ -239,12 +241,12 @@ void emit_expr(Ast *ast) {
     }
     case AST_IF: {
       emit_expr(ast->cond);
-      char *l1 = make_next_label();
+      char *l1 = make_label();
       printf("test %%rax, %%rax\n\t");
       printf("je %s\n\t", l1);
       emit_block(ast->then);
       if (ast->els) {
-        char *l2 = make_next_label();
+        char *l2 = make_label();
         printf("jmp %s\n\t", l2);
         printf("%s:\n\t", l1);
         emit_block(ast->els);
@@ -262,10 +264,11 @@ void emit_expr(Ast *ast) {
 static void emit_data_section(void) {
   if (!globals) return;
   printf("\t.data\n");
-  for (Ast *p = globals; p; p = p->next) {
-    assert(p->type == AST_STRING);
-    printf("%s:\n\t", p->slabel);
-    printf(".string \"%s\"\n", quote_cstring(p->sval));
+  for (Iter *i = list_iter(globals); !iter_end(i);) {
+    Ast *v = iter_next(i);
+    assert(v->type == AST_STRING);
+    printf("%s:\n\t", v->slabel);
+    printf(".string \"%s\"\n", quote_cstring(v->sval));
   }
   printf("\t");
 }
@@ -277,9 +280,10 @@ static int ceil8(int n) {
 
 void print_asm_header(void) {
   int off = 0;
-  for (Ast *p = locals; p; p = p->next) {
-    off += ceil8(ctype_size(p->ctype));
-    p->loff = off;
+  for (Iter *i = list_iter(locals); !iter_end(i);) {
+    Ast *v = iter_next(i);
+    off += ceil8(ctype_size(v->ctype));
+    v->loff = off;
   }
   emit_data_section();
   printf(".text\n\t"
@@ -287,11 +291,11 @@ void print_asm_header(void) {
          "mymain:\n\t"
          "push %%rbp\n\t"
          "mov %%rsp, %%rbp\n\t");
-  if (locals)
+  if (off)
     printf("sub $%d, %%rsp\n\t", off);
 }
 
-void emit_block(Ast **block) {
-  for (int i = 0; block[i]; i++)
-    emit_expr(block[i]);
+void emit_block(List *block) {
+  for (Iter *i = list_iter(block); !iter_end(i);)
+    emit_expr(iter_next(i));
 }

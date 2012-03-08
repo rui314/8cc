@@ -1,5 +1,5 @@
 CFLAGS=-Wall -std=gnu99 -g
-OBJS=lex.o string.o util.o gen.o parse.o
+OBJS=lex.o string.o util.o gen.o parse.o list.o
 
 8cc: 8cc.h main.o $(OBJS)
 	$(CC) $(CFLAGS) -o $@ main.o $(OBJS)
