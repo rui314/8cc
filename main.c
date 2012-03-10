@@ -4,14 +4,15 @@
 
 int main(int argc, char **argv) {
   int wantast = (argc > 1 && !strcmp(argv[1], "-a"));
-  List *block = read_block();
-  if (wantast) {
-    printf("%s", block_to_string(block));
-  } else {
-    print_asm_header();
-    emit_block(block);
-    printf("leave\n\t"
-           "ret\n");
+  List *funcs = read_func_list();
+  if (!wantast)
+    emit_data_section();
+  for (Iter *i = list_iter(funcs); !iter_end(i);) {
+    Ast *func = iter_next(i);
+    if (wantast)
+      printf("%s", ast_to_string(func));
+    else
+      emit_func(func);
   }
   return 0;
 }

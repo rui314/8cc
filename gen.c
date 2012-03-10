@@ -3,7 +3,8 @@
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
-extern void emit_expr(Ast *ast);
+static void emit_expr(Ast *ast);
+static void emit_block(List *block);
 
 static int ctype_size(Ctype *ctype) {
   switch (ctype->type) {
@@ -41,20 +42,20 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
 
 static void emit_lload(Ast *var, int off) {
   if (var->ctype->type == CTYPE_ARRAY) {
-    printf("lea -%d(%%rbp), %%rax\n\t", var->loff);
+    printf("lea %d(%%rbp), %%rax\n\t", -var->loff);
     return;
   }
   int size = ctype_size(var->ctype);
   switch (size) {
     case 1:
       printf("mov $0, %%eax\n\t");
-      printf("mov -%d(%%rbp), %%al\n\t", var->loff);
+      printf("mov %d(%%rbp), %%al\n\t", -var->loff);
       break;
     case 4:
-      printf("mov -%d(%%rbp), %%eax\n\t", var->loff);
+      printf("mov %d(%%rbp), %%eax\n\t", -var->loff);
       break;
     case 8:
-      printf("mov -%d(%%rbp), %%rax\n\t", var->loff);
+      printf("mov %d(%%rbp), %%rax\n\t", -var->loff);
       break;
     default:
       error("Unknown data size: %s: %d", ast_to_string(var), size);
@@ -66,8 +67,8 @@ static void emit_lload(Ast *var, int off) {
 static void emit_gsave(Ast *var, int off) {
   assert(var->ctype->type != CTYPE_ARRAY);
   char *reg;
-  printf("push %%rbx\n\t");
-  printf("mov %s(%%rip), %%rbx\n\t", var->glabel);
+  printf("push %%rcx\n\t");
+  printf("mov %s(%%rip), %%rcx\n\t", var->glabel);
   int size = ctype_size(var->ctype);
   switch (size) {
     case 1: reg = "al";  break;
@@ -77,7 +78,7 @@ static void emit_gsave(Ast *var, int off) {
       error("Unknown data size: %s: %d", ast_to_string(var), size);
   }
   printf("mov %s, %d(%%rbp)\n\t", reg, off * size);
-  printf("pop %%rbx\n\t");
+  printf("pop %%rcx\n\t");
 }
 
 static void emit_lsave(Ctype *ctype, int loff, int off) {
@@ -88,7 +89,7 @@ static void emit_lsave(Ctype *ctype, int loff, int off) {
     case 4: reg = "eax"; break;
     case 8: reg = "rax"; break;
   }
-  printf("mov %%%s, -%d(%%rbp)\n\t", reg, loff + off * size);
+  printf("mov %%%s, %d(%%rbp)\n\t", reg, -(loff + off * size));
 }
 
 static void emit_pointer_arith(char op, Ast *left, Ast *right) {
@@ -99,9 +100,9 @@ static void emit_pointer_arith(char op, Ast *left, Ast *right) {
   int size = ctype_size(left->ctype->ptr);
   if (size > 1)
     printf("imul $%d, %%rax\n\t", size);
-  printf("mov %%rax, %%rbx\n\t"
+  printf("mov %%rax, %%rcx\n\t"
          "pop %%rax\n\t"
-         "add %%rbx, %%rax\n\t");
+         "add %%rcx, %%rax\n\t");
 }
 
 static void emit_assign(Ast *var, Ast *value) {
@@ -136,17 +137,17 @@ static void emit_binop(Ast *ast) {
   printf("push %%rax\n\t");
   emit_expr(ast->right);
   if (ast->type == '/') {
-    printf("mov %%rax, %%rbx\n\t");
+    printf("mov %%rax, %%rcx\n\t");
     printf("pop %%rax\n\t");
     printf("mov $0, %%edx\n\t");
-    printf("idiv %%rbx\n\t");
+    printf("idiv %%rcx\n\t");
   } else {
-    printf("pop %%rbx\n\t");
-    printf("%s %%rbx, %%rax\n\t", op);
+    printf("pop %%rcx\n\t");
+    printf("%s %%rcx, %%rax\n\t", op);
   }
 }
 
-void emit_expr(Ast *ast) {
+static void emit_expr(Ast *ast) {
   switch (ast->type) {
     case AST_LITERAL:
       switch (ast->ctype->type) {
@@ -209,8 +210,8 @@ void emit_expr(Ast *ast) {
         assert(ast->declinit->type == AST_STRING);
         int i = 0;
         for (char *p = ast->declinit->sval; *p; p++, i++)
-          printf("movb $%d, -%d(%%rbp)\n\t", *p, ast->declvar->loff - i);
-        printf("movb $0, -%d(%%rbp)\n\t", ast->declvar->loff - i);
+          printf("movb $%d, %d(%%rbp)\n\t", *p, -(ast->declvar->loff - i));
+        printf("movb $0, %d(%%rbp)\n\t", -(ast->declvar->loff - i));
       } else if (ast->declinit->type == AST_STRING) {
         emit_gload(ast->declinit->ctype, ast->declinit->slabel, 0);
         emit_lsave(ast->declvar->ctype, ast->declvar->loff, 0);
@@ -222,21 +223,21 @@ void emit_expr(Ast *ast) {
     }
     case AST_ADDR:
       assert(ast->operand->type == AST_LVAR);
-      printf("lea -%d(%%rbp), %%rax\n\t", ast->operand->loff);
+      printf("lea %d(%%rbp), %%rax\n\t", -ast->operand->loff);
       break;
     case AST_DEREF: {
       assert(ast->operand->ctype->type == CTYPE_PTR);
       emit_expr(ast->operand);
       char *reg;
       switch (ctype_size(ast->ctype)) {
-        case 1: reg = "%bl";  break;
-        case 4: reg = "%ebx"; break;
-        case 8: reg = "%rbx"; break;
+        case 1: reg = "%cl";  break;
+        case 4: reg = "%ecx"; break;
+        case 8: reg = "%rcx"; break;
         default: error("internal error");
       }
-      printf("mov $0, %%ebx\n\t");
+      printf("mov $0, %%ecx\n\t");
       printf("mov (%%rax), %s\n\t", reg);
-      printf("mov %%rbx, %%rax\n\t");
+      printf("mov %%rcx, %%rax\n\t");
       break;
     }
     case AST_IF: {
@@ -261,9 +262,9 @@ void emit_expr(Ast *ast) {
   }
 }
 
-static void emit_data_section(void) {
+void emit_data_section(void) {
   if (!globals) return;
-  printf("\t.data\n");
+  printf(".data\n");
   for (Iter *i = list_iter(globals); !iter_end(i);) {
     Ast *v = iter_next(i);
     assert(v->type == AST_STRING);
@@ -278,24 +279,44 @@ static int ceil8(int n) {
   return (rem == 0) ? n : n - rem + 8;
 }
 
-void print_asm_header(void) {
+static void emit_func_prologue(Ast *func) {
+  if (list_len(func->params) > sizeof(REGS) / sizeof(*REGS))
+    error("Parameter list too long: %s", func->fname);
+  printf(".text\n\t"
+         ".global %s\n"
+         "%s:\n\t", func->fname, func->fname);
+  printf("push %%rbp\n\t"
+         "mov %%rsp, %%rbp\n\t");
   int off = 0;
-  for (Iter *i = list_iter(locals); !iter_end(i);) {
+  int ri = 0;
+  for (Iter *i = list_iter(func->params); !iter_end(i); ri++) {
+    printf("push %%%s\n\t", REGS[ri]);
     Ast *v = iter_next(i);
     off += ceil8(ctype_size(v->ctype));
     v->loff = off;
   }
-  emit_data_section();
-  printf(".text\n\t"
-         ".global mymain\n"
-         "mymain:\n\t"
-         "push %%rbp\n\t"
-         "mov %%rsp, %%rbp\n\t");
+  for (Iter *i = list_iter(func->locals); !iter_end(i);) {
+    Ast *v = iter_next(i);
+    off += ceil8(ctype_size(v->ctype));
+    v->loff = off;
+  }
   if (off)
     printf("sub $%d, %%rsp\n\t", off);
 }
 
-void emit_block(List *block) {
+static void emit_func_epilogue(void) {
+  printf("leave\n\t"
+         "ret\n");
+}
+
+static void emit_block(List *block) {
   for (Iter *i = list_iter(block); !iter_end(i);)
     emit_expr(iter_next(i));
+}
+
+void emit_func(Ast *func) {
+  assert(func->type == AST_FUNC);
+  emit_func_prologue(func);
+  emit_block(func->body);
+  emit_func_epilogue();
 }

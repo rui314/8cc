@@ -7,7 +7,8 @@
 #define MAX_ARGS 6
 
 List *globals = EMPTY_LIST;
-List *locals = EMPTY_LIST;
+List *fparams = NULL;
+List *locals = NULL;
 Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, NULL };
 
@@ -17,6 +18,7 @@ static Ast *read_expr(int prec);
 static Ctype* make_ptr_type(Ctype *ctype);
 static Ctype* make_array_type(Ctype *ctype, int size);
 static void ast_to_string_int(Ast *ast, String *buf);
+static List *read_block(void);
 
 static Ast *ast_uop(char type, Ctype *ctype, Ast *operand) {
   Ast *r = malloc(sizeof(Ast));
@@ -62,7 +64,8 @@ static Ast *ast_lvar(Ctype *ctype, char *name) {
   r->type = AST_LVAR;
   r->ctype = ctype;
   r->lname = name;
-  list_append(locals, r);
+  if (locals)
+    list_append(locals, r);
   return r;
 }
 
@@ -104,12 +107,23 @@ static Ast *ast_string(char *str) {
   return r;
 }
 
-static Ast *ast_funcall(char *fname, List *args) {
+static Ast *ast_funcall(Ctype *ctype, char *fname, List *args) {
   Ast *r = malloc(sizeof(Ast));
   r->type = AST_FUNCALL;
-  r->ctype = ctype_int;
+  r->ctype = ctype;
   r->fname = fname;
   r->args = args;
+  return r;
+}
+
+static Ast *ast_func(Ctype *rettype, char *fname, List *params, List *body, List *locals) {
+  Ast *r = malloc(sizeof(Ast));
+  r->type = AST_FUNC;
+  r->ctype = rettype;
+  r->fname = fname;
+  r->params = params;
+  r->locals = locals;
+  r->body = body;
   return r;
 }
 
@@ -156,18 +170,21 @@ static Ctype* make_array_type(Ctype *ctype, int size) {
   return r;
 }
 
-static Ast *find_var(char *name) {
-  for (Iter *i = list_iter(locals); !iter_end(i);) {
+static Ast *find_var_sub(List *list, char *name) {
+  for (Iter *i = list_iter(list); !iter_end(i);) {
     Ast *v = iter_next(i);
     if (!strcmp(name, v->lname))
       return v;
   }
-  for (Iter *i = list_iter(globals); !iter_end(i);) {
-    Ast *v = iter_next(i);
-    if (!strcmp(name, v->gname))
-      return v;
-  }
   return NULL;
+}
+
+static Ast *find_var(char *name) {
+  Ast *r = find_var_sub(locals, name);
+  if (r) return r;
+  r = find_var_sub(fparams, name);
+  if (r) return r;
+  return find_var_sub(globals, name);
 }
 
 static bool is_right_assoc(char op) {
@@ -201,7 +218,7 @@ static Ast *read_func_args(char *fname) {
   }
   if (MAX_ARGS < list_len(args))
     error("Too many arguments: %s", fname);
-  return ast_funcall(fname, args);
+  return ast_funcall(ctype_int, fname, args);
 }
 
 static Ast *read_ident_or_func(char *name) {
@@ -291,23 +308,6 @@ static void ensure_lvalue(Ast *ast) {
   }
 }
 
-static Ast *read_unary_expr(void) {
-  Token *tok = read_token();
-  if (is_punct(tok, '&')) {
-    Ast *operand = read_unary_expr();
-    ensure_lvalue(operand);
-    return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
-  }
-  if (is_punct(tok, '*')) {
-    Ast *operand = read_unary_expr();
-    if (operand->ctype->type != CTYPE_PTR)
-      error("pointer type expected, but got %s", ast_to_string(operand));
-    return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
-  }
-  unget_token(tok);
-  return read_prim();
-}
-
 static Ast *convert_array(Ast *ast) {
   if (ast->type == AST_STRING)
     return ast_gref(make_ptr_type(ctype_char), ast, 0);
@@ -318,6 +318,23 @@ static Ast *convert_array(Ast *ast) {
   if (ast->type != AST_GVAR)
     error("Internal error: Gvar expected, but got %s", ast_to_string(ast));
   return ast_gref(make_ptr_type(ast->ctype->ptr), ast, 0);
+}
+
+static Ast *read_unary_expr(void) {
+  Token *tok = read_token();
+  if (is_punct(tok, '&')) {
+    Ast *operand = read_unary_expr();
+    ensure_lvalue(operand);
+    return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
+  }
+  if (is_punct(tok, '*')) {
+    Ast *operand = convert_array(read_unary_expr());
+    if (operand->ctype->type != CTYPE_PTR)
+      error("pointer type expected, but got %s", ast_to_string(operand));
+    return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
+  }
+  unget_token(tok);
+  return read_prim();
 }
 
 static Ast *read_expr(int prec) {
@@ -350,6 +367,7 @@ static Ast *read_expr(int prec) {
 }
 
 static Ctype *get_ctype(Token *tok) {
+  if (!tok) return NULL;
   if (tok->type != TTYPE_IDENT)
     return NULL;
   if (!strcmp(tok->sval, "int"))
@@ -401,20 +419,28 @@ static Ast *read_declinitializer(Ctype *ctype) {
   return read_expr(0);
 }
 
-static Ast *read_decl(void) {
-  Ctype *ctype = get_ctype(read_token());
-  Token *tok;
+static Ctype *read_decl_spec(void) {
+  Token *tok = read_token();
+  Ctype *ctype = get_ctype(tok);
+  if (!ctype)
+    error("Type expected, but got %s", token_to_string(tok));
   for (;;) {
     tok = read_token();
-    if (!is_punct(tok, '*'))
-      break;
+    if (!is_punct(tok, '*')) {
+      unget_token(tok);
+      return ctype;
+    }
     ctype = make_ptr_type(ctype);
   }
-  if (tok->type != TTYPE_IDENT)
-    error("Identifier expected, but got %s", token_to_string(tok));
-  Token *varname = tok;
+}
+
+static Ast *read_decl(void) {
+  Ctype *ctype = read_decl_spec();
+  Token *varname = read_token();
+  if (varname->type != TTYPE_IDENT)
+    error("Identifier expected, but got %s", token_to_string(varname));
   for (;;) {
-    tok = read_token();
+    Token *tok = read_token();
     if (is_punct(tok, '[')) {
       Ast *size = read_expr(0);
       if (size->type != AST_LITERAL || size->ctype->type != CTYPE_INT)
@@ -439,7 +465,6 @@ static Ast *read_if_stmt(void) {
   expect(')');
   expect('{');
   List *then = read_block();
-  expect('}');
   Token *tok = read_token();
   if (!tok || tok->type != TTYPE_IDENT || strcmp(tok->sval, "else")) {
     unget_token(tok);
@@ -447,7 +472,6 @@ static Ast *read_if_stmt(void) {
   }
   expect('{');
   List *els = read_block();
-  expect('}');
   return ast_if(cond, then, els);
 }
 
@@ -467,16 +491,64 @@ static Ast *read_decl_or_stmt(void) {
   return is_type_keyword(tok) ? read_decl() : read_stmt();
 }
 
-List *read_block(void) {
+static List *read_block(void) {
   List *r = make_list();
   for (;;) {
     Ast *stmt = read_decl_or_stmt();
     if (stmt) list_append(r, stmt);
-    Token *tok = peek_token();
-    if (!stmt || is_punct(tok, '}'))
+    if (!stmt) break;
+    Token *tok = read_token();
+    if (is_punct(tok, '}'))
       break;
+    unget_token(tok);
   }
   return r;
+}
+
+static List *read_params(void) {
+  List *params = make_list();
+  Token *tok = read_token();
+  if (is_punct(tok, ')'))
+    return params;
+  unget_token(tok);
+  for (;;) {
+    Ctype *type = read_decl_spec();
+    Token *pname = read_token();
+    if (pname->type != TTYPE_IDENT)
+      error("Identifier expected, but got %s", token_to_string(pname));
+    list_append(params, ast_lvar(type, pname->sval));
+    Token *tok = read_token();
+    if (is_punct(tok, ')'))
+      return params;
+    if (!is_punct(tok, ','))
+      error("Comma expected, but got %s", token_to_string(tok));
+  }
+}
+
+static Ast *read_func_decl(void) {
+  Token *tok = peek_token();
+  if (!tok) return;
+  void *rettype = read_decl_spec();
+  Token *fname = read_token();
+  if (fname->type != TTYPE_IDENT)
+    error("Function name expected, but got %s", token_to_string(fname));
+  expect('(');
+  fparams = read_params();
+  expect('{');
+  locals = make_list();
+  List *body = read_block();
+  Ast *r = ast_func(rettype, fname->sval, fparams, body, locals);
+  fparams = locals = NULL;
+  return r;
+}
+
+List *read_func_list(void) {
+  List *r = make_list();
+  for (;;) {
+    Ast *func = read_func_decl();
+    if (!func) return r;
+    list_append(r, func);
+  }
 }
 
 char *ctype_to_string(Ctype *ctype) {
@@ -498,6 +570,17 @@ char *ctype_to_string(Ctype *ctype) {
     }
     default: error("Unknown ctype: %d", ctype);
   }
+}
+
+static char *block_to_string(List *block) {
+  String *s = make_string();
+  string_appendf(s, "{");
+  for (Iter *i = list_iter(block); !iter_end(i);) {
+    ast_to_string_int(iter_next(i), s);
+    string_appendf(s, ";");
+  }
+  string_appendf(s, "}");
+  return get_cstring(s);
 }
 
 static void ast_to_string_int(Ast *ast, String *buf) {
@@ -534,13 +617,24 @@ static void ast_to_string_int(Ast *ast, String *buf) {
       string_appendf(buf, "%s[%d]", ast_to_string(ast->gref), ast->goff);
       break;
     case AST_FUNCALL: {
-      string_appendf(buf, "%s(", ast->fname);
+      string_appendf(buf, "(%s)%s(", ctype_to_string(ast->ctype), ast->fname);
       for (Iter *i = list_iter(ast->args); !iter_end(i);) {
         string_appendf(buf, "%s", ast_to_string(iter_next(i)));
         if (!iter_end(i))
           string_appendf(buf, ",");
       }
       string_appendf(buf, ")");
+      break;
+    }
+    case AST_FUNC: {
+      string_appendf(buf, "(%s)%s(", ctype_to_string(ast->ctype), ast->fname);
+      for (Iter *i = list_iter(ast->params); !iter_end(i);) {
+        Ast *param = iter_next(i);
+        string_appendf(buf, "%s %s", ctype_to_string(param->ctype), ast_to_string(param));
+        if (!iter_end(i))
+          string_appendf(buf, ",");
+      }
+      string_appendf(buf, ")%s", block_to_string(ast->body));
       break;
     }
     case AST_DECL:
@@ -583,16 +677,5 @@ static void ast_to_string_int(Ast *ast, String *buf) {
 char *ast_to_string(Ast *ast) {
   String *s = make_string();
   ast_to_string_int(ast, s);
-  return get_cstring(s);
-}
-
-char *block_to_string(List *block) {
-  String *s = make_string();
-  string_appendf(s, "{");
-  for (Iter *i = list_iter(block); !iter_end(i);) {
-    ast_to_string_int(iter_next(i), s);
-    string_appendf(s, ";");
-  }
-  string_appendf(s, "}");
   return get_cstring(s);
 }
