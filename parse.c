@@ -101,7 +101,6 @@ static Ast *ast_string(char *str) {
   r->ctype = make_array_type(ctype_char, strlen(str) + 1);
   r->sval = str;
   r->slabel = make_label();
-  list_append(globals, r);
   return r;
 }
 
@@ -226,8 +225,11 @@ static Ast *read_prim(void) {
       return ast_int(tok->ival);
     case TTYPE_CHAR:
       return ast_char(tok->c);
-    case TTYPE_STRING:
-      return ast_string(tok->sval);
+    case TTYPE_STRING: {
+      Ast *r = ast_string(tok->sval);
+      list_append(globals, r);
+      return r;
+    }
     case TTYPE_PUNCT:
       error("unexpected character: '%c'", tok->punct);
     default:
