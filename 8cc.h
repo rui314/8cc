@@ -119,10 +119,7 @@ typedef struct Ast {
       struct Ast *declinit;
     };
     // Array initializer
-    struct {
-      int csize;
-      struct List *arrayinit;
-    };
+    struct List *arrayinit;
     // If statement
     struct {
       struct Ast *cond;
