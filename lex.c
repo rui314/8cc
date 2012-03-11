@@ -178,9 +178,8 @@ char *token_to_string(Token *tok) {
       string_appendf(s, "\"%s\"", tok->sval);
       return get_cstring(s);
     }
-    default:
-      error("internal error: unknown token type: %d", tok->type);
   }
+  error("internal error: unknown token type: %d", tok->type);
 }
 
 bool is_punct(Token *tok, char c) {
