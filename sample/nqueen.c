@@ -1,7 +1,7 @@
 int print_board(int board[][8]) {
   for (int i = 0; i < 8; i = i + 1) {
     for (int j = 0; j < 8; j =j +1) {
-      if (*(*(board + i) + j)) {
+      if (board[i][j]) {
         printf("Q ");
       } else {
         printf(". ");
@@ -14,17 +14,17 @@ int print_board(int board[][8]) {
 
 int conflict(int board[][8], int row, int col) {
   for (int i = 0; i < row; i = i + 1) {
-    if (*(*(board + i) + col)) {
+    if (board[i][col]) {
       return 1;
     }
     int j = row - i;
     if (0 < col - j + 1) {
-      if (*(*(board + i) + col - j)) {
+      if (board[i][col - j]) {
         return 1;
       }
     }
     if (col + j < 8) {
-      if (*(*(board + i) + col + j)) {
+      if (board[i][col + j]) {
         return 1;
       }
     }
@@ -41,9 +41,9 @@ int solve(int board[][8], int row) {
     if (conflict(board, row, i)) {
       1;
     } else {
-      *(*(board + row) + i) = 1;
+      board[row][i] = 1;
       solve(board, row + 1);
-      *(*(board + row) + i) = 0;
+      board[row][i] = 0;
     }
   }
 }
@@ -52,7 +52,7 @@ int main() {
   int board[64];
   int i;
   for (i = 0; i < 64; i = i + 1) {
-    *(board + i) = 0;
+    board[i] = 0;
   }
   solve(board, 0);
 }

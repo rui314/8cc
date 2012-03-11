@@ -20,6 +20,8 @@ static Ctype* make_array_type(Ctype *ctype, int size);
 static void ast_to_string_int(Ast *ast, String *buf);
 static List *read_block(void);
 static Ast *read_decl_or_stmt(void);
+static Ctype *result_type(char op, Ctype *a, Ctype *b);
+static Ctype *convert_array(Ctype *ctype);
 
 static Ast *ast_uop(char type, Ctype *ctype, Ast *operand) {
   Ast *r = malloc(sizeof(Ast));
@@ -29,12 +31,19 @@ static Ast *ast_uop(char type, Ctype *ctype, Ast *operand) {
   return r;
 }
 
-static Ast *ast_binop(char type, Ctype *ctype, Ast *left, Ast *right) {
+static Ast *ast_binop(char type, Ast *left, Ast *right) {
   Ast *r = malloc(sizeof(Ast));
   r->type = type;
-  r->ctype = ctype;
-  r->left = left;
-  r->right = right;
+  r->ctype = result_type(type, left->ctype, right->ctype);
+  if (type != '=' &&
+      convert_array(left->ctype)->type != CTYPE_PTR &&
+      convert_array(right->ctype)->type == CTYPE_PTR) {
+    r->left = right;
+    r->right = left;
+  } else {
+    r->left = left;
+    r->right = right;
+  }
   return r;
 }
 
@@ -304,10 +313,38 @@ err:
   longjmp(*jmpbuf, 1);
 }
 
+static Ast *read_subscript_expr(Ast *ast) {
+  Ast *sub = read_expr(0);
+  expect(']');
+  Ast *t = ast_binop('+', ast, sub);
+  return ast_uop(AST_DEREF, t->ctype->ptr, t);
+}
+
+static Ast *read_postfix_expr(void) {
+  Ast *r = read_prim();
+  for (;;) {
+    Token *tok = read_token();
+    if (!tok)
+      return r;
+    if (is_punct(tok, '[')) {
+      r = read_subscript_expr(r);
+    } else {
+      unget_token(tok);
+      return r;
+    }
+  }
+}
+
+static Ctype *convert_array(Ctype *ctype) {
+  if (ctype->type != CTYPE_ARRAY)
+    return ctype;
+  return make_ptr_type(ctype->ptr);
+}
+
 static Ctype *result_type(char op, Ctype *a, Ctype *b) {
   jmp_buf jmpbuf;
   if (setjmp(jmpbuf) == 0)
-    return result_type_int(&jmpbuf, op, a, b);
+    return result_type_int(&jmpbuf, op, convert_array(a), convert_array(b));
   error("incompatible operands: %c: <%s> and <%s>",
         op, ctype_to_string(a), ctype_to_string(b));
 }
@@ -321,14 +358,12 @@ static void ensure_lvalue(Ast *ast) {
   }
 }
 
-static Ctype *convert_array(Ast *ast) {
-  if (ast->ctype->type != CTYPE_ARRAY)
-    return ast->ctype;
-  return make_ptr_type(ast->ctype->ptr);
-}
-
 static Ast *read_unary_expr(void) {
   Token *tok = read_token();
+  if (tok->type != TTYPE_PUNCT) {
+    unget_token(tok);
+    return read_postfix_expr();
+  }
   if (is_punct(tok, '(')) {
     Ast *r = read_expr(0);
     expect(')');
@@ -341,7 +376,7 @@ static Ast *read_unary_expr(void) {
   }
   if (is_punct(tok, '*')) {
     Ast *operand = read_unary_expr();
-    Ctype *ctype = convert_array(operand);
+    Ctype *ctype = convert_array(operand->ctype);
     if (ctype->type != CTYPE_PTR)
       error("pointer type expected, but got %s", ast_to_string(operand));
     return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
@@ -367,14 +402,7 @@ static Ast *read_expr(int prec) {
     if (is_punct(tok, '='))
       ensure_lvalue(ast);
     Ast *rest = read_expr(prec2 + (is_right_assoc(tok) ? 0 : 1));
-    Ctype *asttype = convert_array(ast);
-    Ctype *resttype = convert_array(rest);
-    Ctype *ctype = result_type(tok->punct, asttype, resttype);
-    if (!is_punct(tok, '=') &&
-        asttype->type != CTYPE_PTR &&
-        resttype->type == CTYPE_PTR)
-      swap(ast, rest);
-    ast = ast_binop(tok->punct, ctype, ast, rest);
+    ast = ast_binop(tok->punct, ast, rest);
   }
 }
 
