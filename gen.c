@@ -132,19 +132,23 @@ static void emit_assign(Ast *var, Ast *value) {
   }
 }
 
-static void emit_comp(Ast *a, Ast *b) {
+static void emit_comp(char *inst, Ast *a, Ast *b) {
   emit_expr(a);
   printf("push %%rax\n\t");
   emit_expr(b);
   printf("pop %%rcx\n\t");
   printf("cmp %%rax, %%rcx\n\t");
-  printf("setl %%al\n\t");
+  printf("%s %%al\n\t", inst);
   printf("movzb %%al, %%eax\n\t");
 }
 
 static void emit_binop(Ast *ast) {
   if (ast->type == '=') {
     emit_assign(ast->left, ast->right);
+    return;
+  }
+  if (ast->type == '@') {
+    emit_comp("sete", ast->left, ast->right);
     return;
   }
   if (ast->ctype->type == CTYPE_PTR) {
@@ -154,10 +158,10 @@ static void emit_binop(Ast *ast) {
   char *op;
   switch (ast->type) {
     case '<':
-      emit_comp(ast->left, ast->right);
+      emit_comp("setl", ast->left, ast->right);
       return;
     case '>':
-      emit_comp(ast->right, ast->left);
+      emit_comp("setg", ast->left, ast->right);
       return;
     case '+': op = "add"; break;
     case '-': op = "sub"; break;
@@ -165,12 +169,11 @@ static void emit_binop(Ast *ast) {
     case '/': break;
     default: error("invalid operator '%c'", ast->type);
   }
-  emit_expr(ast->left);
-  printf("push %%rax\n\t");
   emit_expr(ast->right);
+  printf("push %%rax\n\t");
+  emit_expr(ast->left);
   if (ast->type == '/') {
-    printf("mov %%rax, %%rcx\n\t");
-    printf("pop %%rax\n\t");
+    printf("pop %%rcx\n\t");
     printf("mov $0, %%edx\n\t");
     printf("idiv %%rcx\n\t");
   } else {
@@ -231,6 +234,8 @@ static void emit_expr(Ast *ast) {
       break;
     }
     case AST_DECL: {
+      if (!ast->declinit)
+        return;
       if (ast->declinit->type == AST_ARRAY_INIT) {
         int i = 0;
         for (Iter *iter = list_iter(ast->declinit->arrayinit); !iter_end(iter);) {
