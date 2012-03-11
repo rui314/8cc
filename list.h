@@ -17,6 +17,7 @@ typedef struct Iter {
 
 List *make_list(void);
 void list_append(List *list, void *elem);
+List *list_reverse(List *list);
 int list_len(List *list);
 Iter *list_iter(List *list);
 void *iter_next(Iter *iter);

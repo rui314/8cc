@@ -36,6 +36,12 @@ void test_list(void) {
   assert_int_equal(true, iter_end(iter));
   assert_int_equal(0, (long)iter_next(iter));
   assert_int_equal(true, iter_end(iter));
+
+  List *rev = list_reverse(list);
+  iter = list_iter(rev);
+  assert_int_equal(2, (long)iter_next(iter));
+  assert_int_equal(1, (long)iter_next(iter));
+  assert_int_equal(0, (long)iter_next(iter));
 }
 
 int main(int argc, char **argv) {

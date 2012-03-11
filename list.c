@@ -26,6 +26,23 @@ void list_append(List *list, void *elem) {
   list->len++;
 }
 
+static void list_unshift(List *list, void *elem) {
+  ListNode *node = make_node(elem);
+  node->next = list->head;
+  list->head = node;
+  if (!list->tail)
+    list->tail = node;
+  list->len++;
+}
+
+List *list_reverse(List *list) {
+  List *r = make_list();
+  for (Iter *i = list_iter(list); !iter_end(i);) {
+    list_unshift(r, iter_next(i));
+  }
+  return r;
+}
+
 int list_len(List *list) {
   return list->len;
 }

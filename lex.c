@@ -165,7 +165,7 @@ char *token_to_string(Token *tok) {
         string_appendf(s, "==");
       else
         string_appendf(s, "%c", tok);
-      break;
+      return get_cstring(s);
     case TTYPE_CHAR: {
       string_append(s, tok->c);
       return get_cstring(s);

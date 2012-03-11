@@ -1,8 +1,7 @@
-int print_board(int *board) {
+int print_board(int board[][8]) {
   for (int i = 0; i < 8; i = i + 1) {
     for (int j = 0; j < 8; j =j +1) {
-      int *v = board + i * 8 + j;
-      if (*v) {
+      if (*(*(board + i) + j)) {
         printf("Q ");
       } else {
         printf(". ");
@@ -13,22 +12,19 @@ int print_board(int *board) {
   printf("\n\n");
 }
 
-int conflict(int *board, int row, int col) {
+int conflict(int board[][8], int row, int col) {
   for (int i = 0; i < row; i = i + 1) {
-    int *v = board + i * 8 + col;
-    if (*v) {
+    if (*(*(board + i) + col)) {
       return 1;
     }
     int j = row - i;
     if (0 < col - j + 1) {
-      v = board + i * 8 + col - j;
-      if (*v) {
+      if (*(*(board + i) + col - j)) {
         return 1;
       }
     }
     if (col + j < 8) {
-      v = board + i * 8 + col + j;
-      if (*v) {
+      if (*(*(board + i) + col + j)) {
         return 1;
       }
     }
@@ -36,7 +32,7 @@ int conflict(int *board, int row, int col) {
   return 0;
 }
 
-int solve(int *board, int row) {
+int solve(int board[][8], int row) {
   if (row == 8) {
     print_board(board);
     return 0;
@@ -45,10 +41,9 @@ int solve(int *board, int row) {
     if (conflict(board, row, i)) {
       1;
     } else {
-      int *v = board + row * 8 + i;
-      *v = 1;
+      *(*(board + row) + i) = 1;
       solve(board, row + 1);
-      *v = 0;
+      *(*(board + row) + i) = 0;
     }
   }
 }
@@ -57,8 +52,7 @@ int main() {
   int board[64];
   int i;
   for (i = 0; i < 64; i = i + 1) {
-    int *v = board + i;
-    *v = 0;
+    *(board + i) = 0;
   }
   solve(board, 0);
 }
