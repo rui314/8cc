@@ -92,6 +92,21 @@ static void emit_lsave(Ctype *ctype, int loff, int off) {
   printf("mov %%%s, %d(%%rbp)\n\t", reg, -(loff + off * size));
 }
 
+static void emit_deref(Ast *var, Ast *value) {
+  emit_expr(var->operand);
+  printf("push %%rax\n\t");
+  emit_expr(value);
+  printf("pop %%rcx\n\t");
+  char *reg;
+  int size = ctype_size(var->operand->ctype);
+  switch (size) {
+    case 1: reg = "al";  break;
+    case 4: reg = "eax"; break;
+    case 8: reg = "rax"; break;
+  }
+  printf("mov %%%s, (%%rcx)\n\t", reg);
+}
+
 static void emit_pointer_arith(char op, Ast *left, Ast *right) {
   assert(left->ctype->type == CTYPE_PTR);
   emit_expr(left);
@@ -112,6 +127,7 @@ static void emit_assign(Ast *var, Ast *value) {
     case AST_LREF: emit_lsave(var->lref->ctype, var->lref->loff, var->loff); break;
     case AST_GVAR: emit_gsave(var, 0); break;
     case AST_GREF: emit_gsave(var->gref, var->goff); break;
+    case AST_DEREF: emit_deref(var, value); break;
     default: error("internal error");
   }
 }

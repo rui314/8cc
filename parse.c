@@ -283,6 +283,8 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
   if (a->type > b->type)
     swap(a, b);
   if (b->type == CTYPE_PTR) {
+    if (op == '=')
+      return a;
     if (op != '+' && op != '-')
       goto err;
     if (a->type != CTYPE_INT)
@@ -324,6 +326,7 @@ static void ensure_lvalue(Ast *ast) {
   switch (ast->type) {
     case AST_LVAR: case AST_LREF:
     case AST_GVAR: case AST_GREF:
+    case AST_DEREF:
       return;
     default:
       error("lvalue expected, but got %s", ast_to_string(ast));

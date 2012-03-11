@@ -117,6 +117,7 @@ test 61 'int a=61;int *b=&a;*b;'
 test 97 'char *c="ab";*c;'
 test 98 'char *c="ab"+1;*c;'
 test 122 'char s[]="xyz";char *c=s+2;*c;'
+test 65 'char s[]="xyz";*s=65;*s;'
 
 # If statement
 test 'a1' 'if(1){printf("a");}1;'
@@ -137,6 +138,7 @@ testf 79 'int g(int a){a;} int f(){g(79);}'
 testf 21 'int g(int a,int b,int c,int d,int e,int f){a+b+c+d+e+f;} int f(){g(1,2,3,4,5,6);}'
 testf 79 'int g(int a){a;} int f(){g(79);}'
 testf 98 'int g(int *p){*p;} int f(){int a[]={98};g(a);}'
+testf '99 98 97 1' 'int g(int *p){printf("%d ",*p);p=p+1;printf("%d ",*p);p=p+1;printf("%d ",*p);1;} int f(){int a[]={1,2,3};int *p=a;*p=99;p=p+1;*p=98;p=p+1;*p=97;g(a);}'
 
 testfail '0abc;'
 testfail '1+;'
