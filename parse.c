@@ -167,6 +167,14 @@ static Ast *ast_for(Ast *init, Ast *cond, Ast *step, List *body) {
   return r;
 }
 
+static Ast *ast_return(Ast *retval) {
+  Ast *r = malloc(sizeof(Ast));
+  r->type = AST_RETURN;
+  r->ctype = NULL;
+  r->retval = retval;
+  return r;
+}
+
 static Ctype* make_ptr_type(Ctype *ctype) {
   Ctype *r = malloc(sizeof(Ctype));
   r->type = CTYPE_PTR;
@@ -530,12 +538,21 @@ static Ast *read_for_stmt(void) {
   return ast_for(init, cond, step, body);
 }
 
+static Ast *read_return_stmt(void) {
+  Ast *retval = read_expr(0);
+  expect(';');
+  return ast_return(retval);
+}
+
+static bool is_ident(Token *tok, char *s) {
+  return tok->type == TTYPE_IDENT && !strcmp(tok->sval, s);
+}
+
 static Ast *read_stmt(void) {
   Token *tok = read_token();
-  if (tok->type == TTYPE_IDENT && !strcmp(tok->sval, "if"))
-    return read_if_stmt();
-  if (tok->type == TTYPE_IDENT && !strcmp(tok->sval, "for"))
-    return read_for_stmt();
+  if (is_ident(tok, "if"))     return read_if_stmt();
+  if (is_ident(tok, "for"))    return read_for_stmt();
+  if (is_ident(tok, "return")) return read_return_stmt();
   unget_token(tok);
   Ast *r = read_expr(0);
   expect(';');
@@ -729,6 +746,9 @@ static void ast_to_string_int(Ast *ast, String *buf) {
                      ast_to_string(ast->forcond),
                      ast_to_string(ast->forstep));
       string_appendf(buf, "%s)", block_to_string(ast->forbody));
+      break;
+    case AST_RETURN:
+      string_appendf(buf, "(return %s)", ast_to_string(ast->retval));
       break;
     default: {
       char *left = ast_to_string(ast->left);

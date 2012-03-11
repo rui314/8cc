@@ -44,6 +44,7 @@ enum {
   AST_DEREF,
   AST_IF,
   AST_FOR,
+  AST_RETURN,
 };
 
 enum {
@@ -134,6 +135,8 @@ typedef struct Ast {
       struct Ast *forstep;
       struct List *forbody;
     };
+    // Return statement
+    struct Ast *retval;
   };
 } Ast;
 

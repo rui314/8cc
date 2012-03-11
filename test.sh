@@ -78,6 +78,7 @@ testast '(int)f(){"abcd";}' '"abcd";'
 testast "(int)f(){'c';}" "'c';"
 testast '(int)f(){(int)a();}' 'a();'
 testast '(int)f(){(int)a(1,2,3,4,5,6);}' 'a(1,2,3,4,5,6);'
+testast '(int)f(){(return 1);}' 'return 1;'
 
 testastf '(int)f(int c){c;}' 'int f(int c){c;}'
 testastf '(int)f(int c){c;}(int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'
@@ -125,6 +126,9 @@ test 'y1' 'if(0){printf("x");}else{printf("y");}1;'
 
 # For statement
 test 012340 'for(int i=0; i<5; i=i+1){printf("%d",i);}0;'
+
+# Return statement
+test 33 'return 33; return 10;'
 
 # Function parameter
 testf '102' 'int f(int n){n;}'

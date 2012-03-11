@@ -116,7 +116,7 @@ static void emit_assign(Ast *var, Ast *value) {
   }
 }
 
-static emit_comp(Ast *a, Ast *b) {
+static void emit_comp(Ast *a, Ast *b) {
   emit_expr(a);
   printf("push %%rax\n\t");
   emit_expr(b);
@@ -291,6 +291,11 @@ static void emit_expr(Ast *ast) {
       printf("%s:\n\t", end);
       break;
     }
+    case AST_RETURN:
+      emit_expr(ast->retval);
+      printf("leave\n\t"
+             "ret\n");
+      break;
     default:
       emit_binop(ast);
   }
