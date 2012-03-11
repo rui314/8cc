@@ -116,6 +116,16 @@ static void emit_assign(Ast *var, Ast *value) {
   }
 }
 
+static emit_comp(Ast *a, Ast *b) {
+  emit_expr(a);
+  printf("push %%rax\n\t");
+  emit_expr(b);
+  printf("pop %%rcx\n\t");
+  printf("cmp %%rax, %%rcx\n\t");
+  printf("setl %%al\n\t");
+  printf("movzb %%al, %%eax\n\t");
+}
+
 static void emit_binop(Ast *ast) {
   if (ast->type == '=') {
     emit_assign(ast->left, ast->right);
@@ -127,6 +137,12 @@ static void emit_binop(Ast *ast) {
   }
   char *op;
   switch (ast->type) {
+    case '<':
+      emit_comp(ast->left, ast->right);
+      return;
+    case '>':
+      emit_comp(ast->right, ast->left);
+      return;
     case '+': op = "add"; break;
     case '-': op = "sub"; break;
     case '*': op = "imul"; break;
@@ -242,19 +258,37 @@ static void emit_expr(Ast *ast) {
     }
     case AST_IF: {
       emit_expr(ast->cond);
-      char *l1 = make_label();
+      char *ne = make_label();
       printf("test %%rax, %%rax\n\t");
-      printf("je %s\n\t", l1);
+      printf("je %s\n\t", ne);
       emit_block(ast->then);
       if (ast->els) {
-        char *l2 = make_label();
-        printf("jmp %s\n\t", l2);
-        printf("%s:\n\t", l1);
+        char *end = make_label();
+        printf("jmp %s\n\t", end);
+        printf("%s:\n\t", ne);
         emit_block(ast->els);
-        printf("%s:\n\t", l2);
+        printf("%s:\n\t", end);
       } else {
-        printf("%s:\n\t", l1);
+        printf("%s:\n\t", ne);
       }
+      break;
+    }
+    case AST_FOR: {
+      if (ast->forinit)
+        emit_expr(ast->forinit);
+      char *begin = make_label();
+      char *end = make_label();
+      printf("%s:\n\t", begin);
+      if (ast->forcond) {
+        emit_expr(ast->forcond);
+        printf("test %%rax, %%rax\n\t");
+        printf("je %s\n\t", end);
+      }
+      emit_block(ast->forbody);
+      if (ast->forstep)
+        emit_expr(ast->forstep);
+      printf("jmp %s\n\t", begin);
+      printf("%s:\n\t", end);
       break;
     }
     default:

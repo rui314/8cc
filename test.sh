@@ -73,6 +73,7 @@ testast '(int)f(){(decl int a 3);(* (& a));}' 'int a=3;*&a;'
 testast '(int)f(){(decl int a 3);(decl int* b (& a));(* b);}' 'int a=3;int *b=&a;*b;'
 testast '(int)f(){(if 1 {2;});}' 'if(1){2;}'
 testast '(int)f(){(if 1 {2;} {3;});}' 'if(1){2;}else{3;}'
+testast '(int)f(){(for (decl int a 1) 3 7 {5;});}' 'for(int a=1;3;7){5;}'
 testast '(int)f(){"abcd";}' '"abcd";'
 testast "(int)f(){'c';}" "'c';"
 testast '(int)f(){(int)a();}' 'a();'
@@ -92,6 +93,10 @@ test 4 '4/2+6/3;'
 test 4 '24/2/3;'
 test 98 "'a'+1;"
 test 2 '1;2;'
+
+# Comparison
+test 1 '1<2;'
+test 0 '2<1;'
 
 # Declaration
 test 3 'int a=1;a+2;'
@@ -117,6 +122,9 @@ test 'a1' 'if(1){printf("a");}1;'
 test '1' 'if(0){printf("a");}1;'
 test 'x1' 'if(1){printf("x");}else{printf("y");}1;'
 test 'y1' 'if(0){printf("x");}else{printf("y");}1;'
+
+# For statement
+test 012340 'for(int i=0; i<5; i=i+1){printf("%d",i);}0;'
 
 # Function parameter
 testf '102' 'int f(int n){n;}'
