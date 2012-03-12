@@ -5,8 +5,8 @@ int print_board(int board[][8]) {
         printf("Q ");
       else
         printf(". ");
-      printf("\n");
     }
+    printf("\n");
   }
   printf("\n\n");
 }

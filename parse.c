@@ -80,7 +80,6 @@ static Ast *ast_lvar(Ctype *ctype, char *name) {
   return r;
 }
 
-static Ast *ast_gvar(Ctype *ctype, char *name, bool filelocal) __attribute__((unused));
 static Ast *ast_gvar(Ctype *ctype, char *name, bool filelocal) {
   Ast *r = malloc(sizeof(Ast));
   r->type = AST_GVAR;
@@ -475,22 +474,30 @@ static Ctype *read_decl_spec(void) {
   }
 }
 
-static Ast *read_decl_array_init(Ast *var) {
-  Ast *init;
+static void check_intexp(Ast *ast) {
+  if (ast->type != AST_LITERAL || ast->ctype->type != CTYPE_INT)
+    error("Integer expected, but got %s", ast_to_string(ast));
+}
+
+static Ast *read_decl_init_val(Ast *var) {
   if (var->ctype->type == CTYPE_ARRAY) {
-    init = read_decl_array_init_int(var->ctype);
+    Ast *init = read_decl_array_init_int(var->ctype);
     int len = (init->type == AST_STRING)
         ? strlen(init->sval) + 1
         : list_len(init->arrayinit);
     if (var->ctype->size == -1) {
       var->ctype->size = len;
-    } else if (var->ctype->size != len)
+    } else if (var->ctype->size != len) {
       error("Invalid array initializer: expected %d items but got %d",
             var->ctype->size, len);
-  } else {
-    init = read_expr(0);
+    }
+    expect(';');
+    return ast_decl(var, init);
   }
+  Ast *init = read_expr(0);
   expect(';');
+  if (var->type == AST_GVAR)
+    check_intexp(init);
   return ast_decl(var, init);
 }
 
@@ -504,8 +511,7 @@ static Ctype *read_array_dimensions_int(void) {
   tok = peek_token();
   if (!is_punct(tok, ']')) {
     Ast *size = read_expr(0);
-    if (size->type != AST_LITERAL || size->ctype->type != CTYPE_INT)
-      error("Integer expected, but got %s", ast_to_string(size));
+    check_intexp(size);
     dim = size->ival;
   }
   expect(']');
@@ -528,6 +534,15 @@ static Ctype *read_array_dimensions(Ctype *basetype) {
   return ctype;
 }
 
+static Ast *read_decl_init(Ast *var) {
+  Token *tok = read_token();
+  if (is_punct(tok, '='))
+    return read_decl_init_val(var);
+  unget_token(tok);
+  expect(';');
+  return ast_decl(var, NULL);
+}
+
 static Ast *read_decl(void) {
   Ctype *ctype = read_decl_spec();
   Token *varname = read_token();
@@ -535,12 +550,7 @@ static Ast *read_decl(void) {
     error("Identifier expected, but got %s", token_to_string(varname));
   ctype = read_array_dimensions(ctype);
   Ast *var = ast_lvar(ctype, varname->sval);
-  Token *tok = read_token();
-  if (is_punct(tok, '='))
-    return read_decl_array_init(var);
-  unget_token(tok);
-  expect(';');
-  return ast_decl(var, NULL);
+  return read_decl_init(var);
 }
 
 static Ast *read_if_stmt(void) {
@@ -651,29 +661,46 @@ static List *read_params(void) {
   }
 }
 
-static Ast *read_func_decl(void) {
-  Token *tok = peek_token();
-  if (!tok) return NULL;
-  void *rettype = read_decl_spec();
-  Token *fname = read_token();
-  if (fname->type != TTYPE_IDENT)
-    error("Function name expected, but got %s", token_to_string(fname));
+static Ast *read_func_def(Ctype *rettype, char *fname) {
   expect('(');
   fparams = read_params();
   expect('{');
   locals = make_list();
   Ast *body = read_compound_stmt();
-  Ast *r = ast_func(rettype, fname->sval, fparams, body, locals);
+  Ast *r = ast_func(rettype, fname, fparams, body, locals);
   fparams = locals = NULL;
   return r;
+}
+
+static Ast *read_decl_or_func_def(void) {
+  Token *tok = peek_token();
+  if (!tok) return NULL;
+  Ctype *ctype = read_decl_spec();
+  Token *name = read_token();
+  if (name->type != TTYPE_IDENT)
+    error("Identifier expected, but got %s", token_to_string(name));
+  ctype = read_array_dimensions(ctype);
+  tok = peek_token();
+  if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
+    Ast *var = ast_gvar(ctype, name->sval, false);
+    return read_decl_init(var);
+  }
+  if (is_punct(tok, '('))
+    return read_func_def(ctype, name->sval);
+  if (is_punct(tok, ';')) {
+    read_token();
+    Ast *var = ast_gvar(ctype, name->sval, false);
+    return ast_decl(var, NULL);
+  }
+  error("Don't know how to handle %s", token_to_string(tok));
 }
 
 List *read_func_list(void) {
   List *r = make_list();
   for (;;) {
-    Ast *func = read_func_decl();
-    if (!func) return r;
-    list_append(r, func);
+    Ast *ast = read_decl_or_func_def();
+    if (!ast) return r;
+    list_append(r, ast);
   }
 }
 

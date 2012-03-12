@@ -161,7 +161,7 @@ extern char *make_label(void);
 extern List *read_func_list(void);
 
 extern void emit_data_section(void);
-extern void emit_func(Ast *func);
+extern void emit_toplevel(Ast *v);
 
 extern List *globals;
 extern List *locals;

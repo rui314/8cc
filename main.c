@@ -8,11 +8,11 @@ int main(int argc, char **argv) {
   if (!wantast)
     emit_data_section();
   for (Iter *i = list_iter(funcs); !iter_end(i);) {
-    Ast *func = iter_next(i);
+    Ast *v = iter_next(i);
     if (wantast)
-      printf("%s", ast_to_string(func));
+      printf("%s", ast_to_string(v));
     else
-      emit_func(func);
+      emit_toplevel(v);
   }
   return 0;
 }

@@ -91,6 +91,7 @@ testast '(int)f(){(! 1);}' '!1;'
 
 testastf '(int)f(int c){c;}' 'int f(int c){c;}'
 testastf '(int)f(int c){c;}(int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'
+testastf '(decl int a 3)' 'int a=3;'
 
 # Basic arithmetic
 test 0 '0;'
@@ -165,6 +166,12 @@ test 14 'int a=15;a--;a;'
 # Boolean operators
 test 0 '!1;'
 test 1 '!0;'
+
+# Global variable
+testf 21 'int a=21;int f(){a;}'
+testf 22 'int a;int f(){a=22;a;}'
+testf 23 'int a[3];int f(){a[1]=23;a[1];}'
+testf 25 'int a[3]={24,25,26};int f(){a[1];}'
 
 # Function parameter
 testf '102' 'int f(int n){n;}'
