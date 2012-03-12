@@ -43,6 +43,7 @@ enum {
   AST_IF,
   AST_FOR,
   AST_RETURN,
+  AST_COMPOUND_STMT,
   PUNCT_EQ,
   PUNCT_INC,
   PUNCT_DEC,
@@ -112,7 +113,7 @@ typedef struct Ast {
         struct {
           struct List *params;
           struct List *locals;
-          struct List *body;
+          struct Ast *body;
         };
       };
     };
@@ -126,18 +127,20 @@ typedef struct Ast {
     // If statement
     struct {
       struct Ast *cond;
-      struct List *then;
-      struct List *els;
+      struct Ast *then;
+      struct Ast *els;
     };
     // For statement
     struct {
       struct Ast *forinit;
       struct Ast *forcond;
       struct Ast *forstep;
-      struct List *forbody;
+      struct Ast *forbody;
     };
     // Return statement
     struct Ast *retval;
+    // Compound statement
+    struct List *stmts;
   };
 } Ast;
 

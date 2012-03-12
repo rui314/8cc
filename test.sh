@@ -145,6 +145,10 @@ test 'a1' 'if(1){printf("a");}1;'
 test '1' 'if(0){printf("a");}1;'
 test 'x1' 'if(1){printf("x");}else{printf("y");}1;'
 test 'y1' 'if(0){printf("x");}else{printf("y");}1;'
+test 'a1' 'if(1)printf("a");1;'
+test '1' 'if(0)printf("a");1;'
+test 'x1' 'if(1)printf("x");else printf("y");1;'
+test 'y1' 'if(0)printf("x");else printf("y");1;'
 
 # For statement
 test 012340 'for(int i=0; i<5; i=i+1){printf("%d",i);}0;'
