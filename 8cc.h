@@ -76,25 +76,13 @@ typedef struct Ast {
       char *sval;
       char *slabel;
     };
-    // Local variable
+    // Local/global variable
     struct {
-      char *lname;
-      int loff;
-    };
-    // Global variable
-    struct {
-      char *gname;
-      char *glabel;
-    };
-    // Local reference
-    struct {
-      struct Ast *lref;
-      int lrefoff;
-    };
-    // Global reference
-    struct {
-      struct Ast *gref;
-      int goff;
+      char *varname;
+      struct {
+        int loff;
+        char *glabel;
+      };
     };
     // Binary operator
     struct {
@@ -112,7 +100,7 @@ typedef struct Ast {
         struct List *args;
         struct {
           struct List *params;
-          struct List *locals;
+          struct List *localvars;
           struct Ast *body;
         };
       };
@@ -144,6 +132,14 @@ typedef struct Ast {
   };
 } Ast;
 
+typedef struct Env {
+  List *vars;
+  struct Env *next;
+} Env;
+
+#define EMPTY_ENV                               \
+  (((Env){ .vars = &EMPTY_LIST, .next = NULL }))
+
 extern String *make_string(void);
 extern char *get_cstring(String *s);
 extern void string_append(String *s, char c);
@@ -163,9 +159,6 @@ extern List *read_func_list(void);
 extern void emit_data_section(void);
 extern void emit_toplevel(Ast *v);
 
-extern List *globals;
-extern List *locals;
-extern Ctype *ctype_int;
-extern Ctype *ctype_char;
+extern Env *globalenv;
 
 #endif /* ECC_H */

@@ -24,4 +24,4 @@ void *iter_next(Iter *iter);
 bool iter_end(Iter *iter);
 
 #define EMPTY_LIST                                      \
-  (&(List){ .len = 0, .head = NULL, .tail = NULL })
+  ((List){ .len = 0, .head = NULL, .tail = NULL })
