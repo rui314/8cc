@@ -328,6 +328,12 @@ static void emit_expr(Ast *ast) {
     case PUNCT_DEC:
       emit_inc_dec(ast, "sub");
       break;
+    case '!':
+      emit_expr(ast->operand);
+      emit("cmp $0, %%rax");
+      emit("sete %%al");
+      emit("movzb %%al, %%eax");
+      break;
     default:
       emit_binop(ast);
   }

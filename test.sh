@@ -87,6 +87,7 @@ testast '(int)f(){(== 1 2);}' '1==2;'
 testast '(int)f(){(* (+ 1 2));}' '1[2];'
 testast '(int)f(){(decl int a 1);(++ a);}' 'int a=1;a++;'
 testast '(int)f(){(decl int a 1);(-- a);}' 'int a=1;a--;'
+testast '(int)f(){(! 1);}' '!1;'
 
 testastf '(int)f(int c){c;}' 'int f(int c){c;}'
 testastf '(int)f(int c){c;}(int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'
@@ -157,6 +158,9 @@ test 16 'int a=15;a++;a;'
 test 15 'int a=15;a--;'
 test 14 'int a=15;a--;a;'
 
+# Boolean operators
+test 0 '!1;'
+test 1 '!0;'
 
 # Function parameter
 testf '102' 'int f(int n){n;}'

@@ -377,6 +377,10 @@ static Ast *read_unary_expr(void) {
     ensure_lvalue(operand);
     return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
   }
+  if (is_punct(tok, '!')) {
+    Ast *operand = read_unary_expr();
+    return ast_uop('!', ctype_int, operand);
+  }
   if (is_punct(tok, '*')) {
     Ast *operand = read_unary_expr();
     Ctype *ctype = convert_array(operand->ctype);
@@ -791,6 +795,9 @@ static void ast_to_string_int(Ast *ast, String *buf) {
       break;
     case PUNCT_DEC:
       string_appendf(buf, "(-- %s)", ast_to_string(ast->operand));
+      break;
+    case '!':
+      string_appendf(buf, "(! %s)", ast_to_string(ast->operand));
       break;
     default: {
       char *left = ast_to_string(ast->left);
