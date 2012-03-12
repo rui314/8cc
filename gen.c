@@ -104,19 +104,18 @@ static void emit_lsave(Ctype *ctype, int loff, int off) {
   emit("mov %%%s, %d(%%rbp)", reg, -(loff + off * size));
 }
 
-static void emit_assign_deref(Ast *var, Ast *value) {
-  emit_expr(var->operand);
+static void emit_assign_deref(Ast *var) {
   emit("push %%rax");
-  emit_expr(value);
+  emit_expr(var->operand);
   emit("pop %%rcx");
   char *reg;
   int size = ctype_size(var->operand->ctype);
   switch (size) {
-    case 1: reg = "al";  break;
-    case 4: reg = "eax"; break;
-    case 8: reg = "rax"; break;
+    case 1: reg = "cl";  break;
+    case 4: reg = "ecx"; break;
+    case 8: reg = "rcx"; break;
   }
-  emit("mov %%%s, (%%rcx)", reg);
+  emit("mov %%%s, (%%rax)", reg);
 }
 
 static void emit_pointer_arith(char op, Ast *left, Ast *right) {
@@ -131,12 +130,11 @@ static void emit_pointer_arith(char op, Ast *left, Ast *right) {
   emit("add %%rcx, %%rax");
 }
 
-static void emit_assign(Ast *var, Ast *value) {
+static void emit_assign(Ast *var) {
   if (var->type == AST_DEREF) {
-    emit_assign_deref(var, value);
+    emit_assign_deref(var);
     return;
   }
-  emit_expr(value);
   switch (var->type) {
     case AST_LVAR: emit_lsave(var->ctype, var->loff, 0); break;
     case AST_GVAR: emit_gsave(var); break;
@@ -156,10 +154,11 @@ static void emit_comp(char *inst, Ast *a, Ast *b) {
 
 static void emit_binop(Ast *ast) {
   if (ast->type == '=') {
-    emit_assign(ast->left, ast->right);
+    emit_expr(ast->right);
+    emit_assign(ast->left);
     return;
   }
-  if (ast->type == '@') {
+  if (ast->type == PUNCT_EQ) {
     emit_comp("sete", ast->left, ast->right);
     return;
   }
@@ -179,7 +178,7 @@ static void emit_binop(Ast *ast) {
     case '-': op = "sub"; break;
     case '*': op = "imul"; break;
     case '/': break;
-    default: error("invalid operator '%c'", ast->type);
+    default: error("invalid operator '%d'", ast->type);
   }
   emit_expr(ast->right);
   emit("push %%rax");
@@ -192,6 +191,14 @@ static void emit_binop(Ast *ast) {
     emit("pop %%rcx");
     emit("%s %%rcx, %%rax", op);
   }
+}
+
+static void emit_inc_dec(Ast *ast, char *op) {
+  emit_expr(ast->operand);
+  emit("push %%rax");
+  emit("%s $1, %%rax", op);
+  emit_assign(ast->operand);
+  emit("pop %%rax");
 }
 
 static void emit_expr(Ast *ast) {
@@ -314,6 +321,12 @@ static void emit_expr(Ast *ast) {
       emit_expr(ast->retval);
       emit("leave");
       emit("ret");
+      break;
+    case PUNCT_INC:
+      emit_inc_dec(ast, "add");
+      break;
+    case PUNCT_DEC:
+      emit_inc_dec(ast, "sub");
       break;
     default:
       emit_binop(ast);

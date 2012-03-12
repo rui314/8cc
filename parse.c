@@ -23,7 +23,7 @@ static Ast *read_decl_or_stmt(void);
 static Ctype *result_type(char op, Ctype *a, Ctype *b);
 static Ctype *convert_array(Ctype *ctype);
 
-static Ast *ast_uop(char type, Ctype *ctype, Ast *operand) {
+static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
   Ast *r = malloc(sizeof(Ast));
   r->type = type;
   r->ctype = ctype;
@@ -31,7 +31,7 @@ static Ast *ast_uop(char type, Ctype *ctype, Ast *operand) {
   return r;
 }
 
-static Ast *ast_binop(char type, Ast *left, Ast *right) {
+static Ast *ast_binop(int type, Ast *left, Ast *right) {
   Ast *r = malloc(sizeof(Ast));
   r->type = type;
   r->ctype = result_type(type, left->ctype, right->ctype);
@@ -198,6 +198,15 @@ static Ast *find_var(char *name) {
   return find_var_sub(globals, name);
 }
 
+static void ensure_lvalue(Ast *ast) {
+  switch (ast->type) {
+    case AST_LVAR: case AST_GVAR: case AST_DEREF:
+      return;
+    default:
+      error("lvalue expected, but got %s", ast_to_string(ast));
+  }
+}
+
 static void expect(char punct) {
   Token *tok = read_token();
   if (!is_punct(tok, punct))
@@ -212,7 +221,7 @@ static int priority(Token *tok) {
   switch (tok->punct) {
     case '=':
       return 1;
-    case '@':
+    case PUNCT_EQ:
       return 2;
     case '<': case '>':
       return 3;
@@ -328,6 +337,9 @@ static Ast *read_postfix_expr(void) {
       return r;
     if (is_punct(tok, '[')) {
       r = read_subscript_expr(r);
+    } else if (is_punct(tok, PUNCT_INC) || is_punct(tok, PUNCT_DEC)) {
+      ensure_lvalue(r);
+      r = ast_uop(tok->punct, r->ctype, r);
     } else {
       unget_token(tok);
       return r;
@@ -347,15 +359,6 @@ static Ctype *result_type(char op, Ctype *a, Ctype *b) {
     return result_type_int(&jmpbuf, op, convert_array(a), convert_array(b));
   error("incompatible operands: %c: <%s> and <%s>",
         op, ctype_to_string(a), ctype_to_string(b));
-}
-
-static void ensure_lvalue(Ast *ast) {
-  switch (ast->type) {
-    case AST_LVAR: case AST_GVAR: case AST_DEREF:
-      return;
-    default:
-      error("lvalue expected, but got %s", ast_to_string(ast));
-  }
 }
 
 static Ast *read_unary_expr(void) {
@@ -783,10 +786,16 @@ static void ast_to_string_int(Ast *ast, String *buf) {
     case AST_RETURN:
       string_appendf(buf, "(return %s)", ast_to_string(ast->retval));
       break;
+    case PUNCT_INC:
+      string_appendf(buf, "(++ %s)", ast_to_string(ast->operand));
+      break;
+    case PUNCT_DEC:
+      string_appendf(buf, "(-- %s)", ast_to_string(ast->operand));
+      break;
     default: {
       char *left = ast_to_string(ast->left);
       char *right = ast_to_string(ast->right);
-      if (ast->type == '@')
+      if (ast->type == PUNCT_EQ)
         string_appendf(buf, "(== ");
       else
         string_appendf(buf, "(%c ", ast->type);

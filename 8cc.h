@@ -18,7 +18,7 @@ typedef struct {
   union {
     int ival;
     char *sval;
-    char punct;
+    int punct;
     char c;
   };
 } Token;
@@ -30,7 +30,7 @@ typedef struct {
 } String;
 
 enum {
-  AST_LITERAL,
+  AST_LITERAL = 256,
   AST_STRING,
   AST_LVAR,
   AST_GVAR,
@@ -43,6 +43,9 @@ enum {
   AST_IF,
   AST_FOR,
   AST_RETURN,
+  PUNCT_EQ,
+  PUNCT_INC,
+  PUNCT_DEC,
 };
 
 enum {
@@ -60,7 +63,7 @@ typedef struct Ctype {
 } Ctype;
 
 typedef struct Ast {
-  char type;
+  int type;
   Ctype *ctype;
   union {
     // Integer
@@ -144,7 +147,7 @@ extern void string_append(String *s, char c);
 extern void string_appendf(String *s, char *fmt, ...);
 
 extern char *token_to_string(Token *tok);
-extern bool is_punct(Token *tok, char c);
+extern bool is_punct(Token *tok, int c);
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
 extern Token *read_token(void);
