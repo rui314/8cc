@@ -12,12 +12,10 @@ int conflict(int board[][8], int row, int col) {
     if (board[i][col])
       return 1;
     int j = row - i;
-    if (0 < col - j + 1)
-      if (board[i][col - j])
-        return 1;
-    if (col + j < 8)
-      if (board[i][col + j])
-        return 1;
+    if (0 < col - j + 1 && board[i][col - j])
+      return 1;
+    if (col + j < 8 && board[i][col + j])
+      return 1;
   }
   return 0;
 }

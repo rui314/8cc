@@ -334,6 +334,34 @@ static void emit_expr(Ast *ast) {
       emit("sete %%al");
       emit("movzb %%al, %%eax");
       break;
+    case PUNCT_LOGAND: {
+      char *end = make_label();
+      emit_expr(ast->left);
+      emit("test %%rax, %%rax");
+      emit("mov $0, %%rax");
+      emit("je %s", end);
+      emit_expr(ast->right);
+      emit("test %%rax, %%rax");
+      emit("mov $0, %%rax");
+      emit("je %s", end);
+      emit("mov $1, %%rax");
+      emit("%s:", end);
+      break;
+    }
+    case PUNCT_LOGOR: {
+      char *end = make_label();
+      emit_expr(ast->left);
+      emit("test %%rax, %%rax");
+      emit("mov $1, %%rax");
+      emit("jne %s", end);
+      emit_expr(ast->right);
+      emit("test %%rax, %%rax");
+      emit("mov $1, %%rax");
+      emit("jne %s", end);
+      emit("mov $0, %%rax");
+      emit("%s:", end);
+      break;
+    }
     default:
       emit_binop(ast);
   }

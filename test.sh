@@ -89,6 +89,8 @@ testast '(int)f(){(decl int a 1);(++ a);}' 'int a=1;a++;'
 testast '(int)f(){(decl int a 1);(-- a);}' 'int a=1;a--;'
 testast '(int)f(){(! 1);}' '!1;'
 testast '(int)f(){(? 1 2 3);}' '1?2:3;'
+testast '(int)f(){(and 1 2);}' '1&&2;'
+testast '(int)f(){(or 1 2);}' '1||2;'
 
 testastf '(int)f(int c){c;}' 'int f(int c){c;}'
 testastf '(int)f(int c){c;}(int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'
@@ -191,6 +193,11 @@ testf '99 98 97 1' 'int g(int *p){printf("%d ",*p);p=p+1;printf("%d ",*p);p=p+1;
 # Ternary operator
 test 51 '(1+2)?51:52;'
 test 52 '(1-1)?51:52;'
+
+# Logical operators
+test 1 '55 && 2;'
+test 0 '55 && 0;'
+test 0 '0 && 55;'
 
 testfail '0abc;'
 testfail '1+;'

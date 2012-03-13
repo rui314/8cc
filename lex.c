@@ -130,10 +130,6 @@ static Token *read_token_int(void) {
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
       return read_number(c);
-    case '"':
-      return read_string();
-    case '\'':
-      return read_char();
     case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
     case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
     case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
@@ -143,16 +139,17 @@ static Token *read_token_int(void) {
     case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': case 'W':
     case 'X': case 'Y': case 'Z': case '_':
       return read_ident(c);
-    case '=':
-      return read_rep('=', '=', PUNCT_EQ);
-    case '+':
-      return read_rep('+', '+', PUNCT_INC);
-    case '-':
-      return read_rep('-', '-', PUNCT_DEC);
-    case '/': case '*': case '(': case ')': case ',': case ';': case '&':
+    case '/': case '*': case '(': case ')': case ',': case ';':
     case '[': case ']': case '{': case '}': case '<': case '>': case '!':
     case '?': case ':':
       return make_punct(c);
+    case '=': return read_rep('=', '=', PUNCT_EQ);
+    case '+': return read_rep('+', '+', PUNCT_INC);
+    case '-': return read_rep('-', '-', PUNCT_DEC);
+    case '&': return read_rep('&', '&', PUNCT_LOGAND);
+    case '|': return read_rep('|', '|', PUNCT_LOGOR);
+    case '"': return read_string();
+    case '\'': return read_char();
     case EOF:
       return NULL;
     default:
@@ -171,7 +168,7 @@ char *token_to_string(Token *tok) {
       if (is_punct(tok, PUNCT_EQ))
         string_appendf(s, "==");
       else
-        string_appendf(s, "%c", tok);
+        string_appendf(s, "%c", tok->c);
       return get_cstring(s);
     case TTYPE_CHAR: {
       string_append(s, tok->c);
