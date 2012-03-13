@@ -157,7 +157,7 @@ extern char *ast_to_string(Ast *ast);
 extern char *ctype_to_string(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);
-extern List *read_func_list(void);
+extern List *read_toplevels(void);
 
 extern void emit_data_section(void);
 extern void emit_toplevel(Ast *v);
