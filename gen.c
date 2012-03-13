@@ -334,6 +334,20 @@ static void emit_expr(Ast *ast) {
       emit("sete %%al");
       emit("movzb %%al, %%eax");
       break;
+    case '&':
+      emit_expr(ast->left);
+      emit("push %%rax");
+      emit_expr(ast->right);
+      emit("pop %%rcx");
+      emit("and %%rcx, %%rax");
+      break;
+    case '|':
+      emit_expr(ast->left);
+      emit("push %%rax");
+      emit_expr(ast->right);
+      emit("pop %%rcx");
+      emit("or %%rcx, %%rax");
+      break;
     case PUNCT_LOGAND: {
       char *end = make_label();
       emit_expr(ast->left);
