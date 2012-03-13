@@ -88,6 +88,7 @@ testast '(int)f(){(* (+ 1 2));}' '1[2];'
 testast '(int)f(){(decl int a 1);(++ a);}' 'int a=1;a++;'
 testast '(int)f(){(decl int a 1);(-- a);}' 'int a=1;a--;'
 testast '(int)f(){(! 1);}' '!1;'
+testast '(int)f(){(? 1 2 3);}' '1?2:3;'
 
 testastf '(int)f(int c){c;}' 'int f(int c){c;}'
 testastf '(int)f(int c){c;}(int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'
@@ -186,6 +187,10 @@ testf 79 'int g(int a){a;} int f(){g(79);}'
 testf 98 'int g(int *p){*p;} int f(){int a[]={98};g(a);}'
 testf '99 98 97 1' 'int g(int *p){printf("%d ",*p);p=p+1;printf("%d ",*p);p=p+1;printf("%d ",*p);1;} int f(){int a[]={1,2,3};int *p=a;*p=99;p=p+1;*p=98;p=p+1;*p=97;g(a);}'
 testf '99 98 97 1' 'int g(int *p){printf("%d ",*p);p=p+1;printf("%d ",*p);p=p+1;printf("%d ",*p);1;} int f(){int a[3];int *p=a;*p=99;p=p+1;*p=98;p=p+1;*p=97;g(a);}'
+
+# Ternary operator
+test 51 '(1+2)?51:52;'
+test 52 '(1-1)?51:52;'
 
 testfail '0abc;'
 testfail '1+;'

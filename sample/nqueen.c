@@ -1,11 +1,7 @@
 int print_board(int board[][8]) {
   for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j++) {
-      if (board[i][j])
-        printf("Q ");
-      else
-        printf(". ");
-    }
+    for (int j = 0; j < 8; j++)
+      printf(board[i][j] ? "Q " : ". ");
     printf("\n");
   }
   printf("\n\n");

@@ -160,6 +160,16 @@ static Ast *ast_if(Ast *cond, Ast *then, Ast *els) {
   return r;
 }
 
+static Ast *ast_ternary(Ctype *ctype, Ast *cond, Ast *then, Ast *els) {
+  Ast *r = malloc(sizeof(Ast));
+  r->type = AST_TERNARY;
+  r->ctype = ctype;
+  r->cond = cond;
+  r->then = then;
+  r->els = els;
+  return r;
+}
+
 static Ast *ast_for(Ast *init, Ast *cond, Ast *step, Ast *body) {
   Ast *r = malloc(sizeof(Ast));
   r->type = AST_FOR;
@@ -245,6 +255,8 @@ static int priority(Token *tok) {
       return 4;
     case '*': case '/':
       return 5;
+    case '?':
+      return 6;
     default:
       return -1;
   }
@@ -330,9 +342,11 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
       }
       error("internal error");
     case CTYPE_ARRAY:
-      goto err;
+      if (b->type != CTYPE_ARRAY)
+        goto err;
+      return result_type_int(jmpbuf, op, a->ptr, b->ptr);
     default:
-      error("internal error");
+      error("internal error: %s %s", ctype_to_string(a), ctype_to_string(b));
   }
 err:
   longjmp(*jmpbuf, 1);
@@ -408,6 +422,13 @@ static Ast *read_unary_expr(void) {
   return read_prim();
 }
 
+static Ast *read_cond_expr(Ast *cond) {
+  Ast *then = read_unary_expr();
+  expect(':');
+  Ast *els = read_unary_expr();
+  return ast_ternary(then->ctype, cond, then, els);
+}
+
 static Ast *read_expr(int prec) {
   Ast *ast = read_unary_expr();
   if (!ast) return NULL;
@@ -421,6 +442,10 @@ static Ast *read_expr(int prec) {
     if (prec2 < 0 || prec2 < prec) {
       unget_token(tok);
       return ast;
+    }
+    if (is_punct(tok, '?')) {
+      ast = read_cond_expr(ast);
+      continue;
     }
     if (is_punct(tok, '='))
       ensure_lvalue(ast);
@@ -719,6 +744,8 @@ List *read_func_list(void) {
 }
 
 char *ctype_to_string(Ctype *ctype) {
+  if (!ctype)
+    return "(nil)";
   switch (ctype->type) {
     case CTYPE_VOID: return "void";
     case CTYPE_INT:  return "int";
@@ -739,7 +766,7 @@ char *ctype_to_string(Ctype *ctype) {
 
 static void ast_to_string_int(Ast *ast, String *buf) {
   if (!ast) {
-    string_appendf(buf, "(null)");
+    string_appendf(buf, "(nil)");
     return;
   }
   switch (ast->type) {
@@ -815,6 +842,12 @@ static void ast_to_string_int(Ast *ast, String *buf) {
       if (ast->els)
         string_appendf(buf, " %s", ast_to_string(ast->els));
       string_appendf(buf, ")");
+      break;
+    case AST_TERNARY:
+      string_appendf(buf, "(? %s %s %s)",
+                     ast_to_string(ast->cond),
+                     ast_to_string(ast->then),
+                     ast_to_string(ast->els));
       break;
     case AST_FOR:
       string_appendf(buf, "(for %s %s %s ",
