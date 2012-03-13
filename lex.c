@@ -3,8 +3,6 @@
 #include <ctype.h>
 #include "8cc.h"
 
-#define BUFLEN 256
-
 static Token *ungotten = NULL;
 
 static Token *make_ident(String *s) {

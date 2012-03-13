@@ -6,7 +6,7 @@ function compile {
     echo "Failed to compile $1"
     exit
   fi
-  gcc -o tmp.out driver.c tmp.s
+  gcc -o tmp.out tmp.s
   if [ $? -ne 0 ]; then
     echo "GCC failed: $1"
     exit
@@ -34,7 +34,7 @@ function testast {
 }
 
 function testf {
-  compile "$2"
+  compile "int main(){printf(\"%d\",f());} $2"
   assertequal "$(./tmp.out)" "$1"
 }
 
@@ -183,7 +183,6 @@ test 31 'int a=31;{int a=64;}a;'
 test 64 'int a=31;{int a=64;a;}'
 
 # Function parameter
-testf '102' 'int f(int n){n;}'
 testf 77 'int g(){77;} int f(){g();}'
 testf 79 'int g(int a){a;} int f(){g(79);}'
 testf 21 'int g(int a,int b,int c,int d,int e,int f){a+b+c+d+e+f;} int f(){g(1,2,3,4,5,6);}'
