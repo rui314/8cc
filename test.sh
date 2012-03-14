@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function compile {
-  echo "$1" | ./8cc > tmp.s
+  echo "$1" | ./8cc > tmp.s || echo "Failed to compile $1"
   if [ $? -ne 0 ]; then
     echo "Failed to compile $1"
     exit
@@ -100,6 +100,7 @@ testastf '(decl int a 3)' 'int a=3;'
 
 testastf '(decl (struct) a)' 'struct {} a;'
 testastf '(decl (struct (int) (char)) a)' 'struct {int x; char y;} a;'
+testastf '(decl (struct ([3]int)) a)' 'struct {int x[3];} a;'
 testast '(int)f(){(decl (struct (int)) a);a.x;}' 'struct {int x;} a; a.x;'
 
 # Basic arithmetic
@@ -217,11 +218,16 @@ test 68 'struct tag {int a;} x; struct tag *p = &x; x.a = 68; (*p).a;'
 test 69 'struct tag {int a;} x; struct tag *p = &x; (*p).a = 69; x.a;'
 test 71 'struct tag {int a; int b;} x; struct tag *p = &x; x.b = 71; (*p).b;'
 test 72 'struct tag {int a; int b;} x; struct tag *p = &x; (*p).b = 72; x.b;'
-testf 67 'struct {int a; struct {char b; int c;} y; } x; int f() { x.a = 61; x.y.b = 3; x.y.c = 3; x.a + x.y.b + x.y.c;}'
+test 73 'struct tag {int a[3]; int b[3];} x; x.a[0] = 73; x.a[0];'
+test 74 'struct tag {int a[3]; int b[3];} x; x.b[1] = 74; x.a[4];'
+testf 77 'struct {int a; struct {char b; int c;} y; } x; int f() { x.a = 71; x.y.b = 3; x.y.c = 3; x.a + x.y.b + x.y.c;}'
 testf 78 'struct tag {int a;} x; int f() { struct tag *p = &x; x.a = 78; (*p).a;}'
 testf 79 'struct tag {int a;} x; int f() { struct tag *p = &x; (*p).a = 79; x.a;}'
 testf 81 'struct tag {int a; int b;} x; int f() { struct tag *p = &x; x.b = 81; (*p).b;}'
 testf 82 'struct tag {int a; int b;} x; int f() { struct tag *p = &x; (*p).b = 82; x.b;}'
+testf 83 'struct tag {int a; int b;} x; int f() { struct tag a[3]; a[0].a = 83; a[0].a;}'
+testf 84 'struct tag {int a; int b;} x; int f() { struct tag a[3]; a[1].b = 84; a[1].b;}'
+testf 85 'struct tag {int a; int b;} x; int f() { struct tag a[3]; a[1].b = 85; int *p=a; p[3];}'
 
 testfail '0abc;'
 testfail '1+;'

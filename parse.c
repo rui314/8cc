@@ -277,7 +277,7 @@ static bool is_right_assoc(Token *tok) {
 
 static int priority(Token *tok) {
   switch (tok->punct) {
-    case '.':
+    case '[': case '.':
       return 1;
     case PUNCT_INC: case PUNCT_DEC:
       return 2;
@@ -350,7 +350,8 @@ static Ast *read_prim(void) {
       return r;
     }
     case TTYPE_PUNCT:
-      error("unexpected character: '%c'", tok->punct);
+      unget_token(tok);
+      return NULL;
     default:
       error("internal error: unknown token type: %d", tok->type);
   }
@@ -403,24 +404,6 @@ static Ast *read_subscript_expr(Ast *ast) {
   return ast_uop(AST_DEREF, t->ctype->ptr, t);
 }
 
-static Ast *read_postfix_expr(void) {
-  Ast *r = read_prim();
-  for (;;) {
-    Token *tok = read_token();
-    if (!tok)
-      return r;
-    if (is_punct(tok, '[')) {
-      r = read_subscript_expr(r);
-    } else if (is_punct(tok, PUNCT_INC) || is_punct(tok, PUNCT_DEC)) {
-      ensure_lvalue(r);
-      r = ast_uop(tok->punct, r->ctype, r);
-    } else {
-      unget_token(tok);
-      return r;
-    }
-  }
-}
-
 static Ctype *convert_array(Ctype *ctype) {
   if (ctype->type != CTYPE_ARRAY)
     return ctype;
@@ -439,7 +422,7 @@ static Ast *read_unary_expr(void) {
   Token *tok = read_token();
   if (tok->type != TTYPE_PUNCT) {
     unget_token(tok);
-    return read_postfix_expr();
+    return read_prim();
   }
   if (is_punct(tok, '(')) {
     Ast *r = read_expr();
@@ -514,9 +497,20 @@ static Ast *read_expr_int(int prec) {
       ast = read_struct_field(ast);
       continue;
     }
+    if (is_punct(tok, '[')) {
+      ast = read_subscript_expr(ast);
+      continue;
+    }
+    if (is_punct(tok, PUNCT_INC) || is_punct(tok, PUNCT_DEC)) {
+      ensure_lvalue(ast);
+      ast = ast_uop(tok->punct, ast->ctype, ast);
+      continue;
+    }
     if (is_punct(tok, '='))
       ensure_lvalue(ast);
     Ast *rest = read_expr_int(prec2 + (is_right_assoc(tok) ? 1 : 0));
+    if (!rest)
+      error("second operand missing");
     ast = ast_binop(tok->punct, ast, rest);
   }
 }
