@@ -43,6 +43,13 @@ List *list_reverse(List *list) {
   return r;
 }
 
+void *list_last(List *list) {
+  if (!list->head) return NULL;
+  ListNode *p = list->head;
+  while (p->next) p = p->next;
+  return p->elem;
+}
+
 int list_len(List *list) {
   return list->len;
 }

@@ -6,8 +6,10 @@
 
 #define MAX_ARGS 6
 #define MAX_OP_PRIO 16
+#define MAX_ALIGN 16
 
 Env *globalenv = &EMPTY_ENV;
+static List *struct_defs = &EMPTY_LIST;
 static Env *localenv = NULL;
 static List *localvars = NULL;
 static Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL };
@@ -23,6 +25,7 @@ static Ast *read_decl_or_stmt(void);
 static Ctype *result_type(char op, Ctype *a, Ctype *b);
 static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
+static Ctype *read_decl_int(Token **name);
 
 static Env *make_env(Env *next) {
   Env *r = malloc(sizeof(Env));
@@ -198,6 +201,15 @@ static Ast *ast_compound_stmt(List *stmts) {
   return r;
 }
 
+static Ast *ast_struct_ref(Ast *struc, Ctype *field) {
+  Ast *r = malloc(sizeof(Ast));
+  r->type = AST_STRUCT_REF;
+  r->ctype = field;
+  r->struc = struc;
+  r->field = field;
+  return r;
+}
+
 static Ctype* make_ptr_type(Ctype *ctype) {
   Ctype *r = malloc(sizeof(Ctype));
   r->type = CTYPE_PTR;
@@ -210,6 +222,22 @@ static Ctype* make_array_type(Ctype *ctype, int size) {
   r->type = CTYPE_ARRAY;
   r->ptr = ctype;
   r->size = size;
+  return r;
+}
+
+static Ctype* make_struct_field_type(Ctype *ctype, char *name, int offset) {
+  Ctype *r = malloc(sizeof(Ctype));
+  memcpy(r, ctype, sizeof(Ctype));
+  r->name = name;
+  r->offset = offset;
+  return r;
+}
+
+static Ctype* make_struct_type(List *ctypes, char *tag) {
+  Ctype *r = malloc(sizeof(Ctype));
+  r->type = CTYPE_STRUCT;
+  r->fields = ctypes;
+  r->tag = tag;
   return r;
 }
 
@@ -226,7 +254,7 @@ static Ast *find_var(char *name) {
 
 static void ensure_lvalue(Ast *ast) {
   switch (ast->type) {
-    case AST_LVAR: case AST_GVAR: case AST_DEREF:
+    case AST_LVAR: case AST_GVAR: case AST_DEREF: case AST_STRUCT_REF:
       return;
     default:
       error("lvalue expected, but got %s", ast_to_string(ast));
@@ -239,12 +267,18 @@ static void expect(char punct) {
     error("'%c' expected, but got %s", punct, token_to_string(tok));
 }
 
+static bool is_ident(Token *tok, char *s) {
+  return tok->type == TTYPE_IDENT && !strcmp(tok->sval, s);
+}
+
 static bool is_right_assoc(Token *tok) {
   return tok->punct == '=';
 }
 
 static int priority(Token *tok) {
   switch (tok->punct) {
+    case '.':
+      return 1;
     case PUNCT_INC: case PUNCT_DEC:
       return 2;
     case '*': case '/':
@@ -439,6 +473,25 @@ static Ast *read_cond_expr(Ast *cond) {
   return ast_ternary(then->ctype, cond, then, els);
 }
 
+static Ctype *find_struct_field(Ctype *struc, char *name) {
+  for (Iter *i = list_iter(struc->fields); !iter_end(i);) {
+    Ctype *field = iter_next(i);
+    if (!strcmp(field->name, name))
+      return field;
+  }
+  return NULL;
+}
+
+static Ast *read_struct_field(Ast *struc) {
+  if (struc->ctype->type != CTYPE_STRUCT)
+    error("struct expected, but got %s", ast_to_string(struc));
+  Token *name = read_token();
+  if (name->type != TTYPE_IDENT)
+    error("field name expected, but got %s", token_to_string(name));
+  Ctype *field = find_struct_field(struc->ctype, name->sval);
+  return ast_struct_ref(struc, field);
+}
+
 static Ast *read_expr_int(int prec) {
   Ast *ast = read_unary_expr();
   if (!ast) return NULL;
@@ -455,6 +508,10 @@ static Ast *read_expr_int(int prec) {
     }
     if (is_punct(tok, '?')) {
       ast = read_cond_expr(ast);
+      continue;
+    }
+    if (is_punct(tok, '.')) {
+      ast = read_struct_field(ast);
       continue;
     }
     if (is_punct(tok, '='))
@@ -480,7 +537,7 @@ static Ctype *get_ctype(Token *tok) {
 }
 
 static bool is_type_keyword(Token *tok) {
-  return get_ctype(tok) != NULL;
+  return get_ctype(tok) != NULL || is_ident(tok, "struct");
 }
 
 static Ast *read_decl_array_init_int(Ctype *ctype) {
@@ -506,9 +563,49 @@ static Ast *read_decl_array_init_int(Ctype *ctype) {
   return ast_array_init(initlist);
 }
 
+static Ctype *find_struct_def(char *name) {
+  for (Iter *i = list_iter(struct_defs); !iter_end(i);) {
+    Ctype *t = iter_next(i);
+    if (t->tag && !strcmp(t->tag, name))
+      return t;
+  }
+  return NULL;
+}
+
+static Ctype *read_struct_def(void) {
+  Token *tok = read_token();
+  char *tag = NULL;
+  if (tok->type == TTYPE_IDENT)
+    tag = tok->sval;
+  else
+    unget_token(tok);
+  Ctype *ctype = find_struct_def(tag);
+  List *fields = make_list();
+  if (ctype) return ctype;
+  expect('{');
+  int offset = 0;
+  for (;;) {
+    if (!is_type_keyword(peek_token()))
+      break;
+    Token *name;
+    Ctype *fieldtype = read_decl_int(&name);
+    int size = ctype_size(fieldtype);
+    size = (size < MAX_ALIGN) ? size : MAX_ALIGN;
+    if (offset % size != 0)
+      offset += size - offset % size;
+    list_append(fields, make_struct_field_type(fieldtype, name->sval, offset));
+    offset += size;
+    expect(';');
+  }
+  expect('}');
+  Ctype *r = make_struct_type(fields, tag);
+  list_append(struct_defs, r);
+  return r;
+}
+
 static Ctype *read_decl_spec(void) {
   Token *tok = read_token();
-  Ctype *ctype = get_ctype(tok);
+  Ctype *ctype = is_ident(tok, "struct") ? read_struct_def() : get_ctype(tok);
   if (!ctype)
     error("Type expected, but got %s", token_to_string(tok));
   for (;;) {
@@ -590,12 +687,17 @@ static Ast *read_decl_init(Ast *var) {
   return ast_decl(var, NULL);
 }
 
-static Ast *read_decl(void) {
+static Ctype *read_decl_int(Token **name) {
   Ctype *ctype = read_decl_spec();
-  Token *varname = read_token();
-  if (varname->type != TTYPE_IDENT)
-    error("Identifier expected, but got %s", token_to_string(varname));
-  ctype = read_array_dimensions(ctype);
+  *name = read_token();
+  if ((*name)->type != TTYPE_IDENT)
+    error("Identifier expected, but got %s", token_to_string(*name));
+  return read_array_dimensions(ctype);
+}
+
+static Ast *read_decl(void) {
+  Token *varname;
+  Ctype *ctype = read_decl_int(&varname);
   Ast *var = ast_lvar(ctype, varname->sval);
   return read_decl_init(var);
 }
@@ -649,10 +751,6 @@ static Ast *read_return_stmt(void) {
   Ast *retval = read_expr();
   expect(';');
   return ast_return(retval);
-}
-
-static bool is_ident(Token *tok, char *s) {
-  return tok->type == TTYPE_IDENT && !strcmp(tok->sval, s);
 }
 
 static Ast *read_stmt(void) {

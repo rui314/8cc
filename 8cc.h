@@ -1,5 +1,5 @@
-#ifndef ECC_H
-#define ECC_H
+#ifndef EIGHTCC_H
+#define EIGHTCC_H
 
 #include <stdbool.h>
 #include "util.h"
@@ -45,6 +45,7 @@ enum {
   AST_FOR,
   AST_RETURN,
   AST_COMPOUND_STMT,
+  AST_STRUCT_REF,
   PUNCT_EQ,
   PUNCT_INC,
   PUNCT_DEC,
@@ -58,12 +59,17 @@ enum {
   CTYPE_CHAR,
   CTYPE_ARRAY,
   CTYPE_PTR,
+  CTYPE_STRUCT,
 };
 
 typedef struct Ctype {
   int type;
-  struct Ctype *ptr;
-  int size;
+  struct Ctype *ptr; // pointer or array
+  int size;   // array
+  char *name; // struct field
+  char *tag;  // struct
+  List *fields;
+  int offset; // struct
 } Ctype;
 
 typedef struct Ast {
@@ -132,12 +138,18 @@ typedef struct Ast {
     struct Ast *retval;
     // Compound statement
     struct List *stmts;
+    // Struct reference
+    struct {
+      struct Ast *struc;
+      Ctype *field;
+    };
   };
 } Ast;
 
 typedef struct Env {
   List *vars;
   struct Env *next;
+  struct List *structs;
 } Env;
 
 #define EMPTY_ENV                               \
@@ -159,9 +171,10 @@ extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);
 
+extern int ctype_size(Ctype *ctype);
 extern void emit_data_section(void);
 extern void emit_toplevel(Ast *v);
 
 extern Env *globalenv;
 
-#endif /* ECC_H */
+#endif /* EIGHTCC_H */
