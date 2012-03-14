@@ -51,6 +51,7 @@ enum {
   PUNCT_DEC,
   PUNCT_LOGAND,
   PUNCT_LOGOR,
+  PUNCT_ARROW,
 };
 
 enum {
