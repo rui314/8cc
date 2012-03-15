@@ -69,19 +69,19 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
 static void emit_lload(Ctype *ctype, int off) {
   SAVE;
   if (ctype->type == CTYPE_ARRAY) {
-    emit("lea %d(%%rbp), %%rax", -off);
+    emit("lea %d(%%rbp), %%rax", off);
     return;
   }
   switch (ctype->size) {
     case 1:
       emit("mov $0, %%eax");
-      emit("mov %d(%%rbp), %%al", -off);
+      emit("mov %d(%%rbp), %%al", off);
       break;
     case 4:
-      emit("mov %d(%%rbp), %%eax", -off);
+      emit("mov %d(%%rbp), %%eax", off);
       break;
     case 8:
-      emit("mov %d(%%rbp), %%rax", -off);
+      emit("mov %d(%%rbp), %%rax", off);
       break;
     default:
       error("Unknown data size: %s: %d", ctype_to_string(ctype), ctype->size);
@@ -113,7 +113,7 @@ static void emit_lsave(Ctype *ctype, int off) {
     case 4: reg = "eax"; break;
     case 8: reg = "rax"; break;
   }
-  emit("mov %%%s, %d(%%rbp)", reg, -off);
+  emit("mov %%%s, %d(%%rbp)", reg, off);
 }
 
 static void emit_assign_deref_int(Ctype *ctype, int off) {
@@ -155,7 +155,7 @@ static void emit_assign_struct_ref(Ast *struc, Ctype *field, int off) {
   SAVE;
   switch (struc->type) {
     case AST_LVAR:
-      emit_lsave(field, struc->loff - field->offset - off);
+      emit_lsave(field, struc->loff + field->offset + off);
       break;
     case AST_GVAR:
       emit_gsave(struc->varname, field, field->offset + off);
@@ -177,7 +177,7 @@ static void emit_load_struct_ref(Ast *struc, Ctype *field, int off) {
   SAVE;
   switch (struc->type) {
     case AST_LVAR:
-      emit_lload(field, struc->loff - field->offset - off);
+      emit_lload(field, struc->loff + field->offset + off);
       break;
     case AST_GVAR:
       emit_gload(field, struc->varname, field->offset + off);
@@ -332,15 +332,15 @@ static void emit_expr(Ast *ast) {
         int off = 0;
         for (Iter *iter = list_iter(ast->declinit->arrayinit); !iter_end(iter);) {
           emit_expr(iter_next(iter));
-          emit_lsave(ast->declvar->ctype->ptr, ast->declvar->loff - off);
+          emit_lsave(ast->declvar->ctype->ptr, ast->declvar->loff + off);
           off += ast->declvar->ctype->ptr->size;
         }
       } else if (ast->declvar->ctype->type == CTYPE_ARRAY) {
         assert(ast->declinit->type == AST_STRING);
         int i = 0;
         for (char *p = ast->declinit->sval; *p; p++, i++)
-          emit("movb $%d, %d(%%rbp)", *p, -(ast->declvar->loff - i));
-        emit("movb $0, %d(%%rbp)", -(ast->declvar->loff - i));
+          emit("movb $%d, %d(%%rbp)", *p, ast->declvar->loff + i);
+        emit("movb $0, %d(%%rbp)", ast->declvar->loff + i);
       } else if (ast->declinit->type == AST_STRING) {
         emit_gload(ast->declinit->ctype, ast->declinit->slabel, 0);
         emit_lsave(ast->declvar->ctype, ast->declvar->loff);
@@ -353,7 +353,7 @@ static void emit_expr(Ast *ast) {
     case AST_ADDR:
       switch (ast->operand->type) {
         case AST_LVAR:
-          emit("lea %d(%%rbp), %%rax", -ast->operand->loff);
+          emit("lea %d(%%rbp), %%rax", ast->operand->loff);
           break;
         case AST_GVAR:
           emit("lea %s(%%rip), %%rax", ast->operand->glabel);
@@ -545,16 +545,16 @@ static void emit_func_prologue(Ast *func) {
   for (Iter *i = list_iter(func->params); !iter_end(i); ri++) {
     emit("push %%%s", REGS[ri]);
     Ast *v = iter_next(i);
-    off += ceil8(v->ctype->size);
+    off -= ceil8(v->ctype->size);
     v->loff = off;
   }
   for (Iter *i = list_iter(func->localvars); !iter_end(i);) {
     Ast *v = iter_next(i);
-    off += ceil8(v->ctype->size);
+    off -= ceil8(v->ctype->size);
     v->loff = off;
   }
   if (off)
-    emit("sub $%d, %%rsp", off);
+    emit("sub $%d, %%rsp", -off);
 }
 
 static void emit_func_epilogue(void) {
