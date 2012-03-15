@@ -12,8 +12,8 @@ Env *globalenv = &EMPTY_ENV;
 static List *struct_defs = &EMPTY_LIST;
 static Env *localenv = NULL;
 static List *localvars = NULL;
-static Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL };
-static Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, NULL };
+static Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL, 4 };
+static Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, NULL, 1 };
 
 static int labelseq = 0;
 
@@ -214,14 +214,16 @@ static Ctype* make_ptr_type(Ctype *ctype) {
   Ctype *r = malloc(sizeof(Ctype));
   r->type = CTYPE_PTR;
   r->ptr = ctype;
+  r->size = 8;
   return r;
 }
 
-static Ctype* make_array_type(Ctype *ctype, int size) {
+static Ctype* make_array_type(Ctype *ctype, int len) {
   Ctype *r = malloc(sizeof(Ctype));
   r->type = CTYPE_ARRAY;
   r->ptr = ctype;
-  r->size = size;
+  r->size = (len < 0) ? -1 : ctype->size * len;
+  r->len = len;
   return r;
 }
 
@@ -233,11 +235,12 @@ static Ctype* make_struct_field_type(Ctype *ctype, char *name, int offset) {
   return r;
 }
 
-static Ctype* make_struct_type(List *ctypes, char *tag) {
+static Ctype* make_struct_type(List *ctypes, char *tag, int size) {
   Ctype *r = malloc(sizeof(Ctype));
   r->type = CTYPE_STRUCT;
   r->fields = ctypes;
   r->tag = tag;
+  r->size = size;
   return r;
 }
 
@@ -591,16 +594,15 @@ static Ctype *read_struct_def(void) {
       break;
     Token *name;
     Ctype *fieldtype = read_decl_int(&name);
-    int size = ctype_size(fieldtype);
-    size = (size < MAX_ALIGN) ? size : MAX_ALIGN;
+    int size = (fieldtype->size < MAX_ALIGN) ? fieldtype->size : MAX_ALIGN;
     if (offset % size != 0)
       offset += size - offset % size;
     list_push(fields, make_struct_field_type(fieldtype, name->sval, offset));
-    offset += size;
+    offset += fieldtype->size;
     expect(';');
   }
   expect('}');
-  Ctype *r = make_struct_type(fields, tag);
+  Ctype *r = make_struct_type(fields, tag, offset);
   list_push(struct_defs, r);
   return r;
 }
@@ -631,11 +633,12 @@ static Ast *read_decl_init_val(Ast *var) {
     int len = (init->type == AST_STRING)
         ? strlen(init->sval) + 1
         : list_len(init->arrayinit);
-    if (var->ctype->size == -1) {
-      var->ctype->size = len;
-    } else if (var->ctype->size != len) {
+    if (var->ctype->len == -1) {
+      var->ctype->len = len;
+      var->ctype->size = len * var->ctype->ptr->size;
+    } else if (var->ctype->len != len) {
       error("Invalid array initializer: expected %d items but got %d",
-            var->ctype->size, len);
+            var->ctype->len, len);
     }
     expect(';');
     return ast_decl(var, init);
@@ -647,43 +650,39 @@ static Ast *read_decl_init_val(Ast *var) {
   return ast_decl(var, init);
 }
 
-static Ctype *read_array_dimensions_int(void) {
+static Ctype *read_array_dimensions_int(Ctype *basetype) {
   Token *tok = read_token();
   if (!is_punct(tok, '[')) {
     unget_token(tok);
     return NULL;
   }
   int dim = -1;
-  tok = peek_token();
-  if (!is_punct(tok, ']')) {
+  if (!is_punct(peek_token(), ']')) {
     Ast *size = read_expr();
     check_intexp(size);
     dim = size->ival;
   }
   expect(']');
-  Ctype *sub = read_array_dimensions_int();
+  Ctype *sub = read_array_dimensions_int(basetype);
   if (sub) {
-    if (sub->size == -1 && dim == -1)
+    if (sub->len == -1 && dim == -1)
       error("Array size is not specified");
     return make_array_type(sub, dim);
   }
-  return make_array_type(NULL, dim);
+  return make_array_type(basetype, dim);
 }
 
 static Ctype *read_array_dimensions(Ctype *basetype) {
-  Ctype *ctype = read_array_dimensions_int();
-  if (!ctype)
-    return basetype;
-  Ctype *p = ctype;
-  for (; p->ptr; p = p->ptr);
-  p->ptr = basetype;
-  return ctype;
+  Ctype *ctype = read_array_dimensions_int(basetype);
+  return ctype ? ctype : basetype;
 }
 
 static Ast *read_decl_init(Ast *var) {
   Token *tok = read_token();
   if (is_punct(tok, '='))
     return read_decl_init_val(var);
+  if (var->ctype->len == -1)
+    error("Missing array initializer");
   unget_token(tok);
   expect(';');
   return ast_decl(var, NULL);

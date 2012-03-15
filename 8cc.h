@@ -66,7 +66,8 @@ enum {
 typedef struct Ctype {
   int type;
   struct Ctype *ptr; // pointer or array
-  int size;   // array
+  int size;
+  int len;    // array
   char *name; // struct field
   char *tag;  // struct
   List *fields;
@@ -172,7 +173,6 @@ extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);
 
-extern int ctype_size(Ctype *ctype);
 extern void emit_data_section(void);
 extern void emit_toplevel(Ast *v);
 
