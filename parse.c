@@ -10,6 +10,7 @@
 
 Env *globalenv = &EMPTY_ENV;
 static List *struct_defs = &EMPTY_LIST;
+static List *union_defs = &EMPTY_LIST;
 static Env *localenv = NULL;
 static List *localvars = NULL;
 static Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL, 4 };
@@ -542,7 +543,9 @@ static Ctype *get_ctype(Token *tok) {
 }
 
 static bool is_type_keyword(Token *tok) {
-  return get_ctype(tok) != NULL || is_ident(tok, "struct");
+  return get_ctype(tok) != NULL
+      || is_ident(tok, "struct")
+      || is_ident(tok, "union");
 }
 
 static Ast *read_decl_array_init_int(Ctype *ctype) {
@@ -568,8 +571,8 @@ static Ast *read_decl_array_init_int(Ctype *ctype) {
   return ast_array_init(initlist);
 }
 
-static Ctype *find_struct_def(char *name) {
-  for (Iter *i = list_iter(struct_defs); !iter_end(i);) {
+static Ctype *find_struct_union_def(List *list, char *name) {
+  for (Iter *i = list_iter(list); !iter_end(i);) {
     Ctype *t = iter_next(i);
     if (t->tag && !strcmp(t->tag, name))
       return t;
@@ -577,31 +580,58 @@ static Ctype *find_struct_def(char *name) {
   return NULL;
 }
 
-static Ctype *read_struct_def(void) {
+static char *read_struct_union_tag(void) {
   Token *tok = read_token();
-  char *tag = NULL;
   if (tok->type == TTYPE_IDENT)
-    tag = tok->sval;
-  else
-    unget_token(tok);
-  Ctype *ctype = find_struct_def(tag);
-  List *fields = make_list();
-  if (ctype) return ctype;
+    return tok->sval;
+  unget_token(tok);
+  return NULL;
+}
+
+static List *read_struct_union_fields(void) {
+  List *r = make_list();
   expect('{');
-  int offset = 0;
   for (;;) {
     if (!is_type_keyword(peek_token()))
       break;
     Token *name;
     Ctype *fieldtype = read_decl_int(&name);
-    int size = (fieldtype->size < MAX_ALIGN) ? fieldtype->size : MAX_ALIGN;
-    if (offset % size != 0)
-      offset += size - offset % size;
-    list_push(fields, make_struct_field_type(fieldtype, name->sval, offset));
-    offset += fieldtype->size;
+    list_push(r, make_struct_field_type(fieldtype, name->sval, 0));
     expect(';');
   }
   expect('}');
+  return r;
+}
+
+static Ctype *read_union_def(void) {
+  char *tag = read_struct_union_tag();
+  Ctype *ctype = find_struct_union_def(union_defs, tag);
+  if (ctype) return ctype;
+  List *fields = read_struct_union_fields();
+  int maxsize = 0;
+  for (Iter *i = list_iter(fields); !iter_end(i);) {
+    Ctype *fieldtype = iter_next(i);
+    maxsize = (maxsize < fieldtype->size) ? fieldtype->size : maxsize;
+  }
+  Ctype *r = make_struct_type(fields, tag, maxsize);
+  list_push(union_defs, r);
+  return r;
+}
+
+static Ctype *read_struct_def(void) {
+  char *tag = read_struct_union_tag();
+  Ctype *ctype = find_struct_union_def(struct_defs, tag);
+  if (ctype) return ctype;
+  List *fields = read_struct_union_fields();
+  int offset = 0;
+  for (Iter *i = list_iter(fields); !iter_end(i);) {
+    Ctype *fieldtype = iter_next(i);
+    int size = (fieldtype->size < MAX_ALIGN) ? fieldtype->size : MAX_ALIGN;
+    if (offset % size != 0)
+      offset += size - offset % size;
+    fieldtype->offset = offset;
+    offset += fieldtype->size;
+  }
   Ctype *r = make_struct_type(fields, tag, offset);
   list_push(struct_defs, r);
   return r;
@@ -609,7 +639,9 @@ static Ctype *read_struct_def(void) {
 
 static Ctype *read_decl_spec(void) {
   Token *tok = read_token();
-  Ctype *ctype = is_ident(tok, "struct") ? read_struct_def() : get_ctype(tok);
+  Ctype *ctype = is_ident(tok, "struct") ? read_struct_def()
+      : is_ident(tok, "union") ? read_union_def()
+      : get_ctype(tok);
   if (!ctype)
     error("Type expected, but got %s", token_to_string(tok));
   for (;;) {
