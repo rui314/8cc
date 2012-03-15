@@ -51,8 +51,16 @@ static void ast_to_string_int(String *buf, Ast *ast) {
         case CTYPE_INT:
           string_appendf(buf, "%d", ast->ival);
           break;
+        case CTYPE_FLOAT:
+          string_appendf(buf, "%f", ast->fval);
+          break;
         case CTYPE_CHAR:
-          string_appendf(buf, "'%c'", ast->c);
+          if (ast->c == '\n')
+            string_appendf(buf, "'\n'");
+          else if (ast->c == '\\')
+            string_appendf(buf, "'\\\\'");
+          else
+            string_appendf(buf, "'%c'", ast->c);
           break;
         default:
           error("internal error");
@@ -187,10 +195,8 @@ char *token_to_string(Token *tok) {
       string_append(s, tok->c);
       return get_cstring(s);
     }
-    case TTYPE_INT: {
-      string_appendf(s, "%d", tok->ival);
-      return get_cstring(s);
-    }
+    case TTYPE_NUMBER:
+      return tok->sval;
     case TTYPE_STRING: {
       string_appendf(s, "\"%s\"", tok->sval);
       return get_cstring(s);

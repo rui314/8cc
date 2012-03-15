@@ -38,6 +38,11 @@ function testf {
   assertequal "$(./tmp.out)" "$1"
 }
 
+function testm {
+  compile "$2"
+  assertequal "$(./tmp.out)" "$1"
+}
+
 function test {
   testf "$1" "int f(){$2}"
 }
@@ -93,6 +98,8 @@ testast '(int)f(){(and 1 2);}' '1&&2;'
 testast '(int)f(){(or 1 2);}' '1||2;'
 testast '(int)f(){(& 1 2);}' '1&2;'
 testast '(int)f(){(| 1 2);}' '1|2;'
+testast '(int)f(){1.200000;}' '1.2;'
+testast '(int)f(){(+ 1.200000 1);}' '1.2+1;'
 
 testastf '(int)f(int c){c;}' 'int f(int c){c;}'
 testastf '(int)f(int c){c;}(int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'
@@ -117,6 +124,10 @@ test 98 "'a'+1;"
 test 2 '1;2;'
 test -1 'int a=0-1;a;'
 test 0 'int a=0-1;1+a;'
+
+# Floating point number
+testm 0.5 'int main(){ float f = 0.5; printf("%.1f", f); }'
+testm 1.5 'int main(){ float f = 1.0 + 0.5; printf("%.1f", f); }'
 
 # Comparison
 test 1 '1<2;'
