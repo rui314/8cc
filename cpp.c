@@ -4,14 +4,19 @@ static Dict *macros = &EMPTY_DICT;
 static List *buffer = &EMPTY_LIST;
 static bool bol = true;
 
-static Token *expand(Token *tok) {
+static Token *read_token_int(Dict *hideset);
+
+static Token *expand(Dict *hideset, Token *tok) {
     if (tok->type != TTYPE_IDENT)
+        return tok;
+    if (dict_get(hideset, tok->sval))
         return tok;
     List *body = dict_get(macros, tok->sval);
     if (!body)
         return tok;
+    dict_put(hideset, tok->sval, (void *)1);
     list_append(buffer, body);
-    return read_token();
+    return read_token_int(hideset);
 }
 
 static void read_define(void) {
@@ -46,7 +51,7 @@ Token *peek_token(void) {
     return r;
 }
 
-Token *read_token(void) {
+static Token *read_token_int(Dict *hideset) {
     for (;;) {
         Token *tok = (list_len(buffer) > 0) ? list_pop(buffer) : read_cpp_token();
         if (!tok)
@@ -61,6 +66,10 @@ Token *read_token(void) {
             continue;
         }
         bol = false;
-        return expand(tok);
+        return expand(hideset, tok);
     }
+}
+
+Token *read_token(void) {
+    return read_token_int(&EMPTY_DICT);
 }
