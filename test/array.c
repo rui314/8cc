@@ -57,7 +57,7 @@ int t6() {
 }
 
 int t7() {
-    int a[3*3];
+    int a[3*3];  // integer constant expression
     a[8] = 68;
     expect(68, a[8]);
 }

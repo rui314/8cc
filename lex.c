@@ -115,6 +115,27 @@ static Token *read_ident(char c) {
     }
 }
 
+static void skip_line_comment(void) {
+    for (;;) {
+        int c = getc(stdin);
+        if (c == '\n' || c == EOF)
+            return;
+    }
+}
+
+static void skip_block_comment(void) {
+    enum { in_comment, asterisk_read } state = in_comment;
+    for (;;) {
+        int c = getc(stdin);
+        if (state == in_comment) {
+            if (c == '*')
+                state = asterisk_read;
+        } else if (c == '/') {
+            return;
+        }
+    }
+}
+
 static Token *read_rep(int expect, int t1, int t2) {
     int c = getc(stdin);
     if (c == expect)
@@ -138,9 +159,22 @@ static Token *read_token_int(void) {
     case 'Q': case 'R': case 'S': case 'T': case 'U': case 'V': case 'W':
     case 'X': case 'Y': case 'Z': case '_':
         return read_ident(c);
-    case '/': case '*': case '(': case ')': case ',': case ';': case '.':
-    case '[': case ']': case '{': case '}': case '<': case '>': case '!':
-    case '?': case ':':
+    case '/': {
+        c = getc(stdin);
+        if (c == '/') {
+            skip_line_comment();
+            return read_token_int();
+        }
+        if (c == '*') {
+            skip_block_comment();
+            return read_token_int();
+        }
+        ungetc(c, stdin);
+        return make_punct('/');
+    }
+    case '*': case '(': case ')': case ',': case ';': case '.': case '[':
+    case ']': case '{': case '}': case '<': case '>': case '!': case '?':
+    case ':':
         return make_punct(c);
     case '-':
         c = getc(stdin);
