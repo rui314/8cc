@@ -6,6 +6,7 @@ char *ctype_to_string(Ctype *ctype) {
     switch (ctype->type) {
     case CTYPE_VOID: return "void";
     case CTYPE_INT:  return "int";
+    case CTYPE_LONG: return "long";
     case CTYPE_CHAR: return "char";
     case CTYPE_PTR: {
         String *s = make_string();
@@ -48,20 +49,23 @@ static void ast_to_string_int(String *buf, Ast *ast) {
     switch (ast->type) {
     case AST_LITERAL:
         switch (ast->ctype->type) {
+        case CTYPE_CHAR:
+            if (ast->ival == '\n')
+                string_appendf(buf, "'\n'");
+            else if (ast->ival == '\\')
+                string_appendf(buf, "'\\\\'");
+            else
+                string_appendf(buf, "'%c'", ast->ival);
+            break;
         case CTYPE_INT:
             string_appendf(buf, "%d", ast->ival);
+            break;
+        case CTYPE_LONG:
+            string_appendf(buf, "%ldL", ast->ival);
             break;
         case CTYPE_FLOAT:
         case CTYPE_DOUBLE:
             string_appendf(buf, "%f", ast->fval);
-            break;
-        case CTYPE_CHAR:
-            if (ast->c == '\n')
-                string_appendf(buf, "'\n'");
-            else if (ast->c == '\\')
-                string_appendf(buf, "'\\\\'");
-            else
-                string_appendf(buf, "'%c'", ast->c);
             break;
         default:
             error("internal error");

@@ -45,9 +45,6 @@ enum {
     AST_RETURN,
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
-    AST_FLOAT,
-    AST_DOUBLE,
-    AST_INT,
     PUNCT_EQ,
     PUNCT_INC,
     PUNCT_DEC,
@@ -58,8 +55,9 @@ enum {
 
 enum {
     CTYPE_VOID,
-    CTYPE_INT,
     CTYPE_CHAR,
+    CTYPE_INT,
+    CTYPE_LONG,
     CTYPE_FLOAT,
     CTYPE_DOUBLE,
     CTYPE_ARRAY,
@@ -82,15 +80,13 @@ typedef struct Ast {
     int type;
     Ctype *ctype;
     union {
-        // Integer
-        int ival;
+        // Char, int, or long
+        long ival;
         // Float or double
         struct {
             double fval;
             char *flabel;
         };
-        // Char
-        char c;
         // String
         struct {
             char *sval;
@@ -181,6 +177,8 @@ extern char *ctype_to_string(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);
+extern bool is_inttype(Ctype *ctype);
+extern bool is_flotype(Ctype *ctype);
 
 extern void emit_data_section(void);
 extern void emit_toplevel(Ast *v);

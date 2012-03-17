@@ -55,7 +55,7 @@ static Token *read_number(char c) {
     string_append(s, c);
     for (;;) {
         int c = getc(stdin);
-        if (!isdigit(c) && c != '.') {
+        if (!isdigit(c) && !isalpha(c) && c != '.') {
             ungetc(c, stdin);
             return make_number(get_cstring(s));
         }

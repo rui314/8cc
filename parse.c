@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <limits.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@ static Env *localenv = NULL;
 static List *localvars = NULL;
 
 static Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL, 4 };
+static Ctype *ctype_long = &(Ctype){ CTYPE_LONG, NULL, 8 };
 static Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, NULL, 1 };
 static Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, NULL, 4 };
 static Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, NULL, 8 };
@@ -70,10 +72,10 @@ static Ast *ast_binop(int type, Ast *left, Ast *right) {
     return r;
 }
 
-static Ast *ast_int(int val) {
+static Ast *ast_inttype(Ctype *ctype, long val) {
     Ast *r = malloc(sizeof(Ast));
     r->type = AST_LITERAL;
-    r->ctype = ctype_int;
+    r->ctype = ctype;
     r->ival = val;
     return r;
 }
@@ -84,14 +86,6 @@ static Ast *ast_double(double val) {
     r->ctype = ctype_double;
     r->fval = val;
     list_push(flonums, r);
-    return r;
-}
-
-static Ast *ast_char(char c) {
-    Ast *r = malloc(sizeof(Ast));
-    r->type = AST_LITERAL;
-    r->ctype = ctype_char;
-    r->c = c;
     return r;
 }
 
@@ -270,6 +264,15 @@ static Ast *find_var(char *name) {
     return NULL;
 }
 
+bool is_inttype(Ctype *ctype) {
+    return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_INT ||
+        ctype->type == CTYPE_LONG;
+}
+
+bool is_flotype(Ctype *ctype) {
+    return ctype->type == CTYPE_FLOAT || ctype->type == CTYPE_DOUBLE;
+}
+
 static void ensure_lvalue(Ast *ast) {
     switch (ast->type) {
     case AST_LVAR: case AST_GVAR: case AST_DEREF: case AST_STRUCT_REF:
@@ -296,10 +299,8 @@ static bool is_right_assoc(Token *tok) {
 static int eval_intexpr(Ast *ast) {
     switch (ast->type) {
     case AST_LITERAL:
-        if (ast->ctype->type == CTYPE_INT)
+        if (is_inttype(ast->ctype))
             return ast->ival;
-        if (ast->ctype->type == CTYPE_CHAR)
-            return ast->c;
         error("Integer expression expected, but got %s", ast_to_string(ast));
     case '+': return eval_intexpr(ast->left) + eval_intexpr(ast->right);
     case '-': return eval_intexpr(ast->left) - eval_intexpr(ast->right);
@@ -369,14 +370,22 @@ static Ast *read_ident_or_func(char *name) {
     return v;
 }
 
-static bool is_int(char *p) {
+static bool is_long_token(char *p) {
+    for (; *p; p++) {
+        if (!isdigit(*p))
+            return (*p == 'L' || *p == 'l') && p[1] == '\0';
+    }
+    return false;
+}
+
+static bool is_int_token(char *p) {
     for (; *p; p++)
         if (!isdigit(*p))
             return false;
     return true;
 }
 
-static bool is_flonum(char *p) {
+static bool is_float_token(char *p) {
     for (; *p; p++)
         if (!isdigit(*p))
             break;
@@ -395,13 +404,19 @@ static Ast *read_prim(void) {
     case TTYPE_IDENT:
         return read_ident_or_func(tok->sval);
     case TTYPE_NUMBER:
-        if (is_int(tok->sval))
-            return ast_int(atoi(tok->sval));
-        if (is_flonum(tok->sval))
+        if (is_long_token(tok->sval))
+            return ast_inttype(ctype_long, atol(tok->sval));
+        if (is_int_token(tok->sval)) {
+            long val = atol(tok->sval);
+            if (val & ~(long)UINT_MAX)
+                return ast_inttype(ctype_long, val);
+            return ast_inttype(ctype_int, val);
+        }
+        if (is_float_token(tok->sval))
             return ast_double(atof(tok->sval));
         error("Malformed number: %s", token_to_string(tok));
     case TTYPE_CHAR:
-        return ast_char(tok->c);
+        return ast_inttype(ctype_char, tok->c);
     case TTYPE_STRING: {
         Ast *r = ast_string(tok->sval);
         env_append(globalenv, r);
@@ -426,24 +441,33 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
             return a;
         if (op != '+' && op != '-')
             goto err;
-        if (a->type != CTYPE_INT)
+        if (!is_inttype(a))
             goto err;
         return b;
     }
     switch (a->type) {
     case CTYPE_VOID:
         goto err;
-    case CTYPE_INT:
     case CTYPE_CHAR:
+    case CTYPE_INT:
         switch (b->type) {
-        case CTYPE_INT:
-        case CTYPE_CHAR:
+        case CTYPE_CHAR: case CTYPE_INT:
             return ctype_int;
-        case CTYPE_FLOAT:
-        case CTYPE_DOUBLE:
+        case CTYPE_LONG:
+            return ctype_long;
+        case CTYPE_FLOAT: case CTYPE_DOUBLE:
             return ctype_double;
-        case CTYPE_ARRAY:
-        case CTYPE_PTR:
+        case CTYPE_ARRAY: case CTYPE_PTR:
+            return b;
+        }
+        error("internal error");
+    case CTYPE_LONG:
+        switch (b->type) {
+        case CTYPE_LONG:
+            return ctype_long;
+        case CTYPE_FLOAT: case CTYPE_DOUBLE:
+            return ctype_double;
+        case CTYPE_ARRAY: case CTYPE_PTR:
             return b;
         }
         error("internal error");
@@ -601,6 +625,7 @@ static Ctype *get_ctype(Token *tok) {
     if (tok->type != TTYPE_IDENT)
         return NULL;
     if (!strcmp(tok->sval, "int"))    return ctype_int;
+    if (!strcmp(tok->sval, "long"))   return ctype_long;
     if (!strcmp(tok->sval, "char"))   return ctype_char;
     if (!strcmp(tok->sval, "float"))  return ctype_float;
     if (!strcmp(tok->sval, "double")) return ctype_double;
@@ -738,7 +763,7 @@ static Ast *read_decl_init_val(Ast *var) {
     Ast *init = read_expr();
     expect(';');
     if (var->type == AST_GVAR)
-        init = ast_int(eval_intexpr(init));
+        init = ast_inttype(ctype_int, eval_intexpr(init));
     return ast_decl(var, init);
 }
 

@@ -49,6 +49,8 @@ function testfail {
 
 # Parser
 testast '(int)f(){1;}' '1;'
+testast '(int)f(){1L;}' '1L;'
+testast '(int)f(){1152921504606846976L;}' '1152921504606846976;'
 testast '(int)f(){(+ (- (+ 1 2) 3) 4);}' '1+2-3+4;'
 testast '(int)f(){(+ (+ 1 (* 2 3)) 4);}' '1+2*3+4;'
 testast '(int)f(){(+ (* 1 2) (* 3 4));}' '1*2+3*4;'

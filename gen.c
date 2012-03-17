@@ -84,10 +84,6 @@ static void pop(char *reg) {
     assert(stackpos >= 0);
 }
 
-static bool is_flotype(Ctype *ctype) {
-    return ctype->type == CTYPE_FLOAT || ctype->type == CTYPE_DOUBLE;    
-}
-
 static void emit_gload(Ctype *ctype, char *label, int off) {
     SAVE;
     if (ctype->type == CTYPE_ARRAY) {
@@ -338,7 +334,7 @@ static void emit_binop(Ast *ast) {
         emit_comp("setg", ast);
         return;
     }
-    if (ast->ctype->type == CTYPE_INT)
+    if (is_inttype(ast->ctype))
         emit_binop_int_arith(ast);
     else if (is_flotype(ast->ctype))
         emit_binop_float_arith(ast);
@@ -375,11 +371,14 @@ static void emit_expr(Ast *ast) {
     switch (ast->type) {
     case AST_LITERAL:
         switch (ast->ctype->type) {
+        case CTYPE_CHAR:
+            emit("mov $%d, %%rax", ast->ival);
+            break;
         case CTYPE_INT:
             emit("mov $%d, %%eax", ast->ival);
             break;
-        case CTYPE_CHAR:
-            emit("mov $%d, %%rax", ast->c);
+        case CTYPE_LONG:
+            emit("mov $%lu, %%rax", (unsigned long)ast->ival);
             break;
         case CTYPE_FLOAT:
         case CTYPE_DOUBLE:
@@ -636,7 +635,7 @@ static void emit_data(Ast *v) {
         }
         return;
     }
-    assert(v->declinit->type == AST_LITERAL && v->declinit->ctype->type == CTYPE_INT);
+    assert(v->declinit->type == AST_LITERAL && is_inttype(v->declinit->ctype));
     emit_data_int(v->declinit);
 }
 
