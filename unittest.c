@@ -3,56 +3,56 @@
 #include "8cc.h"
 
 void assert_string_equal(char *s, char *t) {
-  if (strcmp(s, t))
-    error("Expected %s but got %s", s, t);
+    if (strcmp(s, t))
+        error("Expected %s but got %s", s, t);
 }
 
 void assert_int_equal(long a, long b) {
-  if (a != b)
-    error("Expected %ld but got %ld", a, b);
+    if (a != b)
+        error("Expected %ld but got %ld", a, b);
 }
 
 void test_string(void) {
-  String *s = make_string();
-  string_append(s, 'a');
-  assert_string_equal("a", get_cstring(s));
-  string_append(s, 'b');
-  assert_string_equal("ab", get_cstring(s));
+    String *s = make_string();
+    string_append(s, 'a');
+    assert_string_equal("a", get_cstring(s));
+    string_append(s, 'b');
+    assert_string_equal("ab", get_cstring(s));
 
-  string_appendf(s, ".");
-  assert_string_equal("ab.", get_cstring(s));
-  string_appendf(s, "%s", "0123456789");
-  assert_string_equal("ab.0123456789", get_cstring(s));
+    string_appendf(s, ".");
+    assert_string_equal("ab.", get_cstring(s));
+    string_appendf(s, "%s", "0123456789");
+    assert_string_equal("ab.0123456789", get_cstring(s));
 }
 
 void test_list(void) {
-  List *list = make_list();
-  list_push(list, (void *)1);
-  list_push(list, (void *)2);
-  Iter *iter = list_iter(list);
-  assert_int_equal(1, (long)iter_next(iter));
-  assert_int_equal(false, iter_end(iter));
-  assert_int_equal(2, (long)iter_next(iter));
-  assert_int_equal(true, iter_end(iter));
-  assert_int_equal(0, (long)iter_next(iter));
-  assert_int_equal(true, iter_end(iter));
+    List *list = make_list();
+    list_push(list, (void *)1);
+    list_push(list, (void *)2);
+    Iter *iter = list_iter(list);
+    assert_int_equal(1, (long)iter_next(iter));
+    assert_int_equal(false, iter_end(iter));
+    assert_int_equal(2, (long)iter_next(iter));
+    assert_int_equal(true, iter_end(iter));
+    assert_int_equal(0, (long)iter_next(iter));
+    assert_int_equal(true, iter_end(iter));
 
-  assert_int_equal(2, (long)list_last(list));
+    assert_int_equal(2, (long)list_last(list));
 
-  List *rev = list_reverse(list);
-  iter = list_iter(rev);
-  assert_int_equal(2, (long)iter_next(iter));
-  assert_int_equal(1, (long)iter_next(iter));
-  assert_int_equal(0, (long)iter_next(iter));
+    List *rev = list_reverse(list);
+    iter = list_iter(rev);
+    assert_int_equal(2, (long)iter_next(iter));
+    assert_int_equal(1, (long)iter_next(iter));
+    assert_int_equal(0, (long)iter_next(iter));
 
-  assert_int_equal(1, (long)list_pop(rev));
-  assert_int_equal(2, (long)list_pop(rev));
-  assert_int_equal(0, (long)list_pop(rev));
+    assert_int_equal(1, (long)list_pop(rev));
+    assert_int_equal(2, (long)list_pop(rev));
+    assert_int_equal(0, (long)list_pop(rev));
 }
 
 int main(int argc, char **argv) {
-  test_string();
-  test_list();
-  printf("Passed\n");
-  return 0;
+    test_string();
+    test_list();
+    printf("Passed\n");
+    return 0;
 }

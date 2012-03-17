@@ -1,19 +1,19 @@
 #include <stdbool.h>
 
 typedef struct ListNode {
-  void *elem;
-  struct ListNode *next;
-  struct ListNode *prev;
+    void *elem;
+    struct ListNode *next;
+    struct ListNode *prev;
 } ListNode;
 
 typedef struct List {
-  int len;
-  ListNode *head;
-  ListNode *tail;
+    int len;
+    ListNode *head;
+    ListNode *tail;
 } List;
 
 typedef struct Iter {
-  ListNode *ptr;
+    ListNode *ptr;
 } Iter;
 
 List *make_list(void);
@@ -27,4 +27,4 @@ void *iter_next(Iter *iter);
 bool iter_end(Iter *iter);
 
 #define EMPTY_LIST                                      \
-  ((List){ .len = 0, .head = NULL, .tail = NULL })
+    ((List){ .len = 0, .head = NULL, .tail = NULL })

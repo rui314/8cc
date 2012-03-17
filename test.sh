@@ -1,59 +1,59 @@
 #!/bin/bash
 
 function compile {
-  echo "$1" | ./8cc > tmp.s || echo "Failed to compile $1"
-  if [ $? -ne 0 ]; then
-    echo "Failed to compile $1"
-    exit
-  fi
-  gcc -o tmp.out tmp.s
-  if [ $? -ne 0 ]; then
-    echo "GCC failed: $1"
-    exit
-  fi
+    echo "$1" | ./8cc > tmp.s || echo "Failed to compile $1"
+    if [ $? -ne 0 ]; then
+        echo "Failed to compile $1"
+        exit
+    fi
+    gcc -o tmp.out tmp.s
+    if [ $? -ne 0 ]; then
+        echo "GCC failed: $1"
+        exit
+    fi
 }
 
 function assertequal {
-  if [ "$1" != "$2" ]; then
-    echo "Test failed: $2 expected but got $1"
-    exit
-  fi
+    if [ "$1" != "$2" ]; then
+        echo "Test failed: $2 expected but got $1"
+        exit
+    fi
 }
 
 function testastf {
-  result="$(echo "$2" | ./8cc -a)"
-  if [ $? -ne 0 ]; then
-    echo "Failed to compile $1"
-    exit
-  fi
-  assertequal "$result" "$1"
+    result="$(echo "$2" | ./8cc -a)"
+    if [ $? -ne 0 ]; then
+        echo "Failed to compile $1"
+        exit
+    fi
+    assertequal "$result" "$1"
 }
 
 function testast {
-  testastf "$1" "int f(){$2}"
+    testastf "$1" "int f(){$2}"
 }
 
 function testf {
-  compile "int main(){printf(\"%d\",f());} $2"
-  assertequal "$(./tmp.out)" "$1"
+    compile "int main(){printf(\"%d\",f());} $2"
+    assertequal "$(./tmp.out)" "$1"
 }
 
 function testm {
-  compile "$2"
-  assertequal "$(./tmp.out)" "$1"
+    compile "$2"
+    assertequal "$(./tmp.out)" "$1"
 }
 
 function test {
-  testf "$1" "int f(){$2}"
+    testf "$1" "int f(){$2}"
 }
 
 function testfail {
-  expr="int f(){$1}"
-  echo "$expr" | ./8cc > /dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    echo "Should fail to compile, but succeded: $expr"
-    exit
-  fi
+    expr="int f(){$1}"
+    echo "$expr" | ./8cc > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo "Should fail to compile, but succeded: $expr"
+        exit
+    fi
 }
 
 make -s 8cc
