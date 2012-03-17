@@ -12,10 +12,10 @@ utiltest: 8cc.h utiltest.o $(OBJS)
 
 test: nqueen utiltest $(TESTS)
 	@echo
+	./utiltest
 	@for test in $(TESTS); do \
 	    ./$$test;             \
 	done
-	./utiltest
 	./test.sh
 
 test/%.s: test/%.c 8cc

@@ -81,6 +81,11 @@ static void test_dict(void) {
     dict_put(dict2, "ABC", (void *)110);
     assert_int_equal(110, (long)dict_get(dict2, "ABC"));
     assert_null(dict_get(dict, "ABC"));
+
+    assert_int_equal(3, list_len(dict_values(dict2)));
+    assert_int_equal(2, list_len(dict_values(dict)));
+    assert_int_equal(3, list_len(dict_keys(dict2)));
+    assert_int_equal(2, list_len(dict_keys(dict)));
 }
 
 int main(int argc, char **argv) {

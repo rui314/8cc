@@ -195,7 +195,7 @@ static void emit_assign_struct_ref(Ast *struc, Ctype *field, int off) {
         emit_gsave(struc->varname, field, field->offset + off);
         break;
     case AST_STRUCT_REF:
-        emit_assign_struct_ref(struc->struc, field, off + struc->field->offset);
+        emit_assign_struct_ref(struc->struc, field, off + struc->ctype->offset);
         break;
     case AST_DEREF:
         push("rax");
@@ -217,7 +217,7 @@ static void emit_load_struct_ref(Ast *struc, Ctype *field, int off) {
         emit_gload(field, struc->varname, field->offset + off);
         break;
     case AST_STRUCT_REF:
-        emit_load_struct_ref(struc->struc, field, struc->field->offset + off);
+        emit_load_struct_ref(struc->struc, field, struc->ctype->offset + off);
         break;
     case AST_DEREF:
         emit_expr(struc->operand);
@@ -232,7 +232,7 @@ static void emit_assign(Ast *var) {
     SAVE;
     switch (var->type) {
     case AST_DEREF: emit_assign_deref(var); break;
-    case AST_STRUCT_REF: emit_assign_struct_ref(var->struc, var->field, 0); break;
+    case AST_STRUCT_REF: emit_assign_struct_ref(var->struc, var->ctype, 0); break;
     case AST_LVAR: emit_lsave(var->ctype, var->loff); break;
     case AST_GVAR: emit_gsave(var->varname, var->ctype, 0); break;
     default: error("internal error");
@@ -526,7 +526,7 @@ static void emit_expr(Ast *ast) {
             emit_expr(iter_next(i));
         break;
     case AST_STRUCT_REF:
-        emit_load_struct_ref(ast->struc, ast->field, 0);
+        emit_load_struct_ref(ast->struc, ast->ctype, 0);
         break;
     case PUNCT_INC:
         emit_inc_dec(ast, "add");
@@ -587,33 +587,6 @@ static void emit_expr(Ast *ast) {
     }
 }
 
-void emit_data_section(void) {
-    SAVE;
-    emit(".data");
-    for (Iter *i = list_iter(globalenv->vars); !iter_end(i);) {
-        Ast *v = iter_next(i);
-        if (v->type == AST_STRING) {
-            emit_label("%s:", v->slabel);
-            emit(".string \"%s\"", quote_cstring(v->sval));
-        } else if (v->type != AST_GVAR) {
-            error("internal error: %s", ast_to_string(v));
-        }
-    }
-    for (Iter *i = list_iter(flonums); !iter_end(i);) {
-        Ast *v = iter_next(i);
-        char *label = make_label();
-        v->flabel = label;
-        emit_label("%s:", label);
-        emit(".long %d", ((int *)&v->fval)[0]);
-        emit(".long %d", ((int *)&v->fval)[1]);
-    }
-}
-
-static int align(int n, int m) {
-    int rem = n % m;
-    return (rem == 0) ? n : n - rem + m;
-}
-
 static void emit_data_int(Ast *data) {
     SAVE;
     assert(data->ctype->type != CTYPE_ARRAY);
@@ -650,6 +623,29 @@ static void emit_global_var(Ast *v) {
         emit_data(v);
     else
         emit_bss(v);
+}
+
+void emit_data_section(void) {
+    SAVE;
+    emit(".data");
+    for (Iter *i = list_iter(strings); !iter_end(i);) {
+        Ast *v = iter_next(i);
+        emit_label("%s:", v->slabel);
+        emit(".string \"%s\"", quote_cstring(v->sval));
+    }
+    for (Iter *i = list_iter(flonums); !iter_end(i);) {
+        Ast *v = iter_next(i);
+        char *label = make_label();
+        v->flabel = label;
+        emit_label("%s:", label);
+        emit(".long %d", ((int *)&v->fval)[0]);
+        emit(".long %d", ((int *)&v->fval)[1]);
+    }
+}
+
+static int align(int n, int m) {
+    int rem = n % m;
+    return (rem == 0) ? n : n - rem + m;
 }
 
 static void emit_func_prologue(Ast *func) {
