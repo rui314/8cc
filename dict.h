@@ -14,6 +14,7 @@ typedef struct Dict {
 void *make_dict(void *parent);
 void *dict_get(Dict *dict, char *key);
 void dict_put(Dict *dict, char *key, void *val);
+void dict_remove(Dict *dict, char *key);
 List *dict_keys(Dict *dict);
 List *dict_values(Dict *dict);
 void *dict_parent(Dict *dict);
