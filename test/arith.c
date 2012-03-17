@@ -37,6 +37,8 @@ int test_bool() {
 int test_ternary() {
     expect(51, (1 + 2) ? 51 : 52);
     expect(52, (1 - 1) ? 51 : 52);
+    expect(26, (1 - 1) ? 51 : 52 / 2);
+    expect(18, (1 - 1) ? 51 / 3 : 52);
 }
 
 int test_logand() {

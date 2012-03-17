@@ -496,9 +496,9 @@ static Ast *read_unary_expr(void) {
 }
 
 static Ast *read_cond_expr(Ast *cond) {
-    Ast *then = read_unary_expr();
+    Ast *then = read_expr();
     expect(':');
-    Ast *els = read_unary_expr();
+    Ast *els = read_expr();
     return ast_ternary(then->ctype, cond, then, els);
 }
 
