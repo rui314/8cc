@@ -76,6 +76,9 @@ typedef struct Ctype {
     // struct
     Dict *fields;
     int offset;
+    // function
+    struct Ctype *rettype;
+    List *params;
 } Ctype;
 
 typedef struct Ast {
@@ -114,14 +117,13 @@ typedef struct Ast {
         // Function call or function declaration
         struct {
             char *fname;
-            struct {
-                struct List *args;
-                struct {
-                    struct List *params;
-                    struct List *localvars;
-                    struct Ast *body;
-                };
-            };
+            // Function call
+            struct List *args;
+            struct List *paramtypes;
+            // Function declaration
+            struct List *params;
+            struct List *localvars;
+            struct Ast *body;
         };
         // Declaration
         struct {
@@ -156,6 +158,12 @@ typedef struct Ast {
     };
 } Ast;
 
+extern Ctype *ctype_int;
+extern Ctype *ctype_long;
+extern Ctype *ctype_char;
+extern Ctype *ctype_float;
+extern Ctype *ctype_double;
+
 extern String *make_string(void);
 extern char *get_cstring(String *s);
 extern void string_append(String *s, char c);
@@ -173,6 +181,7 @@ extern char *make_label(void);
 extern List *read_toplevels(void);
 extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
+extern Ctype *result_type(char op, Ctype *a, Ctype *b);
 
 extern void emit_data_section(void);
 extern void emit_toplevel(Ast *v);

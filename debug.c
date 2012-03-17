@@ -5,9 +5,11 @@ char *ctype_to_string(Ctype *ctype) {
         return "(nil)";
     switch (ctype->type) {
     case CTYPE_VOID: return "void";
+    case CTYPE_CHAR: return "char";
     case CTYPE_INT:  return "int";
     case CTYPE_LONG: return "long";
-    case CTYPE_CHAR: return "char";
+    case CTYPE_FLOAT: return "float";
+    case CTYPE_DOUBLE: return "double";
     case CTYPE_PTR: {
         String *s = make_string();
         string_appendf(s, "*%s", ctype_to_string(ctype->ptr));
@@ -24,6 +26,18 @@ char *ctype_to_string(Ctype *ctype) {
         for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);)
             string_appendf(s, " (%s)", ctype_to_string(iter_next(i)));
         string_appendf(s, ")");
+        return get_cstring(s);
+    }
+    case CTYPE_FUNC: {
+        String *s = make_string();
+        string_appendf(s, "%s(", ctype_to_string(ctype->rettype));
+        for (Iter *i = list_iter(ctype->params); !iter_end(i);) {
+            Ctype *t = iter_next(i);
+            string_appendf(s, "%s", ctype_to_string(t));
+            if (!iter_end(i))
+                string_append(s, ',');
+        }
+        string_append(s, ')');
         return get_cstring(s);
     }
     default: error("Unknown ctype: %d", ctype);

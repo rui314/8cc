@@ -307,14 +307,29 @@ static void emit_binop_float_arith(Ast *ast) {
     emit("%s %%xmm1, %%xmm0", op);
 }
 
+static void emit_load_convert(Ctype *to, Ctype *from) {
+    SAVE;
+    if (is_flotype(to))
+        emit_todouble(from);
+    else
+        emit_toint(from);
+}
+
+static void emit_save_convert(Ctype *to, Ctype *from) {
+    SAVE;
+    if (is_inttype(from) && to->type == CTYPE_FLOAT)
+        emit("cvtsi2ss %%eax, %%xmm0");
+    else if (is_flotype(from) && to->type == CTYPE_FLOAT)
+        emit("cvtpd2ps %%xmm0, %%xmm0");
+    else
+        emit_load_convert(to, from);
+}
+
 static void emit_binop(Ast *ast) {
     SAVE;
     if (ast->type == '=') {
         emit_expr(ast->right);
-        if (is_flotype(ast->ctype))
-            emit_todouble(ast->right->ctype);
-        else
-            emit_toint(ast->right->ctype);
+        emit_load_convert(ast->ctype, ast->right->ctype);
         emit_assign(ast->left);
         return;
     }
@@ -366,6 +381,17 @@ static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off) {
     emit("mov %%rcx, %%rax");
 }
 
+static List *get_arg_types(Ast *ast) {
+    List *r = make_list();
+    for (Iter *i = list_iter(ast->args), *j = list_iter(ast->paramtypes);
+         !iter_end(i);) {
+        Ast *v = iter_next(i);
+        Ctype *ptype = iter_next(j);
+        list_push(r, ptype ? ptype : result_type('=', v->ctype, ctype_int));
+    }
+    return r;
+}
+
 static void emit_expr(Ast *ast) {
     SAVE;
     switch (ast->type) {
@@ -400,26 +426,30 @@ static void emit_expr(Ast *ast) {
     case AST_FUNCALL: {
         int ireg = 0;
         int xreg = 0;
-        for (Iter *i = list_iter(ast->args); !iter_end(i);) {
-            Ast *v = iter_next(i);
-            if (is_flotype(v->ctype))
-                push_xmm(xreg++);
-            else
+        List *argtypes = get_arg_types(ast);
+        for (Iter *i = list_iter(argtypes); !iter_end(i);) {
+            if (is_flotype(iter_next(i))) {
+                if (xreg > 0) push_xmm(xreg);
+                xreg++;
+            } else {
                 push(REGS[ireg++]);
+            }
         }
-        for (Iter *i = list_iter(ast->args); !iter_end(i);) {
+        for (Iter *i = list_iter(ast->args), *j = list_iter(argtypes);
+             !iter_end(i);) {
             Ast *v = iter_next(i);
             emit_expr(v);
-            if (is_flotype(v->ctype))
+            Ctype *ptype = iter_next(j);
+            emit_save_convert(ptype, v->ctype);
+            if (is_flotype(ptype))
                 push_xmm(0);
             else
                 push("rax");
         }
         int ir = ireg;
         int xr = xreg;
-        for (Iter *i = list_iter(list_reverse(ast->args)); !iter_end(i);) {
-            Ast *v = iter_next(i);
-            if (is_flotype(v->ctype))
+        for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
+            if (is_flotype(iter_next(i)))
                 pop_xmm(--xr);
             else
                 pop(REGS[--ir]);
@@ -430,13 +460,16 @@ static void emit_expr(Ast *ast) {
         emit("call %s", ast->fname);
         if (stackpos % 16)
             emit("add $8, %%rsp");
-        for (Iter *i = list_iter(list_reverse(ast->args)); !iter_end(i);) {
-            Ast *v = iter_next(i);
-            if (is_flotype(v->ctype))
-                pop_xmm(--xreg);
-            else
+        for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
+            if (is_flotype(iter_next(i))) {
+                if (xreg != 1)
+                    pop_xmm(--xreg);
+            } else {
                 pop(REGS[--ireg]);
+            }
         }
+        if (ast->ctype->type == CTYPE_FLOAT)
+            emit("cvtps2pd %%xmm0, %%xmm0");
         break;
     }
     case AST_DECL: {
@@ -518,6 +551,7 @@ static void emit_expr(Ast *ast) {
     }
     case AST_RETURN:
         emit_expr(ast->retval);
+        emit_save_convert(ast->ctype, ast->retval->ctype);
         emit("leave");
         emit("ret");
         break;
@@ -661,7 +695,6 @@ static void emit_func_prologue(Ast *func) {
     for (Iter *i = list_iter(func->params); !iter_end(i);) {
         Ast *v = iter_next(i);
         if (v->ctype->type == CTYPE_FLOAT) {
-            emit("cvtpd2ps %%xmm%d, %%xmm%d", xreg, xreg);
             push_xmm(xreg++);
         } else if (v->ctype->type == CTYPE_DOUBLE) {
             push_xmm(xreg++);
@@ -671,13 +704,15 @@ static void emit_func_prologue(Ast *func) {
         off -= align(v->ctype->size, 8);
         v->loff = off;
     }
+    int localarea = 0;
     for (Iter *i = list_iter(func->localvars); !iter_end(i);) {
         Ast *v = iter_next(i);
         off -= align(v->ctype->size, 8);
         v->loff = off;
+        localarea += off;
     }
-    if (off)
-        emit("add $%d, %%rsp", off);
+    if (localarea)
+        emit("sub $%d, %%rsp", -localarea);
     stackpos += -(off - 8);
 }
 
