@@ -1,5 +1,4 @@
 #include <stdarg.h>
-#include <stdio.h>
 #include "8cc.h"
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};

@@ -1,5 +1,5 @@
 CFLAGS=-Wall -std=gnu99 -g -I.
-OBJS=lex.o string.o util.o gen.o parse.o list.o debug.o dict.o
+OBJS=lex.o string.o util.o gen.o parse.o list.o debug.o dict.o cpp.o
 TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))
 
 8cc: 8cc.h main.o $(OBJS)
@@ -10,7 +10,7 @@ $(OBJS) utiltest.o main.o: 8cc.h
 utiltest: 8cc.h utiltest.o $(OBJS)
 	$(CC) $(CFLAGS) -o $@ utiltest.o $(OBJS)
 
-test: nqueen utiltest $(TESTS)
+test: utiltest $(TESTS) sample/nqueen
 	@echo
 	./utiltest
 	@for test in $(TESTS); do \
@@ -24,7 +24,7 @@ test/%.s: test/%.c 8cc
 test/%.bin: test/%.s 8cc
 	$(CC) $(CFLAGS) -o $@ $<
 
-nqueen: 8cc sample/nqueen.c
+sample/nqueen: 8cc sample/nqueen.c
 	./8cc < sample/nqueen.c > sample/nqueen.s
 	$(CC) $(CFLAGS) -o sample/nqueen sample/nqueen.s
 

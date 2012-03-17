@@ -2,6 +2,7 @@
 #define EIGHTCC_H
 
 #include <stdbool.h>
+#include <stdio.h>
 #include "util.h"
 #include "list.h"
 #include "dict.h"
@@ -12,6 +13,8 @@ enum {
     TTYPE_NUMBER,
     TTYPE_CHAR,
     TTYPE_STRING,
+    // Only in CPP
+    TTYPE_NEWLINE,
 };
 
 typedef struct {
@@ -169,11 +172,17 @@ extern char *get_cstring(String *s);
 extern void string_append(String *s, char c);
 extern void string_appendf(String *s, char *fmt, ...);
 
-extern char *token_to_string(Token *tok);
-extern bool is_punct(Token *tok, int c);
+extern void unget_cpp_token(Token *tok);
+extern Token *peek_cpp_token(void);
+extern Token *read_cpp_token(void);
+
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
 extern Token *read_token(void);
+
+extern char *token_to_string(Token *tok);
+extern bool is_punct(Token *tok, int c);
+extern bool is_ident(Token *tok, char *s);
 extern char *ast_to_string(Ast *ast);
 extern char *ctype_to_string(Ctype *ctype);
 extern void print_asm_header(void);

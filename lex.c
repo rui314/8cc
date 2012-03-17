@@ -1,9 +1,9 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include "8cc.h"
 
 static Token *ungotten = NULL;
+static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE };
 
 static Token *make_ident(String *s) {
     Token *r = malloc(sizeof(Token));
@@ -43,7 +43,7 @@ static Token *make_char(char c) {
 static int getc_nonspace(void) {
     int c;
     while ((c = getc(stdin)) != EOF) {
-        if (isspace(c) || c == '\n' || c == '\r')
+        if (c == ' ' || c == '\t')
             continue;
         return c;
     }
@@ -147,6 +147,8 @@ static Token *read_rep(int expect, int t1, int t2) {
 static Token *read_token_int(void) {
     int c = getc_nonspace();
     switch (c) {
+    case '\n':
+        return newline_token;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
         return read_number(c);
@@ -174,7 +176,7 @@ static Token *read_token_int(void) {
     }
     case '*': case '(': case ')': case ',': case ';': case '.': case '[':
     case ']': case '{': case '}': case '<': case '>': case '!': case '?':
-    case ':':
+    case ':': case '#':
         return make_punct(c);
     case '-':
         c = getc(stdin);
@@ -199,20 +201,20 @@ bool is_punct(Token *tok, int c) {
     return tok && (tok->type == TTYPE_PUNCT) && (tok->punct == c);
 }
 
-void unget_token(Token *tok) {
+void unget_cpp_token(Token *tok) {
     if (!tok) return;
     if (ungotten)
         error("Push back buffer is already full");
     ungotten = tok;
 }
 
-Token *peek_token(void) {
+Token *peek_cpp_token(void) {
     Token *tok = read_token();
     unget_token(tok);
     return tok;
 }
 
-Token *read_token(void) {
+Token *read_cpp_token(void) {
     if (ungotten) {
         Token *tok = ungotten;
         ungotten = NULL;

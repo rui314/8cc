@@ -25,6 +25,8 @@ typedef struct Iter {
 List *make_list(void);
 void list_push(List *list, void *elem);
 void *list_pop(List *list);
+void list_append(List *a, List *b);
+void list_unshift(List *list, void *elem);
 List *list_reverse(List *list);
 int list_len(List *list);
 void *list_last(List *list);
