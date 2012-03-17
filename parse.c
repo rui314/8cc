@@ -293,6 +293,23 @@ static bool is_right_assoc(Token *tok) {
     return tok->punct == '=';
 }
 
+static int eval_intexpr(Ast *ast) {
+    switch (ast->type) {
+    case AST_LITERAL:
+        if (ast->ctype->type == CTYPE_INT)
+            return ast->ival;
+        if (ast->ctype->type == CTYPE_CHAR)
+            return ast->c;
+        error("Integer expression expected, but got %s", ast_to_string(ast));
+    case '+': return eval_intexpr(ast->left) + eval_intexpr(ast->right);
+    case '-': return eval_intexpr(ast->left) - eval_intexpr(ast->right);
+    case '*': return eval_intexpr(ast->left) * eval_intexpr(ast->right);
+    case '/': return eval_intexpr(ast->left) / eval_intexpr(ast->right);
+    default:
+        error("Integer expression expected, but got %s", ast_to_string(ast));
+    }
+}
+
 static int priority(Token *tok) {
     switch (tok->punct) {
     case '[': case '.': case PUNCT_ARROW:
@@ -702,11 +719,6 @@ static Ctype *read_decl_spec(void) {
     }
 }
 
-static void check_intexp(Ast *ast) {
-    if (ast->type != AST_LITERAL || ast->ctype->type != CTYPE_INT)
-        error("Integer expected, but got %s", ast_to_string(ast));
-}
-
 static Ast *read_decl_init_val(Ast *var) {
     if (var->ctype->type == CTYPE_ARRAY) {
         Ast *init = read_decl_array_init_int(var->ctype);
@@ -726,7 +738,7 @@ static Ast *read_decl_init_val(Ast *var) {
     Ast *init = read_expr();
     expect(';');
     if (var->type == AST_GVAR)
-        check_intexp(init);
+        init = ast_int(eval_intexpr(init));
     return ast_decl(var, init);
 }
 
@@ -739,8 +751,7 @@ static Ctype *read_array_dimensions_int(Ctype *basetype) {
     int dim = -1;
     if (!is_punct(peek_token(), ']')) {
         Ast *size = read_expr();
-        check_intexp(size);
-        dim = size->ival;
+        dim = eval_intexpr(size);
     }
     expect(']');
     Ctype *sub = read_array_dimensions_int(basetype);

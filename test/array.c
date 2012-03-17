@@ -56,6 +56,12 @@ int t6() {
     t6a(65, a);
 }
 
+int t7() {
+    int a[3*3];
+    a[8] = 68;
+    expect(68, a[8]);
+}
+
 int main() {
     printf("Testing array ... ");
 
