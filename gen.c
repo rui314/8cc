@@ -59,13 +59,13 @@ static char *get_int_reg(Ctype *ctype, char r) {
 static void push_xmm(int reg) {
     SAVE;
     emit("sub $8, %%rsp");
-    emit("movss %%xmm%d, (%%rsp)", reg);
+    emit("movsd %%xmm%d, (%%rsp)", reg);
     stackpos += 8;
 }
 
 static void pop_xmm(int reg) {
     SAVE;
-    emit("movss (%%rsp), %%xmm%d", reg);
+    emit("movsd (%%rsp), %%xmm%d", reg);
     emit("add $8, %%rsp");
     stackpos -= 8;
     assert(stackpos >= 0);
@@ -82,6 +82,10 @@ static void pop(char *reg) {
     emit("pop %%%s", reg);
     stackpos -= 8;
     assert(stackpos >= 0);
+}
+
+static bool is_flotype(Ctype *ctype) {
+    return ctype->type == CTYPE_FLOAT || ctype->type == CTYPE_DOUBLE;    
 }
 
 static void emit_gload(Ctype *ctype, char *label, int off) {
@@ -104,32 +108,32 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
 
 static void emit_toint(Ctype *ctype) {
     SAVE;
-    if (ctype->type != CTYPE_FLOAT)
+    if (!is_flotype(ctype))
         return;
-    emit("cvttss2si %%xmm0, %%eax");
+    emit("cvttsd2si %%xmm0, %%eax");
 }
 
-static void emit_tofloat(Ctype *ctype) {
+static void emit_todouble(Ctype *ctype) {
     SAVE;
-    if (ctype->type == CTYPE_FLOAT)
+    if (is_flotype(ctype))
         return;
-    emit("cvtsi2ss %%eax, %%xmm0");
+    emit("cvtsi2sd %%eax, %%xmm0");
 }
 
 static void emit_lload(Ctype *ctype, int off) {
     SAVE;
     if (ctype->type == CTYPE_ARRAY) {
         emit("lea %d(%%rbp), %%rax", off);
-        return;
+    } else if (ctype->type == CTYPE_FLOAT) {
+        emit("cvtps2pd %d(%%rbp), %%xmm0", off);
+    } else if (ctype->type == CTYPE_DOUBLE) {
+        emit("movsd %d(%%rbp), %%xmm0", off);
+    } else {
+        char *reg = get_int_reg(ctype, 'a');
+        if (ctype->size == 1)
+            emit("mov $0, %%eax");
+        emit("mov %d(%%rbp), %%%s", off, reg);
     }
-    if (ctype->type == CTYPE_FLOAT) {
-        emit("movss %d(%%rbp), %%xmm0", off);
-        return;
-    }
-    char *reg = get_int_reg(ctype, 'a');
-    if (ctype->size == 1)
-        emit("mov $0, %%eax");
-    emit("mov %d(%%rbp), %%%s", off, reg);
 }
 
 static void emit_gsave(char *varname, Ctype *ctype, int off) {
@@ -145,7 +149,9 @@ static void emit_gsave(char *varname, Ctype *ctype, int off) {
 static void emit_lsave(Ctype *ctype, int off) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT) {
-        emit("movss %%xmm0, %d(%%rbp)", off);
+        emit("cvtpd2ps %%xmm0, %d(%%rbp)", off);
+    } else if (ctype->type == CTYPE_DOUBLE) {
+        emit("movsd %%xmm0, %d(%%rbp)", off);
     } else {
         char *reg = get_int_reg(ctype, 'a');
         emit("mov %%%s, %d(%%rbp)", reg, off);
@@ -239,14 +245,14 @@ static void emit_assign(Ast *var) {
 
 static void emit_comp(char *inst, Ast *ast) {
     SAVE;
-    if (ast->ctype->type == CTYPE_FLOAT) {
+    if (is_flotype(ast->ctype)) {
         emit_expr(ast->left);
-        emit_tofloat(ast->left->ctype);
+        emit_todouble(ast->left->ctype);
         push_xmm(0);
         emit_expr(ast->right);
-        emit_tofloat(ast->right->ctype);
+        emit_todouble(ast->right->ctype);
         pop_xmm(1);
-        emit("ucomiss %%xmm0, %%xmm1");
+        emit("ucomisd %%xmm0, %%xmm1");
     } else {
         emit_expr(ast->left);
         emit_toint(ast->left->ctype);
@@ -289,17 +295,17 @@ static void emit_binop_float_arith(Ast *ast) {
     SAVE;
     char *op;
     switch (ast->type) {
-    case '+': op = "addss"; break;
-    case '-': op = "subss"; break;
-    case '*': op = "mulss"; break;
-    case '/': op = "divss"; break;
+    case '+': op = "addsd"; break;
+    case '-': op = "subsd"; break;
+    case '*': op = "mulsd"; break;
+    case '/': op = "divsd"; break;
     default: error("invalid operator '%d'", ast->type);
     }
     emit_expr(ast->left);
-    emit_tofloat(ast->left->ctype);
+    emit_todouble(ast->left->ctype);
     push_xmm(0);
     emit_expr(ast->right);
-    emit_tofloat(ast->right->ctype);
+    emit_todouble(ast->right->ctype);
     emit("movsd %%xmm0, %%xmm1");
     pop_xmm(0);
     emit("%s %%xmm1, %%xmm0", op);
@@ -309,8 +315,8 @@ static void emit_binop(Ast *ast) {
     SAVE;
     if (ast->type == '=') {
         emit_expr(ast->right);
-        if (ast->ctype->type == CTYPE_FLOAT)
-            emit_tofloat(ast->right->ctype);
+        if (is_flotype(ast->ctype))
+            emit_todouble(ast->right->ctype);
         else
             emit_toint(ast->right->ctype);
         emit_assign(ast->left);
@@ -334,7 +340,7 @@ static void emit_binop(Ast *ast) {
     }
     if (ast->ctype->type == CTYPE_INT)
         emit_binop_int_arith(ast);
-    else if (ast->ctype->type == CTYPE_FLOAT)
+    else if (is_flotype(ast->ctype))
         emit_binop_float_arith(ast);
     else
         error("internal error");
@@ -376,7 +382,8 @@ static void emit_expr(Ast *ast) {
             emit("mov $%d, %%rax", ast->c);
             break;
         case CTYPE_FLOAT:
-            emit("movss %s(%%rip), %%xmm0", ast->flabel);
+        case CTYPE_DOUBLE:
+            emit("movsd %s(%%rip), %%xmm0", ast->flabel);
             break;
         default:
             error("internal error");
@@ -396,7 +403,7 @@ static void emit_expr(Ast *ast) {
         int xreg = 0;
         for (Iter *i = list_iter(ast->args); !iter_end(i);) {
             Ast *v = iter_next(i);
-            if (v->ctype->type == CTYPE_FLOAT)
+            if (is_flotype(v->ctype))
                 push_xmm(xreg++);
             else
                 push(REGS[ireg++]);
@@ -404,7 +411,7 @@ static void emit_expr(Ast *ast) {
         for (Iter *i = list_iter(ast->args); !iter_end(i);) {
             Ast *v = iter_next(i);
             emit_expr(v);
-            if (v->ctype->type == CTYPE_FLOAT)
+            if (is_flotype(v->ctype))
                 push_xmm(0);
             else
                 push("rax");
@@ -413,10 +420,8 @@ static void emit_expr(Ast *ast) {
         int xr = xreg;
         for (Iter *i = list_iter(list_reverse(ast->args)); !iter_end(i);) {
             Ast *v = iter_next(i);
-            if (v->ctype->type == CTYPE_FLOAT) {
+            if (is_flotype(v->ctype))
                 pop_xmm(--xr);
-                emit("cvtps2pd %%xmm%d, %%xmm%d", xr, xr);
-            }
             else
                 pop(REGS[--ir]);
         }
@@ -428,7 +433,7 @@ static void emit_expr(Ast *ast) {
             emit("add $8, %%rsp");
         for (Iter *i = list_iter(list_reverse(ast->args)); !iter_end(i);) {
             Ast *v = iter_next(i);
-            if (v->ctype->type == CTYPE_FLOAT)
+            if (is_flotype(v->ctype))
                 pop_xmm(--xreg);
             else
                 pop(REGS[--ireg]);
@@ -595,12 +600,13 @@ void emit_data_section(void) {
             error("internal error: %s", ast_to_string(v));
         }
     }
-    for (Iter *i = list_iter(floats); !iter_end(i);) {
+    for (Iter *i = list_iter(flonums); !iter_end(i);) {
         Ast *v = iter_next(i);
         char *label = make_label();
         v->flabel = label;
         emit_label("%s:", label);
-        emit(".long %d", *(int *)&v->fval);
+        emit(".long %d", ((int *)&v->fval)[0]);
+        emit(".long %d", ((int *)&v->fval)[1]);
     }
 }
 
@@ -661,6 +667,8 @@ static void emit_func_prologue(Ast *func) {
         Ast *v = iter_next(i);
         if (v->ctype->type == CTYPE_FLOAT) {
             emit("cvtpd2ps %%xmm%d, %%xmm%d", xreg, xreg);
+            push_xmm(xreg++);
+        } else if (v->ctype->type == CTYPE_DOUBLE) {
             push_xmm(xreg++);
         } else {
             push(REGS[ireg++]);

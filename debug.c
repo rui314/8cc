@@ -52,6 +52,7 @@ static void ast_to_string_int(String *buf, Ast *ast) {
             string_appendf(buf, "%d", ast->ival);
             break;
         case CTYPE_FLOAT:
+        case CTYPE_DOUBLE:
             string_appendf(buf, "%f", ast->fval);
             break;
         case CTYPE_CHAR:

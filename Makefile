@@ -1,6 +1,6 @@
 CFLAGS=-Wall -std=gnu99 -g -I.
 OBJS=lex.o string.o util.o gen.o parse.o list.o debug.o
-TESTS := $(patsubst %.c,%,$(wildcard test/*.c))
+TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))
 
 8cc: 8cc.h main.o $(OBJS)
 	$(CC) $(CFLAGS) -o $@ main.o $(OBJS)
@@ -21,7 +21,7 @@ test: nqueen unittest $(TESTS)
 test/%.s: test/%.c 8cc
 	./8cc < $< > $@
 
-test/%: test/%.s 8cc
+test/%.bin: test/%.s 8cc
 	$(CC) $(CFLAGS) -o $@ $<
 
 nqueen: 8cc sample/nqueen.c
