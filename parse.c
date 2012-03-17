@@ -17,11 +17,11 @@ static List *union_defs = &EMPTY_LIST;
 static Env *localenv = NULL;
 static List *localvars = NULL;
 
-static Ctype *ctype_int = &(Ctype){ CTYPE_INT, NULL, 4 };
-static Ctype *ctype_long = &(Ctype){ CTYPE_LONG, NULL, 8 };
-static Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, NULL, 1 };
-static Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, NULL, 4 };
-static Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, NULL, 8 };
+static Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, NULL };
+static Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, NULL };
+static Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, NULL };
+static Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, NULL };
+static Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, NULL };
 
 static int labelseq = 0;
 

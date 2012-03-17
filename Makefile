@@ -1,21 +1,21 @@
 CFLAGS=-Wall -std=gnu99 -g -I.
-OBJS=lex.o string.o util.o gen.o parse.o list.o debug.o
+OBJS=lex.o string.o util.o gen.o parse.o list.o debug.o dict.o
 TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))
 
 8cc: 8cc.h main.o $(OBJS)
 	$(CC) $(CFLAGS) -o $@ main.o $(OBJS)
 
-$(OBJS) unittest.o main.o: 8cc.h
+$(OBJS) utiltest.o main.o: 8cc.h
 
-unittest: 8cc.h unittest.o $(OBJS)
-	$(CC) $(CFLAGS) -o $@ unittest.o $(OBJS)
+utiltest: 8cc.h utiltest.o $(OBJS)
+	$(CC) $(CFLAGS) -o $@ utiltest.o $(OBJS)
 
-test: nqueen unittest $(TESTS)
+test: nqueen utiltest $(TESTS)
 	@echo
 	@for test in $(TESTS); do \
 	    ./$$test;             \
 	done
-	./unittest
+	./utiltest
 	./test.sh
 
 test/%.s: test/%.c 8cc
@@ -30,5 +30,5 @@ nqueen: 8cc sample/nqueen.c
 
 .PHONY: clean test
 clean:
-	rm -f 8cc *.o tmp.* test/*.s test/*.o sample/*.o unittest sample/nqueen.s sample/nqueen 
+	rm -f 8cc *.o tmp.* test/*.s test/*.o sample/*.o utiltest sample/nqueen.s sample/nqueen
 	rm -f $(TESTS)

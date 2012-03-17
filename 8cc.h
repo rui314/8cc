@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "util.h"
 #include "list.h"
+#include "dict.h"
 
 enum {
     TTYPE_IDENT,
@@ -67,13 +68,15 @@ enum {
 
 typedef struct Ctype {
     int type;
-    struct Ctype *ptr; // pointer or array
     int size;
-    int len;    // array
-    char *name; // struct field
-    char *tag;  // struct
+    struct Ctype *ptr; // pointer or array
+    // array length
+    int len;
+    // struct
+    char *name;
+    char *tag;
     List *fields;
-    int offset; // struct
+    int offset;
 } Ctype;
 
 typedef struct Ast {
