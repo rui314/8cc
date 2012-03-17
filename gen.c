@@ -583,7 +583,7 @@ void emit_data_section(void) {
     }
 }
 
-static int ceil(int n, int m) {
+static int align(int n, int m) {
     int rem = n % m;
     return (rem == 0) ? n : n - rem + m;
 }
@@ -640,16 +640,16 @@ static void emit_func_prologue(Ast *func) {
     for (Iter *i = list_iter(func->params); !iter_end(i); ri++) {
         emit("push %%%s", REGS[ri]);
         Ast *v = iter_next(i);
-        off -= ceil(v->ctype->size, 8);
+        off -= align(v->ctype->size, 8);
         v->loff = off;
     }
     for (Iter *i = list_iter(func->localvars); !iter_end(i);) {
         Ast *v = iter_next(i);
-        off -= ceil(v->ctype->size, 8);
+        off -= align(v->ctype->size, 8);
         v->loff = off;
     }
     if (off)
-        emit("sub $%d, %%rsp", ceil(-off, 16));
+        emit("sub $%d, %%rsp", align(-off, 16));
 }
 
 static void emit_func_epilogue(void) {
