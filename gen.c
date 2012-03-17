@@ -6,6 +6,8 @@ static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static int TAB = 8;
 static List *functions = &EMPTY_LIST;
 
+static int stackpos;
+
 static void emit_expr(Ast *ast);
 static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off);
 
@@ -54,16 +56,32 @@ static char *get_int_reg(Ctype *ctype, char r) {
     }
 }
 
-static void emit_push_xmm(int reg) {
+static void push_xmm(int reg) {
     SAVE;
     emit("sub $8, %%rsp");
     emit("movss %%xmm%d, (%%rsp)", reg);
+    stackpos += 8;
 }
 
-static void emit_pop_xmm(int reg) {
+static void pop_xmm(int reg) {
     SAVE;
     emit("movss (%%rsp), %%xmm%d", reg);
     emit("add $8, %%rsp");
+    stackpos -= 8;
+    assert(stackpos >= 0);
+}
+
+static void push(char *reg) {
+    SAVE;
+    emit("push %%%s", reg);
+    stackpos += 8;
+}
+
+static void pop(char *reg) {
+    SAVE;
+    emit("pop %%%s", reg);
+    stackpos -= 8;
+    assert(stackpos >= 0);
 }
 
 static void emit_gload(Ctype *ctype, char *label, int off) {
@@ -142,12 +160,12 @@ static void emit_assign_deref_int(Ctype *ctype, int off) {
         emit("mov %%%s, %d(%%rax)", reg, off);
     else
         emit("mov %%%s, (%%rax)", reg);
-    emit("pop %%rax");
+    pop("rax");
 }
 
 static void emit_assign_deref(Ast *var) {
     SAVE;
-    emit("push %%rax");
+    push("rax");
     emit_expr(var->operand);
     emit_assign_deref_int(var->operand->ctype->ptr, 0);
 }
@@ -155,13 +173,13 @@ static void emit_assign_deref(Ast *var) {
 static void emit_pointer_arith(char op, Ast *left, Ast *right) {
     SAVE;
     emit_expr(left);
-    emit("push %%rax");
+    push("rax");
     emit_expr(right);
     int size = left->ctype->ptr->size;
     if (size > 1)
         emit("imul $%d, %%rax", size);
     emit("mov %%rax, %%rcx");
-    emit("pop %%rax");
+    pop("rax");
     emit("add %%rcx, %%rax");
 }
 
@@ -178,7 +196,7 @@ static void emit_assign_struct_ref(Ast *struc, Ctype *field, int off) {
         emit_assign_struct_ref(struc->struc, field, off + struc->field->offset);
         break;
     case AST_DEREF:
-        emit("push %%rax");
+        push("rax");
         emit_expr(struc->operand);
         emit_assign_deref_int(field, field->offset + off);
         break;
@@ -224,18 +242,18 @@ static void emit_comp(char *inst, Ast *ast) {
     if (ast->ctype->type == CTYPE_FLOAT) {
         emit_expr(ast->left);
         emit_tofloat(ast->left->ctype);
-        emit_push_xmm(0);
+        push_xmm(0);
         emit_expr(ast->right);
         emit_tofloat(ast->right->ctype);
-        emit_pop_xmm(1);
+        pop_xmm(1);
         emit("ucomiss %%xmm0, %%xmm1");
     } else {
         emit_expr(ast->left);
         emit_toint(ast->left->ctype);
-        emit("push %%rax");
+        push("rax");
         emit_expr(ast->right);
         emit_toint(ast->right->ctype);
-        emit("pop %%rcx");
+        pop("rcx");
         emit("cmp %%rax, %%rcx");
     }
     emit("%s %%al", inst);
@@ -254,11 +272,11 @@ static void emit_binop_int_arith(Ast *ast) {
     }
     emit_expr(ast->left);
     emit_toint(ast->left->ctype);
-    emit("push %%rax");
+    push("rax");
     emit_expr(ast->right);
     emit_toint(ast->right->ctype);
     emit("mov %%rax, %%rcx");
-    emit("pop %%rax");
+    pop("rax");
     if (ast->type == '/') {
         emit("mov $0, %%edx");
         emit("idiv %%rcx");
@@ -279,11 +297,11 @@ static void emit_binop_float_arith(Ast *ast) {
     }
     emit_expr(ast->left);
     emit_tofloat(ast->left->ctype);
-    emit_push_xmm(0);
+    push_xmm(0);
     emit_expr(ast->right);
     emit_tofloat(ast->right->ctype);
     emit("movsd %%xmm0, %%xmm1");
-    emit_pop_xmm(0);
+    pop_xmm(0);
     emit("%s %%xmm1, %%xmm0", op);
 }
 
@@ -325,10 +343,10 @@ static void emit_binop(Ast *ast) {
 static void emit_inc_dec(Ast *ast, char *op) {
     SAVE;
     emit_expr(ast->operand);
-    emit("push %%rax");
+    push("rax");
     emit("%s $1, %%rax", op);
     emit_assign(ast->operand);
-    emit("pop %%rax");
+    pop("rax");
 }
 
 static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off) {
@@ -379,37 +397,41 @@ static void emit_expr(Ast *ast) {
         for (Iter *i = list_iter(ast->args); !iter_end(i);) {
             Ast *v = iter_next(i);
             if (v->ctype->type == CTYPE_FLOAT)
-                emit_push_xmm(xreg++);
+                push_xmm(xreg++);
             else
-                emit("push %%%s", REGS[ireg++]);
+                push(REGS[ireg++]);
         }
         for (Iter *i = list_iter(ast->args); !iter_end(i);) {
             Ast *v = iter_next(i);
             emit_expr(v);
             if (v->ctype->type == CTYPE_FLOAT)
-                emit_push_xmm(0);
+                push_xmm(0);
             else
-                emit("push %rax");
+                push("rax");
         }
         int ir = ireg;
         int xr = xreg;
         for (Iter *i = list_iter(list_reverse(ast->args)); !iter_end(i);) {
             Ast *v = iter_next(i);
             if (v->ctype->type == CTYPE_FLOAT) {
-                emit_pop_xmm(--xr);
+                pop_xmm(--xr);
                 emit("cvtps2pd %%xmm%d, %%xmm%d", xr, xr);
             }
             else
-                emit("pop %%%s", REGS[--ir]);
+                pop(REGS[--ir]);
         }
         emit("mov $%d, %%eax", xreg);
+        if (stackpos % 16)
+            emit("sub $8, %%rsp");
         emit("call %s", ast->fname);
+        if (stackpos % 16)
+            emit("add $8, %%rsp");
         for (Iter *i = list_iter(list_reverse(ast->args)); !iter_end(i);) {
             Ast *v = iter_next(i);
             if (v->ctype->type == CTYPE_FLOAT)
-                emit_pop_xmm(--xreg);
+                pop_xmm(--xreg);
             else
-                emit("pop %%%s", REGS[--ireg]);
+                pop(REGS[--ireg]);
         }
         break;
     }
@@ -516,16 +538,16 @@ static void emit_expr(Ast *ast) {
         break;
     case '&':
         emit_expr(ast->left);
-        emit("push %%rax");
+        push("rax");
         emit_expr(ast->right);
-        emit("pop %%rcx");
+        pop("rcx");
         emit("and %%rcx, %%rax");
         break;
     case '|':
         emit_expr(ast->left);
-        emit("push %%rax");
+        push("rax");
         emit_expr(ast->right);
-        emit("pop %%rcx");
+        pop("rcx");
         emit("or %%rcx, %%rax");
         break;
     case PUNCT_LOGAND: {
@@ -563,7 +585,6 @@ static void emit_expr(Ast *ast) {
 
 void emit_data_section(void) {
     SAVE;
-    if (list_len(globalenv->vars) == 0) return;
     emit(".data");
     for (Iter *i = list_iter(globalenv->vars); !iter_end(i);) {
         Ast *v = iter_next(i);
@@ -628,18 +649,22 @@ static void emit_global_var(Ast *v) {
 
 static void emit_func_prologue(Ast *func) {
     SAVE;
-    if (list_len(func->params) > sizeof(REGS) / sizeof(*REGS))
-        error("Parameter list too long: %s", func->fname);
     emit(".text");
     emit_label(".global %s", func->fname);
     emit_label("%s:", func->fname);
-    emit("push %%rbp");
+    push("rbp");
     emit("mov %%rsp, %%rbp");
     int off = 0;
-    int ri = 0;
-    for (Iter *i = list_iter(func->params); !iter_end(i); ri++) {
-        emit("push %%%s", REGS[ri]);
+    int ireg = 0;
+    int xreg = 0;
+    for (Iter *i = list_iter(func->params); !iter_end(i);) {
         Ast *v = iter_next(i);
+        if (v->ctype->type == CTYPE_FLOAT) {
+            emit("cvtpd2ps %%xmm%d, %%xmm%d", xreg, xreg);
+            push_xmm(xreg++);
+        } else {
+            push(REGS[ireg++]);
+        }
         off -= align(v->ctype->size, 8);
         v->loff = off;
     }
@@ -649,7 +674,8 @@ static void emit_func_prologue(Ast *func) {
         v->loff = off;
     }
     if (off)
-        emit("sub $%d, %%rsp", align(-off, 16));
+        emit("add $%d, %%rsp", off);
+    stackpos += -(off - 8);
 }
 
 static void emit_func_epilogue(void) {
@@ -659,6 +685,7 @@ static void emit_func_epilogue(void) {
 }
 
 void emit_toplevel(Ast *v) {
+    stackpos = 0;
     if (v->type == AST_FUNC) {
         emit_func_prologue(v);
         emit_expr(v->body);

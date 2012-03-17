@@ -100,10 +100,6 @@ testastf '(decl (struct ([3]int)) a)' 'struct {int x[3];} a;'
 testast '(int)f(){(decl (struct tag (int)) a);(decl *(struct tag (int)) p);(deref p).x;}' 'struct tag {int x;} a; struct tag *p; p->x;'
 testast '(int)f(){(decl (struct (int)) a);a.x;}' 'struct {int x;} a; a.x;'
 
-# Floating point number
-testm 0.5 'int main(){ float f = 0.5; printf("%.1f", f); }'
-testm 1.5 'int main(){ float f = 1.0 + 0.5; printf("%.1f", f); }'
-
 testfail '0abc;'
 testfail '1+;'
 testfail '1=2;'

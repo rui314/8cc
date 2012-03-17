@@ -11,6 +11,7 @@ unittest: 8cc.h unittest.o $(OBJS)
 	$(CC) $(CFLAGS) -o $@ unittest.o $(OBJS)
 
 test: nqueen unittest $(TESTS)
+	@echo
 	@for test in $(TESTS); do \
 	    ./$$test;             \
 	done
