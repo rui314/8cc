@@ -175,10 +175,12 @@ extern void string_appendf(String *s, char *fmt, ...);
 extern void unget_cpp_token(Token *tok);
 extern Token *peek_cpp_token(void);
 extern Token *read_cpp_token(void);
+extern void skip_cond_incl(void);
 
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
 extern Token *read_token(void);
+extern void expect_newline(void);
 
 extern char *token_to_string(Token *tok);
 extern bool is_punct(Token *tok, int c);
@@ -188,6 +190,8 @@ extern char *ctype_to_string(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);
+extern Ast *read_expr(void);
+extern int eval_intexpr(Ast *ast);
 extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
 extern Ctype *result_type(char op, Ctype *a, Ctype *b);

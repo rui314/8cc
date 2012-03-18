@@ -2,7 +2,7 @@
 #include <ctype.h>
 #include "8cc.h"
 
-static Token *ungotten = NULL;
+static List *ungotten = &EMPTY_LIST;
 static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE };
 
 static Token *make_ident(String *s) {
@@ -48,6 +48,41 @@ static int getc_nonspace(void) {
         return c;
     }
     return EOF;
+}
+
+static void skip_line(void) {
+    for (;;) {
+        int c = getc(stdin);
+        if (c == EOF || c == '\n')
+            return;
+    }
+}
+
+void skip_cond_incl(void) {
+    int nest = 0;
+    for (;;) {
+        int c = getc_nonspace();
+        if (c != '#') {
+            skip_line();
+            continue;
+        }
+        Token *tok = read_cpp_token();
+        if (tok->type == TTYPE_NEWLINE)
+            continue;
+        if (tok->type != TTYPE_IDENT) {
+            skip_line();
+        } else if (is_ident(tok, "if") || is_ident(tok, "ifdef") || is_ident(tok, "ifndef")) {
+            nest++;
+        } else if (nest && is_ident(tok, "endif")) {
+            nest--;
+        } else if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
+            unget_cpp_token(tok);
+            unget_cpp_token(make_punct('#'));
+            return;
+        } else {
+            skip_line();
+        }
+    }
 }
 
 static Token *read_number(char c) {
@@ -203,22 +238,17 @@ bool is_punct(Token *tok, int c) {
 
 void unget_cpp_token(Token *tok) {
     if (!tok) return;
-    if (ungotten)
-        error("Push back buffer is already full");
-    ungotten = tok;
+    list_push(ungotten, tok);
 }
 
 Token *peek_cpp_token(void) {
     Token *tok = read_token();
-    unget_token(tok);
+    unget_cpp_token(tok);
     return tok;
 }
 
 Token *read_cpp_token(void) {
-    if (ungotten) {
-        Token *tok = ungotten;
-        ungotten = NULL;
-        return tok;
-    }
+    if (list_len(ungotten) > 0)
+        return list_pop(ungotten);
     return read_token_int();
 }

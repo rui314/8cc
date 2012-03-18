@@ -46,6 +46,18 @@ void *list_pop(List *list) {
     return r;
 }
 
+void *list_shift(List *list) {
+    if (!list->head) return NULL;
+    void *r = list->head->elem;
+    list->head = list->head->next;
+    if (list->head)
+        list->head->prev = NULL;
+    else
+        list->tail = NULL;
+    list->len--;
+    return r;
+}
+
 void list_unshift(List *list, void *elem) {
     ListNode *node = make_node(elem);
     node->next = list->head;
@@ -57,18 +69,19 @@ void list_unshift(List *list, void *elem) {
     list->len++;
 }
 
+void *list_head(List *list) {
+    return list->head ? list->head->elem : NULL;
+}
+
+void *list_tail(List *list) {
+    return list->tail ? list->tail->elem : NULL;
+}
+
 List *list_reverse(List *list) {
     List *r = make_list();
     for (Iter *i = list_iter(list); !iter_end(i);)
         list_unshift(r, iter_next(i));
     return r;
-}
-
-void *list_last(List *list) {
-    if (!list->head) return NULL;
-    ListNode *p = list->head;
-    while (p->next) p = p->next;
-    return p->elem;
 }
 
 int list_len(List *list) {

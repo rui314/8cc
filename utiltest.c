@@ -54,8 +54,6 @@ static void test_list(void) {
     assert_int(0, (long)iter_next(iter));
     assert_int(true, iter_end(iter));
 
-    assert_int(2, (long)list_last(list));
-
     List *rev = list_reverse(list);
     iter = list_iter(rev);
     assert_int(2, (long)iter_next(iter));
@@ -68,6 +66,23 @@ static void test_list(void) {
     assert_int(2, (long)list_pop(rev));
     assert_int(0, list_len(rev));
     assert_int(0, (long)list_pop(rev));
+
+    List *list2 = make_list();
+    list_push(list2, (void *)5);
+    list_push(list2, (void *)6);
+    assert_int(5, (long)list_shift(list2));
+    assert_int(6, (long)list_shift(list2));
+    assert_int(0, (long)list_shift(list2));
+
+    List *list3 = make_list();
+    assert_int(0, (long)list_head(list3));
+    assert_int(0, (long)list_tail(list3));
+    list_push(list3, (void *)1);
+    assert_int(1, (long)list_head(list3));
+    assert_int(1, (long)list_tail(list3));
+    list_push(list3, (void *)2);
+    assert_int(1, (long)list_head(list3));
+    assert_int(2, (long)list_tail(list3));
 }
 
 static void test_dict(void) {
