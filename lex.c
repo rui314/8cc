@@ -228,12 +228,12 @@ static void skip_block_comment(void) {
     enum { in_comment, asterisk_read } state = in_comment;
     for (;;) {
         int c = get();
-        if (state == in_comment) {
-            if (c == '*')
-                state = asterisk_read;
-        } else if (c == '/') {
+        if (c == '*')
+            state = asterisk_read;
+        else if (state == asterisk_read && c == '/')
             return;
-        }
+        else
+            state = in_comment;
     }
 }
 
