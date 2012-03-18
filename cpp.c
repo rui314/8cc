@@ -457,11 +457,31 @@ static bool read_constexpr(void) {
     return eval_intexpr(expr);
 }
 
-static void read_if(void) {
-    bool cond = read_constexpr();
+static void read_if_generic(bool cond) {
     list_push(cond_incl_stack, make_cond_incl(IN_THEN, cond));
     if (!cond)
         skip_cond_incl();
+}
+
+static void read_if(void) {
+    read_if_generic(read_constexpr());
+}
+
+static void read_ifdef_generic(bool is_ifdef) {
+    Token *tok = read_cpp_token();
+    if (!tok || tok->type != TTYPE_IDENT)
+        error("identifier expected, but got %s", t2s(tok));
+    bool cond = dict_get(macros, tok->sval);
+    expect_newline();
+    read_if_generic(is_ifdef ? cond : !cond);
+}
+
+static void read_ifdef(void) {
+    read_ifdef_generic(true);
+}
+
+static void read_ifndef(void) {
+    read_ifdef_generic(false);
 }
 
 static void read_else(void) {
@@ -552,6 +572,8 @@ static void read_directive(void) {
     if (is_ident(tok, "define"))       read_define();
     else if (is_ident(tok, "undef"))   read_undef();
     else if (is_ident(tok, "if"))      read_if();
+    else if (is_ident(tok, "ifdef"))   read_ifdef();
+    else if (is_ident(tok, "ifndef"))  read_ifndef();
     else if (is_ident(tok, "else"))    read_else();
     else if (is_ident(tok, "elif"))    read_elif();
     else if (is_ident(tok, "endif"))   read_endif();

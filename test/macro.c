@@ -101,7 +101,7 @@ int const_expr() {
     expect(13, a);
 }
 
-int defined_op() {
+int defined() {
     int a = 0;
 #if defined ZERO
     a = 1;
@@ -117,6 +117,37 @@ int defined_op() {
     a = 4;
 #endif
     expect(4, a);
+}
+
+int ifdef() {
+    int a = 0;
+#ifdef ONE
+    a = 1;
+#else
+    a = 2;
+#endif
+    expect(a, 1);
+
+#ifdef NO_SUCH_MACRO
+    a = 3;
+#else
+    a = 4;
+#endif
+    expect(a, 4);
+
+#ifndef ONE
+    a = 5;
+#else
+    a = 6;
+#endif
+    expect(a, 6);
+
+#ifndef NO_SUCH_MACRO
+    a = 7;
+#else
+    a = 8;
+#endif
+    expect(a, 7);
 }
 
 int plus(int a, int b) {
@@ -187,7 +218,8 @@ int main() {
     undef();
     cond_incl();
     const_expr();
-    defined_op();
+    defined();
+    ifdef();
     funclike();
 
     printf("OK\n");
