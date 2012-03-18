@@ -288,6 +288,11 @@ int eval_intexpr(Ast *ast) {
     case '-': return eval_intexpr(ast->left) - eval_intexpr(ast->right);
     case '*': return eval_intexpr(ast->left) * eval_intexpr(ast->right);
     case '/': return eval_intexpr(ast->left) / eval_intexpr(ast->right);
+    case '!': return !eval_intexpr(ast->operand);
+    case PUNCT_LOGAND:
+        return eval_intexpr(ast->left) && eval_intexpr(ast->right);
+    case PUNCT_LOGOR:
+        return eval_intexpr(ast->left) || eval_intexpr(ast->right);
     default:
         error("Integer expression expected, but got %s", a2s(ast));
     }

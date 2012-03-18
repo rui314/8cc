@@ -501,7 +501,6 @@ static void read_elif(void) {
     CondIncl *ci = list_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
         error("#elif after #else");
-    expect_newline();
     if (ci->wastrue)
         skip_cond_incl();
     else if (read_constexpr())

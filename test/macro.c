@@ -32,9 +32,22 @@ int undef() {
 int cond_incl() {
     int a = 1;
 #if 0
-    a = 5;
+    a = 2;
 #endif
     expect(1, a);
+
+#if 0
+#elif 1
+    a = 2;
+#endif
+    expect(2, a);
+
+#if 1
+    a = 3;
+#elif 1
+    a = 4;
+#endif
+    expect(3, a);
 
 #if 1
     a = 5;
@@ -71,6 +84,36 @@ int const_expr() {
     a = 5;
 #endif
     expect(4, a);
+
+#if 1 && 0
+#else
+    a = 100;
+#endif
+    expect(100, a);
+
+#if 1 && 1
+    a = 101;
+#else
+#endif
+    expect(101, a);
+
+#if 1 || 0
+    a = 102;
+#else
+#endif
+    expect(102, a);
+
+#if 0 || 0
+#else
+    a = 103;
+#endif
+    expect(103, a);
+
+#if 0
+#elif !0
+    a = 104;
+#endif
+    expect(104, a);
 
 #if 0 + 0
     a = 6;
