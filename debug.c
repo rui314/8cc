@@ -219,6 +219,10 @@ char *t2s(Token *tok) {
         return get_cstring(s);
     case TTYPE_NEWLINE:
         return "(newline)";
+    case TTYPE_SPACE:
+        return "(space)";
+    case TTYPE_MACRO_PARAM:
+        return "(macro-param)";
     }
     error("internal error: unknown token type: %d", tok->type);
 }

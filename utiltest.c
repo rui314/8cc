@@ -83,6 +83,13 @@ static void test_list(void) {
     list_push(list3, (void *)2);
     assert_int(1, (long)list_head(list3));
     assert_int(2, (long)list_tail(list3));
+
+    List *list4 = make_list();
+    list_push(list4, (void *)1);
+    list_push(list4, (void *)2);
+    assert_int(1, (long)list_get(list4, 0));
+    assert_int(2, (long)list_get(list4, 1));
+    assert_int(0, (long)list_get(list4, 2));
 }
 
 static void test_dict(void) {

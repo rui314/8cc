@@ -34,3 +34,14 @@ char *quote_cstring(char *p) {
     }
     return get_cstring(s);
 }
+
+char *quote_char(char c) {
+    String *s = make_string();
+    if (c == '\\')
+        string_appendf(s, "'\\%c'", c);
+    else if (c == '\'')
+        string_appendf(s, "'\\''");
+    else
+        string_appendf(s, "'%c'", c);
+    return get_cstring(s);
+}

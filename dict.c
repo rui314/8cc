@@ -33,10 +33,13 @@ void dict_put(Dict *dict, char *key, void *val) {
 }
 
 void dict_remove(Dict *dict, char *key) {
-    DictEntry *e = malloc(sizeof(DictEntry));
-    e->key = key;
-    e->val = NULL;
-    list_unshift(dict->list, e);
+    List *list = make_list();
+    for (Iter *i = list_iter(dict->list); !iter_end(i);) {
+        DictEntry *e = iter_next(i);
+        if (strcmp(key, e->key))
+            list_push(list, e);
+    }
+    dict->list = list;
 }
 
 List *dict_keys(Dict *dict) {

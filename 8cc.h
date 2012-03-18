@@ -15,14 +15,21 @@ enum {
     TTYPE_STRING,
     // Only in CPP
     TTYPE_NEWLINE,
+    TTYPE_SPACE,
+    TTYPE_MACRO_PARAM,
 };
 
 typedef struct {
     int type;
+    bool space;
+    Dict *hideset;
     union {
         char *sval;
         int punct;
         char c;
+        union {
+            int position;
+        };
     };
 } Token;
 
@@ -172,6 +179,7 @@ extern Token *cpp_token_one;
 
 extern String *make_string(void);
 extern char *get_cstring(String *s);
+extern int string_len(String *s);
 extern void string_append(String *s, char c);
 extern void string_appendf(String *s, char *fmt, ...);
 

@@ -23,11 +23,13 @@ typedef struct Iter {
     ((List){ .len = 0, .head = NULL, .tail = NULL })
 
 List *make_list(void);
+List *list_copy(List *list);
 void list_push(List *list, void *elem);
 void *list_pop(List *list);
 void list_append(List *a, List *b);
 void *list_shift(List *list);
 void list_unshift(List *list, void *elem);
+void *list_get(List *list, int index);
 void *list_head(List *list);
 void *list_tail(List *list);
 List *list_reverse(List *list);

@@ -1,4 +1,6 @@
+#include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 #include "8cc.h"
 
 static Dict *macros = &EMPTY_DICT;
@@ -7,58 +9,402 @@ static List *altbuffer = NULL;
 static List *cond_incl_stack = &EMPTY_LIST;
 static bool bol = true;
 
-enum CondInclCtx { IN_THEN, IN_ELSE };
+typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
 
 typedef struct {
-    enum CondInclCtx ctx;
+    CondInclCtx ctx;
     bool wastrue;
 } CondIncl;
 
-static Token *read_token_int(Dict *hideset, bool return_at_eol);
+typedef enum { MACRO_OBJ, MACRO_FUNC } MacroType;
 
-static CondIncl *make_cond_incl(enum CondInclCtx ctx, bool wastrue) {
+typedef struct {
+    MacroType type;
+    int nargs;
+    List *body;
+    bool is_varg;
+} Macro;
+
+static Token *read_token_int(bool return_at_eol);
+static Token *read_expand(void);
+static Token *get_token(void);
+
+static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
     CondIncl *r = malloc(sizeof(CondIncl));
     r->ctx = ctx;
     r->wastrue = wastrue;
     return r;
 }
 
+static Macro *make_obj_macro(List *body) {
+    Macro *r = malloc(sizeof(Macro));
+    r->type = MACRO_OBJ;
+    r->body = body;
+    r->is_varg = false;
+    return r;
+}
+
+static Macro *make_func_macro(List *body, int nargs, bool is_varg) {
+    Macro *r = malloc(sizeof(Macro));
+    r->type = MACRO_FUNC;
+    r->nargs = nargs;
+    r->body = body;
+    r->is_varg = is_varg;
+    return r;
+}
+
+static Token *make_macro_token(int position) {
+    Token *r = malloc(sizeof(Token));
+    r->type = TTYPE_MACRO_PARAM;
+    r->hideset = make_dict(NULL);
+    r->position = position;
+    r->space = false;
+    return r;
+}
+
+static Token *copy_token(Token *tok) {
+    Token *r = malloc(sizeof(Token));
+    memcpy(r, tok, sizeof(Token));
+    return r;
+}
+
+static void expect(char punct) {
+    Token *tok = get_token();
+    if (!tok || !is_punct(tok, punct))
+        error("%c expected, but got %s", t2s(tok));
+}
+
 static Token *read_ident(void) {
-    Token *r = read_cpp_token();
+    Token *r = get_token();
     if (r->type != TTYPE_IDENT)
         error("identifier expected, but got %s", t2s(r));
     return r;
 }
 
 void expect_newline(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = get_token();
     if (!tok || tok->type != TTYPE_NEWLINE)
         error("Newline expected, but got %s", t2s(tok));
 }
 
-static Token *expand(Dict *hideset, Token *tok) {
-    if (tok->type != TTYPE_IDENT)
-        return tok;
-    if (dict_get(hideset, tok->sval))
-        return tok;
-    List *body = dict_get(macros, tok->sval);
-    if (!body)
-        return tok;
-    dict_put(hideset, tok->sval, (void *)1);
-    list_append(buffer, body);
-    return read_token_int(hideset, false);
+static List *read_args_int(Macro *macro) {
+    Token *tok = get_token();
+    if (!tok || !is_punct(tok, '(')) {
+        unget_token(tok);
+        return NULL;
+    }
+    List *r = make_list();
+    List *arg = make_list();
+    int depth = 0;
+    for (;;) {
+        tok = get_token();
+        if (!tok)
+            error("unterminated macro argument list");
+        if (tok->type == TTYPE_NEWLINE)
+            continue;
+        if (depth) {
+            if (is_punct(tok, ')'))
+                depth--;
+            list_push(arg, tok);
+            continue;
+        }
+        if (is_punct(tok, '('))
+            depth++;
+        if (is_punct(tok, ')')) {
+            unget_token(tok);
+            if (list_len(r) != 0 || list_len(arg) != 0)
+                list_push(r, arg);
+            return r;
+        }
+        bool in_threedots = macro->is_varg && list_len(r) + 1 == macro->nargs;
+        if (is_punct(tok, ',') && !in_threedots) {
+            list_push(r, arg);
+            arg = make_list();
+            continue;
+        }
+        list_push(arg, tok);
+    }
 }
 
-static void read_define(void) {
-    Token *name = read_ident();
+static List *read_args(Macro *macro) {
+    List *args = read_args_int(macro);
+    if (!args) return NULL;
+    if ((macro->is_varg && list_len(args) < macro->nargs) ||
+        (!macro->is_varg && list_len(args) != macro->nargs))
+        error("Macro argument number does not match");
+    return args;
+}
+
+static Dict *dict_union(Dict *a, Dict *b) {
+    Dict *r = make_dict(NULL);
+    for (Iter *i = list_iter(dict_keys(a)); !iter_end(i);) {
+        char *key = iter_next(i);
+        dict_put(r, key, dict_get(a, key));
+    }
+    for (Iter *i = list_iter(dict_keys(b)); !iter_end(i);) {
+        char *key = iter_next(i);
+        dict_put(r, key, dict_get(b, key));
+    }
+    return r;
+}
+
+static Dict *dict_intersection(Dict *a, Dict *b) {
+    Dict *r = make_dict(NULL);
+    for (Iter *i = list_iter(dict_keys(a)); !iter_end(i);) {
+        char *key = iter_next(i);
+        if (dict_get(b, key))
+            dict_put(r, key, (void *)1);
+    }
+    return r;
+}
+
+static Dict *dict_append(Dict *dict, char *s) {
+    Dict *r = make_dict(dict);
+    dict_put(r, s, (void *)1);
+    return r;
+}
+
+static List *add_hide_set(List *tokens, Dict *hideset) {
+    List *r = make_list();
+    for (Iter *i = list_iter(tokens); !iter_end(i);) {
+        Token *t = copy_token(iter_next(i));
+        t->hideset = dict_union(t->hideset, hideset);
+        list_push(r, t);
+    }
+    return r;
+}
+
+static void paste(String *s, Token *tok) {
+    switch (tok->type) {
+    case TTYPE_IDENT:
+    case TTYPE_NUMBER:
+        string_appendf(s, "%s", tok->sval);
+        return;
+    case TTYPE_PUNCT:
+        string_appendf(s, "%c", tok->c);
+        return;
+    default:
+        error("can't paste: %s", t2s(tok));
+    }
+}
+
+static Token *glue_tokens(Token *t0, Token *t1) {
+    String *s = make_string();
+    paste(s, t0);
+    paste(s, t1);
+    Token *r = copy_token(t0);
+    r->type = isdigit(get_cstring(s)[0]) ? TTYPE_NUMBER : TTYPE_IDENT;
+    r->sval = get_cstring(s);
+    return r;
+}
+
+static void glue_push(List *tokens, Token *tok) {
+    assert(list_len(tokens) > 0);
+    Token *last = list_pop(tokens);
+    list_push(tokens, glue_tokens(last, tok));
+}
+
+static char *join_tokens(List *args, bool sep) {
+    String *s = make_string();
+    for (Iter *i = list_iter(args); !iter_end(i);) {
+        Token *tok = iter_next(i);
+        if (sep && string_len(s) && tok->space)
+            string_appendf(s, " ");
+        switch (tok->type) {
+        case TTYPE_IDENT:
+        case TTYPE_NUMBER:
+            string_appendf(s, "%s", tok->sval);
+            break;
+        case TTYPE_PUNCT:
+            string_appendf(s, "%c", tok->c);
+            break;
+        case TTYPE_CHAR:
+            string_appendf(s, "%s", quote_char(tok->c));
+            break;
+        case TTYPE_STRING:
+            string_appendf(s, "\"%s\"", quote_cstring(tok->sval));
+            break;
+        default:
+            error("internal error");
+        }
+    }
+    return get_cstring(s);
+}
+
+static Token *stringize(Token *tmpl, List *args) {
+    Token *r = copy_token(tmpl);
+    r->type = TTYPE_STRING;
+    r->sval = join_tokens(args, true);
+    return r;
+}
+
+static List *expand_all(List *tokens) {
+    List *r = make_list();
+    List *orig = altbuffer;
+    altbuffer = list_reverse(tokens);
+    Token *tok;
+    while ((tok = read_expand()) != NULL)
+        list_push(r, tok);
+    altbuffer = orig;
+    return r;
+}
+
+static List *subst(Macro *macro, List *args, Dict *hideset) {
+    List *r = make_list();
+    for (int i = 0; i < list_len(macro->body); i++) {
+        bool islast = (i == list_len(macro->body) - 1);
+        Token *t0 = list_get(macro->body, i);
+        Token *t1 = islast ? NULL : list_get(macro->body, i + 1);
+        bool t0_param = (t0->type == TTYPE_MACRO_PARAM);
+        bool t1_param = (!islast && t1->type == TTYPE_MACRO_PARAM);
+
+        if (is_punct(t0, '#') && t1_param) {
+            list_push(r, stringize(t0, list_get(args, t1->position)));
+            i++;
+            continue;
+        }
+        if (is_ident(t0, "##") && t1_param) {
+            List *arg = list_get(args, t1->position);
+            if (list_len(arg) > 0) {
+                glue_push(r, list_head(arg));
+                List *tmp = list_copy(arg);
+                list_shift(tmp);
+                list_append(r, expand_all(tmp));
+            }
+            i++;
+            continue;
+        }
+        if (is_ident(t0, "##") && !islast) {
+            hideset = t1->hideset;
+            glue_push(r, t1);
+            i++;
+            continue;
+        }
+        if (t0_param && !islast && is_ident(t1, "##")) {
+            hideset = t1->hideset;
+            List *arg = list_get(args, t0->position);
+            if (list_len(arg) == 0)
+                i++;
+            else
+                list_append(r, arg);
+            continue;
+        }
+        if (t0_param) {
+            List *arg = list_get(args, t0->position);
+            list_append(r, expand_all(arg));
+            continue;
+        }
+        list_push(r, t0);
+    }
+    return add_hide_set(r, hideset);
+}
+
+static void unget_all(List *tokens) {
+    for (Iter *i = list_iter(list_reverse(tokens)); !iter_end(i);)
+        unget_token(iter_next(i));
+}
+
+static Token *read_expand(void) {
+    Token *tok = get_token();
+    if (!tok) return NULL;
+    if (tok->type != TTYPE_IDENT)
+        return tok;
+    char *name = tok->sval;
+    Macro *macro = dict_get(macros, name);
+    if (!macro || dict_get(tok->hideset, name))
+        return tok;
+
+    switch (macro->type) {
+    case MACRO_OBJ: {
+        Dict *hideset = dict_append(tok->hideset, name);
+        List *tokens = subst(macro, make_list(), hideset);
+        unget_all(tokens);
+        return read_expand();
+    }
+    case MACRO_FUNC: {
+        List *args = read_args(macro);
+        Token *rparen = get_token();
+        assert(is_punct(rparen, ')'));
+        Dict *hideset = dict_append(dict_intersection(tok->hideset, rparen->hideset), name);
+        List *tokens = subst(macro, args, hideset);
+        unget_all(tokens);
+        return read_expand();
+    }
+    default:
+        error("internal error");
+    }
+}
+
+static bool read_funclike_macro_args(Dict *param) {
+    int pos = 0;
+    for (;;) {
+        Token *tok = get_token();
+        if (is_punct(tok, ')'))
+            return false;
+        if (pos) {
+            if (!is_punct(tok, ','))
+                error("',' expected, but got '%s'", t2s(tok));
+            tok = get_token();
+        }
+        if (!tok || tok->type == TTYPE_NEWLINE)
+            error("missing ')' in macro parameter list");
+        if (is_ident(tok, "...")) {
+            dict_put(param, "__VA_ARGS__", make_macro_token(pos++));
+            expect(')');
+            return true;
+        }
+        if (tok->type != TTYPE_IDENT)
+            error("identifier expected, but got '%s'", t2s(tok));
+        dict_put(param, tok->sval, make_macro_token(pos++));
+    }
+}
+
+static List *read_funclike_macro_body(Dict *param) {
+    List *r = make_list();
+    for (;;) {
+        Token *tok = get_token();
+        if (!tok || tok->type == TTYPE_NEWLINE)
+            return r;
+        if (tok->type == TTYPE_IDENT) {
+            Token *subst = dict_get(param, tok->sval);
+            if (subst) {
+                list_push(r, subst);
+                continue;
+            }
+        }
+        list_push(r, tok);
+    }
+    return r;
+}
+
+static void read_funclike_macro(char *name) {
+    Dict *param = make_dict(NULL);
+    bool varg = read_funclike_macro_args(param);
+    List *body = read_funclike_macro_body(param);
+    Macro *macro = make_func_macro(body, list_len(dict_keys(param)), varg);
+    dict_put(macros, name, macro);
+}
+
+static void read_obj_macro(char *name) {
     List *body = make_list();
     for (;;) {
-        Token *tok = read_cpp_token();
+        Token *tok = get_token();
         if (!tok || tok->type == TTYPE_NEWLINE)
             break;
         list_push(body, tok);
     }
-    dict_put(macros, name->sval, body);
+    dict_put(macros, name, make_obj_macro(body));
+}
+
+static void read_define(void) {
+    Token *name = read_ident();
+    Token *tok = get_token();
+    if (tok && is_punct(tok, '(') && !tok->space) {
+        read_funclike_macro(name->sval);
+        return;
+    }
+    unget_token(tok);
+    read_obj_macro(name->sval);
 }
 
 static void read_undef(void) {
@@ -67,16 +413,10 @@ static void read_undef(void) {
     dict_remove(macros, name->sval);
 }
 
-static void expect(char punct) {
-    Token *tok = read_cpp_token();
-    if (!tok || !is_punct(tok, punct))
-        error("%c expected, but got %s", t2s(tok));
-}
-
 static Token *read_defined_operator(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = get_token();
     if (is_punct(tok, '(')) {
-        tok = read_cpp_token();
+        tok = get_token();
         expect(')');
     }
     if (tok->type != TTYPE_IDENT)
@@ -88,7 +428,7 @@ static Token *read_defined_operator(void) {
 static List *read_intexpr_line(void) {
     List *r = make_list();
     for (;;) {
-        Token *tok = read_token_int(&EMPTY_DICT, true);
+        Token *tok = read_token_int(true);
         if (!tok) return r;
         if (is_ident(tok, "defined"))
             list_push(r, read_defined_operator());
@@ -147,7 +487,7 @@ static void read_endif(void) {
 }
 
 static void read_directive(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = get_token();
     if (is_ident(tok, "define"))     read_define();
     else if (is_ident(tok, "undef")) read_undef();
     else if (is_ident(tok, "if"))    read_if();
@@ -174,7 +514,7 @@ static Token *get_token(void) {
     return (list_len(buffer) > 0) ? list_pop(buffer) : read_cpp_token();
 }
 
-static Token *read_token_int(Dict *hideset, bool return_at_eol) {
+static Token *read_token_int(bool return_at_eol) {
     for (;;) {
         Token *tok = get_token();
         if (!tok)
@@ -191,10 +531,11 @@ static Token *read_token_int(Dict *hideset, bool return_at_eol) {
             continue;
         }
         bol = false;
-        return expand(hideset, tok);
+        unget_token(tok);
+        return read_expand();
     }
 }
 
 Token *read_token(void) {
-    return read_token_int(&EMPTY_DICT, false);
+    return read_token_int(false);
 }

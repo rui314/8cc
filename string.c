@@ -26,6 +26,10 @@ char *get_cstring(String *s) {
     return s->body;
 }
 
+int string_len(String *s) {
+    return s->len;
+}
+
 void string_append(String *s, char c) {
     if (s->nalloc == (s->len + 1))
         realloc_body(s);

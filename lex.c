@@ -6,41 +6,58 @@ Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
 
 static List *ungotten = &EMPTY_LIST;
-static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE };
+static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE, .space = false };
+static Token *space_token = &(Token){ .type = TTYPE_SPACE, .space = false };
 
 static Token *make_ident(String *s) {
     Token *r = malloc(sizeof(Token));
     r->type = TTYPE_IDENT;
+    r->hideset = make_dict(NULL);
     r->sval = get_cstring(s);
+    r->space = false;
     return r;
 }
 
 static Token *make_strtok(String *s) {
     Token *r = malloc(sizeof(Token));
     r->type = TTYPE_STRING;
+    r->hideset = make_dict(NULL);
     r->sval = get_cstring(s);
+    r->space = false;
     return r;
 }
 
 static Token *make_punct(int punct) {
     Token *r = malloc(sizeof(Token));
     r->type = TTYPE_PUNCT;
+    r->hideset = make_dict(NULL);
     r->punct = punct;
+    r->space = false;
     return r;
 }
 
 static Token *make_number(char *s) {
     Token *r = malloc(sizeof(Token));
     r->type = TTYPE_NUMBER;
+    r->hideset = make_dict(NULL);
     r->sval = s;
+    r->space = false;
     return r;
 }
 
 static Token *make_char(char c) {
     Token *r = malloc(sizeof(Token));
     r->type = TTYPE_CHAR;
+    r->hideset = make_dict(NULL);
     r->c = c;
+    r->space = false;
     return r;
+}
+
+static Token *make_string_ident(char *s) {
+    String *buf = make_string();
+    string_appendf(buf, "%s", s);
+    return make_ident(buf);
 }
 
 static int getc_nonspace(void) {
@@ -65,6 +82,8 @@ void skip_cond_incl(void) {
     int nest = 0;
     for (;;) {
         int c = getc_nonspace();
+        if (c == EOF)
+            return;
         if (c != '#') {
             skip_line();
             continue;
@@ -130,6 +149,7 @@ static Token *read_string(void) {
             switch (c) {
             case EOF: error("Unterminated \\");
             case '\"': break;
+            case '\\': c = '\\'; break;
             case 'n': c = '\n'; break;
             default: error("Unknown quote: %c", c);
             }
@@ -161,6 +181,16 @@ static void skip_line_comment(void) {
     }
 }
 
+static void skip_space(void) {
+    for (;;) {
+        int c = getc(stdin);
+        if (c == ' ' || c == '\t')
+            continue;
+        ungetc(c, stdin);
+        return;
+    }
+}
+
 static void skip_block_comment(void) {
     enum { in_comment, asterisk_read } state = in_comment;
     for (;;) {
@@ -183,8 +213,11 @@ static Token *read_rep(int expect, int t1, int t2) {
 }
 
 static Token *read_token_int(void) {
-    int c = getc_nonspace();
+    int c = getc(stdin);
     switch (c) {
+    case ' ': case '\t':
+        skip_space();
+        return space_token;
     case '\n':
         return newline_token;
     case '0': case '1': case '2': case '3': case '4':
@@ -212,10 +245,27 @@ static Token *read_token_int(void) {
         ungetc(c, stdin);
         return make_punct('/');
     }
-    case '*': case '(': case ')': case ',': case ';': case '.': case '[':
-    case ']': case '{': case '}': case '<': case '>': case '!': case '?':
-    case ':': case '#':
+    case '.': {
+        c = getc(stdin);
+        if (c == '.') {
+            c = getc(stdin);
+            String *s = make_string();
+            string_appendf(s, "..%c", c);
+            return make_ident(s);
+        }
+        ungetc(c, stdin);
+        return make_punct('.');
+    }
+    case '*': case '(': case ')': case ',': case ';': case '[': case ']':
+    case '{': case '}': case '<': case '>': case '!': case '?': case ':':
         return make_punct(c);
+    case '#': {
+        c = getc(stdin);
+        if (c == '#')
+            return make_string_ident("##");
+        ungetc(c, stdin);
+        return make_punct('#');
+    }
     case '-':
         c = getc(stdin);
         if (c == '-') return make_punct(PUNCT_DEC);
@@ -253,5 +303,10 @@ Token *peek_cpp_token(void) {
 Token *read_cpp_token(void) {
     if (list_len(ungotten) > 0)
         return list_pop(ungotten);
-    return read_token_int();
+    Token *tok = read_token_int();
+    while (tok && tok->type == TTYPE_SPACE) {
+        tok = read_token_int();
+        if (tok) tok->space = true;
+    }
+    return tok;
 }

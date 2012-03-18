@@ -17,6 +17,13 @@ void *make_node(void *elem) {
     return r;
 }
 
+List *list_copy(List *list) {
+    List *r = make_list();
+    for (Iter *i = list_iter(list); !iter_end(i);)
+        list_push(r, iter_next(i));
+    return r;
+}
+
 void list_push(List *list, void *elem) {
     ListNode *node = make_node(elem);
     if (!list->head) {
@@ -67,6 +74,15 @@ void list_unshift(List *list, void *elem) {
     if (!list->tail)
         list->tail = node;
     list->len++;
+}
+
+void *list_get(List *list, int index) {
+    if (index < 0 || list->len <= index)
+        return NULL;
+    ListNode *p = list->head;
+    for (int i = 0; i < index; i++)
+        p = p->next;
+    return p->elem;
 }
 
 void *list_head(List *list) {
