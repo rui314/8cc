@@ -52,3 +52,20 @@ void string_appendf(String *s, char *fmt, ...) {
         return;
     }
 }
+
+char *format(char *fmt, ...) {
+    String *s = make_string();
+    va_list args;
+    for (;;) {
+        int avail = s->nalloc - s->len;
+        va_start(args, fmt);
+        int written = vsnprintf(s->body + s->len, avail, fmt, args);
+        va_end(args);
+        if (avail <= written) {
+            realloc_body(s);
+            continue;
+        }
+        s->len += written;
+        return get_cstring(s);
+    }
+}

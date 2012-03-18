@@ -10,16 +10,10 @@ char *ctype_to_string(Ctype *ctype) {
     case CTYPE_LONG: return "long";
     case CTYPE_FLOAT: return "float";
     case CTYPE_DOUBLE: return "double";
-    case CTYPE_PTR: {
-        String *s = make_string();
-        string_appendf(s, "*%s", ctype_to_string(ctype->ptr));
-        return get_cstring(s);
-    }
-    case CTYPE_ARRAY: {
-        String *s = make_string();
-        string_appendf(s, "[%d]%s", ctype->len, ctype_to_string(ctype->ptr));
-        return get_cstring(s);
-    }
+    case CTYPE_PTR:
+        return format("*%s", ctype_to_string(ctype->ptr));
+    case CTYPE_ARRAY:
+        return format("[%d]%s", ctype->len, ctype_to_string(ctype->ptr));
     case CTYPE_STRUCT: {
         String *s = make_string();
         string_appendf(s, "(struct");
@@ -198,25 +192,19 @@ char *a2s(Ast *ast) {
 char *t2s(Token *tok) {
     if (!tok)
         return "(null)";
-    String *s = make_string();
     switch (tok->type) {
     case TTYPE_IDENT:
         return tok->sval;
     case TTYPE_PUNCT:
         if (is_punct(tok, PUNCT_EQ))
-            string_appendf(s, "==");
-        else
-            string_appendf(s, "%c", tok->c);
-        return get_cstring(s);
-    case TTYPE_CHAR: {
-        string_append(s, tok->c);
-        return get_cstring(s);
-    }
+            return "==";
+        return format("%c", tok->c);
+    case TTYPE_CHAR:
+        return format("%c", tok->c);
     case TTYPE_NUMBER:
         return tok->sval;
     case TTYPE_STRING:
-        string_appendf(s, "\"%s\"", tok->sval);
-        return get_cstring(s);
+        return format("\"%s\"", tok->sval);
     case TTYPE_NEWLINE:
         return "(newline)";
     case TTYPE_SPACE:

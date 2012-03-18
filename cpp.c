@@ -527,21 +527,7 @@ static void read_cpp_header_name(char **name, bool *std) {
 static char *construct_path(char *path1, char *path2) {
     if (path1[0] == '\0')
         return path2;
-    String *s = make_string();
-    string_appendf(s, "%s/%s", path1, path2);
-    return get_cstring(s);
-}
-
-static FILE *open_header_file(char *name, List *paths) {
-    for (Iter *i = list_iter(paths); !iter_end(i);) {
-        char *directory = iter_next(i);
-        char *path = construct_path(directory, name);
-        FILE *file = fopen(path, "r");
-        if (!file)
-            continue;
-        return file;
-    }
-    error("Cannot find header file: %s", name);
+    return format("%s/%s", path1, path2);
 }
 
 static void read_include(void) {
@@ -549,10 +535,16 @@ static void read_include(void) {
     bool std;
     read_cpp_header_name(&name, &std);
     expect_newline();
-
     List *paths = std ? std_include_path : make_list1("");
-    FILE *file = open_header_file(name, paths);
-    push_input_file(file);
+    for (Iter *i = list_iter(paths); !iter_end(i);) {
+        char *path = construct_path(iter_next(i), name);
+        FILE *fp = fopen(path, "r");
+        if (fp) {
+            push_input_file(path, fp);
+            return;
+        }
+    }
+    error("Cannot find header file: %s", name);
 }
 
 static void read_directive(void) {

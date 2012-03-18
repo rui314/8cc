@@ -14,6 +14,7 @@ typedef struct {
 } String;
 
 extern String *make_string(void);
+extern char *format(char *fmt, ...);
 extern char *get_cstring(String *s);
 extern int string_len(String *s);
 extern void string_append(String *s, char c);
@@ -191,7 +192,8 @@ extern void set_input_buffer(List *tokens);
 extern List *get_input_buffer(void);
 extern void skip_cond_incl(void);
 extern bool read_header_file_name(char **name, bool *std);
-extern void push_input_file(FILE *input);
+extern void push_input_file(char *filename, FILE *input);
+extern char *input_position(void);
 
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);

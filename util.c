@@ -4,6 +4,7 @@
 
 void errorf(char *file, int line, char *fmt, ...) {
     fprintf(stderr, "%s:%d: ", file, line);
+    fprintf(stderr, " %s:", input_position());
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -36,12 +37,7 @@ char *quote_cstring(char *p) {
 }
 
 char *quote_char(char c) {
-    String *s = make_string();
-    if (c == '\\')
-        string_appendf(s, "'\\%c'", c);
-    else if (c == '\'')
-        string_appendf(s, "'\\''");
-    else
-        string_appendf(s, "'%c'", c);
-    return get_cstring(s);
+    if (c == '\\') return format("'\\%c'", c);
+    if (c == '\'') return format("'\\''");
+    return format("'%c'", c);
 }

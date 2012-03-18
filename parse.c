@@ -78,9 +78,7 @@ static Ast *ast_double(double val) {
 }
 
 char *make_label(void) {
-    String *s = make_string();
-    string_appendf(s, ".L%d", labelseq++);
-    return get_cstring(s);
+    return format(".L%d", labelseq++);
 }
 
 static Ast *ast_lvar(Ctype *ctype, char *name) {
