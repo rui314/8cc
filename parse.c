@@ -15,6 +15,7 @@ static Dict *globalenv = &EMPTY_DICT;
 static Dict *localenv = NULL;
 static Dict *struct_defs = &EMPTY_DICT;
 static Dict *union_defs = &EMPTY_DICT;
+static Dict *typedefs = &EMPTY_DICT;
 static List *localvars = NULL;
 static Ctype *current_func_rettype = NULL;
 
@@ -32,7 +33,7 @@ static Ast *read_compound_stmt(void);
 static Ast *read_decl_or_stmt(void);
 static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
-static Ctype *read_decl_int(Token **name);
+static void read_decl_int(Token **name, Ctype **ctype);
 static Ast *read_toplevel(void);
 
 static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
@@ -630,12 +631,13 @@ static Ctype *get_ctype(Token *tok) {
     if (!tok) return NULL;
     if (tok->type != TTYPE_IDENT)
         return NULL;
-    if (!strcmp(tok->sval, "int"))    return ctype_int;
-    if (!strcmp(tok->sval, "long"))   return ctype_long;
-    if (!strcmp(tok->sval, "char"))   return ctype_char;
-    if (!strcmp(tok->sval, "float"))  return ctype_float;
-    if (!strcmp(tok->sval, "double")) return ctype_double;
-    return NULL;
+    char *s = tok->sval;
+    if (!strcmp(s, "int"))    return ctype_int;
+    if (!strcmp(s, "long"))   return ctype_long;
+    if (!strcmp(s, "char"))   return ctype_char;
+    if (!strcmp(s, "float"))  return ctype_float;
+    if (!strcmp(s, "double")) return ctype_double;
+    return dict_get(typedefs, s);
 }
 
 static bool is_type_keyword(Token *tok) {
@@ -682,7 +684,8 @@ static Dict *read_struct_union_fields(void) {
         if (!is_type_keyword(peek_token()))
             break;
         Token *name;
-        Ctype *fieldtype = read_decl_int(&name);
+        Ctype *fieldtype;
+        read_decl_int(&name, &fieldtype);
         dict_put(r, name->sval, make_struct_field_type(fieldtype, 0));
         expect(';');
     }
@@ -803,19 +806,30 @@ static Ast *read_decl_init(Ast *var) {
     return ast_decl(var, NULL);
 }
 
-static Ctype *read_decl_int(Token **name) {
-    Ctype *ctype = read_decl_spec();
+static void read_decl_int(Token **name, Ctype **ctype) {
+    Ctype *t = read_decl_spec();
     *name = read_token();
     if ((*name)->type != TTYPE_IDENT)
         error("identifier expected, but got %s", t2s(*name));
-    return read_array_dimensions(ctype);
+    *ctype = read_array_dimensions(t);
 }
 
 static Ast *read_decl(void) {
     Token *varname;
-    Ctype *ctype = read_decl_int(&varname);
+    Ctype *ctype;
+    read_decl_int(&varname, &ctype);
     Ast *var = ast_lvar(ctype, varname->sval);
     return read_decl_init(var);
+}
+
+static void read_typedef(void) {
+    Token *name;
+    Ctype *ctype;
+    read_decl_int(&name, &ctype);
+    if (!name)
+        error("Typedef name missing");
+    dict_put(typedefs, name->sval, ctype);
+    expect(';');
 }
 
 static Ast *read_if_stmt(void) {
@@ -882,8 +896,13 @@ static Ast *read_stmt(void) {
 }
 
 static Ast *read_decl_or_stmt(void) {
-    Token *tok = peek_token();
+    Token *tok = read_token();
     if (!tok) return NULL;
+    if (is_ident(tok, "typedef")) {
+        read_typedef();
+        return read_decl_or_stmt();
+    }
+    unget_token(tok);
     return is_type_keyword(tok) ? read_decl() : read_stmt();
 }
 
