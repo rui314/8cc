@@ -174,9 +174,6 @@ extern Ctype *ctype_char;
 extern Ctype *ctype_float;
 extern Ctype *ctype_double;
 
-extern Token *cpp_token_zero;
-extern Token *cpp_token_one;
-
 extern String *make_string(void);
 extern char *get_cstring(String *s);
 extern int string_len(String *s);
@@ -186,6 +183,8 @@ extern void string_appendf(String *s, char *fmt, ...);
 extern void unget_cpp_token(Token *tok);
 extern Token *peek_cpp_token(void);
 extern Token *read_cpp_token(void);
+extern void set_input_buffer(List *tokens);
+extern List *get_input_buffer(void);
 extern void skip_cond_incl(void);
 
 extern void unget_token(Token *tok);

@@ -4,10 +4,10 @@
 #include "8cc.h"
 
 static Dict *macros = &EMPTY_DICT;
-static List *buffer = &EMPTY_LIST;
-static List *altbuffer = NULL;
 static List *cond_incl_stack = &EMPTY_LIST;
 static bool bol = true;
+static Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
+static Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
 
 typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
 
@@ -27,7 +27,6 @@ typedef struct {
 
 static Token *read_token_int(bool return_at_eol);
 static Token *read_expand(void);
-static Token *get_token(void);
 
 static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
     CondIncl *r = malloc(sizeof(CondIncl));
@@ -69,26 +68,26 @@ static Token *copy_token(Token *tok) {
 }
 
 static void expect(char punct) {
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (!tok || !is_punct(tok, punct))
         error("%c expected, but got %s", t2s(tok));
 }
 
 static Token *read_ident(void) {
-    Token *r = get_token();
+    Token *r = read_cpp_token();
     if (r->type != TTYPE_IDENT)
         error("identifier expected, but got %s", t2s(r));
     return r;
 }
 
 void expect_newline(void) {
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (!tok || tok->type != TTYPE_NEWLINE)
         error("Newline expected, but got %s", t2s(tok));
 }
 
 static List *read_args_int(Macro *macro) {
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (!tok || !is_punct(tok, '(')) {
         unget_token(tok);
         return NULL;
@@ -97,7 +96,7 @@ static List *read_args_int(Macro *macro) {
     List *arg = make_list();
     int depth = 0;
     for (;;) {
-        tok = get_token();
+        tok = read_cpp_token();
         if (!tok)
             error("unterminated macro argument list");
         if (tok->type == TTYPE_NEWLINE)
@@ -240,12 +239,12 @@ static Token *stringize(Token *tmpl, List *args) {
 
 static List *expand_all(List *tokens) {
     List *r = make_list();
-    List *orig = altbuffer;
-    altbuffer = list_reverse(tokens);
+    List *orig = get_input_buffer();
+    set_input_buffer(tokens);
     Token *tok;
     while ((tok = read_expand()) != NULL)
         list_push(r, tok);
-    altbuffer = orig;
+    set_input_buffer(orig);
     return r;
 }
 
@@ -305,7 +304,7 @@ static void unget_all(List *tokens) {
 }
 
 static Token *read_expand(void) {
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (!tok) return NULL;
     if (tok->type != TTYPE_IDENT)
         return tok;
@@ -323,7 +322,7 @@ static Token *read_expand(void) {
     }
     case MACRO_FUNC: {
         List *args = read_args(macro);
-        Token *rparen = get_token();
+        Token *rparen = read_cpp_token();
         assert(is_punct(rparen, ')'));
         Dict *hideset = dict_append(dict_intersection(tok->hideset, rparen->hideset), name);
         List *tokens = subst(macro, args, hideset);
@@ -338,13 +337,13 @@ static Token *read_expand(void) {
 static bool read_funclike_macro_args(Dict *param) {
     int pos = 0;
     for (;;) {
-        Token *tok = get_token();
+        Token *tok = read_cpp_token();
         if (is_punct(tok, ')'))
             return false;
         if (pos) {
             if (!is_punct(tok, ','))
                 error("',' expected, but got '%s'", t2s(tok));
-            tok = get_token();
+            tok = read_cpp_token();
         }
         if (!tok || tok->type == TTYPE_NEWLINE)
             error("missing ')' in macro parameter list");
@@ -362,7 +361,7 @@ static bool read_funclike_macro_args(Dict *param) {
 static List *read_funclike_macro_body(Dict *param) {
     List *r = make_list();
     for (;;) {
-        Token *tok = get_token();
+        Token *tok = read_cpp_token();
         if (!tok || tok->type == TTYPE_NEWLINE)
             return r;
         if (tok->type == TTYPE_IDENT) {
@@ -388,7 +387,7 @@ static void read_funclike_macro(char *name) {
 static void read_obj_macro(char *name) {
     List *body = make_list();
     for (;;) {
-        Token *tok = get_token();
+        Token *tok = read_cpp_token();
         if (!tok || tok->type == TTYPE_NEWLINE)
             break;
         list_push(body, tok);
@@ -398,7 +397,7 @@ static void read_obj_macro(char *name) {
 
 static void read_define(void) {
     Token *name = read_ident();
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (tok && is_punct(tok, '(') && !tok->space) {
         read_funclike_macro(name->sval);
         return;
@@ -414,9 +413,9 @@ static void read_undef(void) {
 }
 
 static Token *read_defined_operator(void) {
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (is_punct(tok, '(')) {
-        tok = get_token();
+        tok = read_cpp_token();
         expect(')');
     }
     if (tok->type != TTYPE_IDENT)
@@ -440,11 +439,13 @@ static List *read_intexpr_line(void) {
 }
 
 static bool read_constexpr(void) {
-    altbuffer = list_reverse(read_intexpr_line());
+    List *orig = get_input_buffer();
+    set_input_buffer(read_intexpr_line());
     Ast *expr = read_expr();
-    if (list_len(altbuffer) > 0)
-        error("Stray token: %s", t2s(list_shift(altbuffer)));
-    altbuffer = NULL;
+    List *buf = get_input_buffer();
+    if (list_len(buf) > 0)
+        error("Stray token: %s", t2s(list_shift(buf)));
+    set_input_buffer(orig);
     return eval_intexpr(expr);
 }
 
@@ -487,7 +488,7 @@ static void read_endif(void) {
 }
 
 static void read_directive(void) {
-    Token *tok = get_token();
+    Token *tok = read_cpp_token();
     if (is_ident(tok, "define"))     read_define();
     else if (is_ident(tok, "undef")) read_undef();
     else if (is_ident(tok, "if"))    read_if();
@@ -499,7 +500,7 @@ static void read_directive(void) {
 }
 
 void unget_token(Token *tok) {
-    list_push(altbuffer ? altbuffer : buffer, tok);
+    unget_cpp_token(tok);
 }
 
 Token *peek_token(void) {
@@ -508,15 +509,9 @@ Token *peek_token(void) {
     return r;
 }
 
-static Token *get_token(void) {
-    if (altbuffer)
-        return list_pop(altbuffer);
-    return (list_len(buffer) > 0) ? list_pop(buffer) : read_cpp_token();
-}
-
 static Token *read_token_int(bool return_at_eol) {
     for (;;) {
-        Token *tok = get_token();
+        Token *tok = read_cpp_token();
         if (!tok)
             return NULL;
         if (tok && tok->type == TTYPE_NEWLINE) {

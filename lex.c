@@ -2,10 +2,9 @@
 #include <ctype.h>
 #include "8cc.h"
 
-Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
-Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
+static List *buffer = &EMPTY_LIST;
+static List *altbuffer = NULL;
 
-static List *ungotten = &EMPTY_LIST;
 static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE, .space = false };
 static Token *space_token = &(Token){ .type = TTYPE_SPACE, .space = false };
 
@@ -289,9 +288,17 @@ bool is_punct(Token *tok, int c) {
     return tok && (tok->type == TTYPE_PUNCT) && (tok->punct == c);
 }
 
+void set_input_buffer(List *tokens) {
+    altbuffer = tokens ? list_reverse(tokens) : NULL;
+}
+
+List *get_input_buffer(void) {
+    return altbuffer;
+}
+
 void unget_cpp_token(Token *tok) {
     if (!tok) return;
-    list_push(ungotten, tok);
+    list_push(altbuffer ? altbuffer : buffer, tok);
 }
 
 Token *peek_cpp_token(void) {
@@ -301,8 +308,10 @@ Token *peek_cpp_token(void) {
 }
 
 Token *read_cpp_token(void) {
-    if (list_len(ungotten) > 0)
-        return list_pop(ungotten);
+    if (altbuffer)
+        return list_pop(altbuffer);
+    if (list_len(buffer) > 0)
+        return list_pop(buffer);
     Token *tok = read_token_int();
     while (tok && tok->type == TTYPE_SPACE) {
         tok = read_token_int();
