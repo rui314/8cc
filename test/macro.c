@@ -182,9 +182,17 @@ int funclike() {
     expect(29, minus(30, 1));
 
     // This is not a function-like macro.
-    int x = 3;
-#define m7 (x) + x
-    expect(6, m7);
+#define m7 (0) + 1
+    expect(1, m7);
+
+#define m8(x, y) x ## y
+    expect(2, m8(TW, O));
+
+#define hash_hash # ## #
+#define mkstr(a) # a
+#define in_between(a) mkstr(a)
+#define join(c, d) in_between(c hash_hash d)
+    expect_string("x ## y", join(x, y));
 }
 
 int main() {
