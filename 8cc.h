@@ -184,10 +184,10 @@ extern Token *peek_token(void);
 extern Token *read_token(void);
 extern void expect_newline(void);
 
-extern char *token_to_string(Token *tok);
+extern char *t2s(Token *tok);
 extern bool is_punct(Token *tok, int c);
 extern bool is_ident(Token *tok, char *s);
-extern char *ast_to_string(Ast *ast);
+extern char *a2s(Ast *ast);
 extern char *ctype_to_string(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);

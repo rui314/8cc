@@ -261,14 +261,14 @@ static void ensure_lvalue(Ast *ast) {
     case AST_LVAR: case AST_GVAR: case AST_DEREF: case AST_STRUCT_REF:
         return;
     default:
-        error("lvalue expected, but got %s", ast_to_string(ast));
+        error("lvalue expected, but got %s", a2s(ast));
     }
 }
 
 static void expect(char punct) {
     Token *tok = read_token();
     if (!is_punct(tok, punct))
-        error("'%c' expected, but got %s", punct, token_to_string(tok));
+        error("'%c' expected, but got %s", punct, t2s(tok));
 }
 
 bool is_ident(Token *tok, char *s) {
@@ -284,13 +284,13 @@ int eval_intexpr(Ast *ast) {
     case AST_LITERAL:
         if (is_inttype(ast->ctype))
             return ast->ival;
-        error("Integer expression expected, but got %s", ast_to_string(ast));
+        error("Integer expression expected, but got %s", a2s(ast));
     case '+': return eval_intexpr(ast->left) + eval_intexpr(ast->right);
     case '-': return eval_intexpr(ast->left) - eval_intexpr(ast->right);
     case '*': return eval_intexpr(ast->left) * eval_intexpr(ast->right);
     case '/': return eval_intexpr(ast->left) / eval_intexpr(ast->right);
     default:
-        error("Integer expression expected, but got %s", ast_to_string(ast));
+        error("Integer expression expected, but got %s", a2s(ast));
     }
 }
 
@@ -355,7 +355,7 @@ static Ast *read_func_args(char *fname) {
         tok = read_token();
         if (is_punct(tok, ')')) break;
         if (!is_punct(tok, ','))
-            error("Unexpected token: '%s'", token_to_string(tok));
+            error("Unexpected token: '%s'", t2s(tok));
     }
     if (MAX_ARGS < list_len(args))
         error("Too many arguments: %s", fname);
@@ -425,7 +425,7 @@ static Ast *read_prim(void) {
         }
         if (is_float_token(tok->sval))
             return ast_double(atof(tok->sval));
-        error("Malformed number: %s", token_to_string(tok));
+        error("Malformed number: %s", t2s(tok));
     case TTYPE_CHAR:
         return ast_inttype(ctype_char, tok->c);
     case TTYPE_STRING: {
@@ -546,7 +546,7 @@ static Ast *read_unary_expr(void) {
         Ast *operand = read_unary_expr();
         Ctype *ctype = convert_array(operand->ctype);
         if (ctype->type != CTYPE_PTR)
-            error("pointer type expected, but got %s", ast_to_string(operand));
+            error("pointer type expected, but got %s", a2s(operand));
         return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
     }
     unget_token(tok);
@@ -562,10 +562,10 @@ static Ast *read_cond_expr(Ast *cond) {
 
 static Ast *read_struct_field(Ast *struc) {
     if (struc->ctype->type != CTYPE_STRUCT)
-        error("struct expected, but got %s", ast_to_string(struc));
+        error("struct expected, but got %s", a2s(struc));
     Token *name = read_token();
     if (name->type != TTYPE_IDENT)
-        error("field name expected, but got %s", token_to_string(name));
+        error("field name expected, but got %s", t2s(name));
     Ctype *field = dict_get(struc->ctype->fields, name->sval);
     return ast_struct_ref(field, struc, name->sval);
 }
@@ -597,7 +597,7 @@ static Ast *read_expr_int(int prec) {
         if (is_punct(tok, PUNCT_ARROW)) {
             if (ast->ctype->type != CTYPE_PTR)
                 error("pointer type expected, but got %s %s",
-                      ctype_to_string(ast->ctype), ast_to_string(ast));
+                      ctype_to_string(ast->ctype), a2s(ast));
             ast = ast_uop(AST_DEREF, ast->ctype->ptr, ast);
             ast = read_struct_field(ast);
             continue;
@@ -648,7 +648,7 @@ static Ast *read_decl_array_init_int(Ctype *ctype) {
         return ast_string(tok->sval);
     if (!is_punct(tok, '{'))
         error("Expected an initializer list for %s, but got %s",
-              ctype_to_string(ctype), token_to_string(tok));
+              ctype_to_string(ctype), t2s(tok));
     List *initlist = make_list();
     for (;;) {
         Token *tok = read_token();
@@ -730,7 +730,7 @@ static Ctype *read_decl_spec(void) {
         : is_ident(tok, "union") ? read_union_def()
         : get_ctype(tok);
     if (!ctype)
-        error("Type expected, but got %s", token_to_string(tok));
+        error("Type expected, but got %s", t2s(tok));
     for (;;) {
         tok = read_token();
         if (!is_punct(tok, '*')) {
@@ -805,7 +805,7 @@ static Ctype *read_decl_int(Token **name) {
     Ctype *ctype = read_decl_spec();
     *name = read_token();
     if ((*name)->type != TTYPE_IDENT)
-        error("Identifier expected, but got %s", token_to_string(*name));
+        error("Identifier expected, but got %s", t2s(*name));
     return read_array_dimensions(ctype);
 }
 
@@ -911,7 +911,7 @@ static List *read_params(void) {
         Ctype *ctype = read_decl_spec();
         Token *pname = read_token();
         if (pname->type != TTYPE_IDENT)
-            error("Identifier expected, but got %s", token_to_string(pname));
+            error("Identifier expected, but got %s", t2s(pname));
         ctype = read_array_dimensions(ctype);
         if (ctype->type == CTYPE_ARRAY)
             ctype = make_ptr_type(ctype->ptr);
@@ -920,7 +920,7 @@ static List *read_params(void) {
         if (is_punct(tok, ')'))
             return params;
         if (!is_punct(tok, ','))
-            error("Comma expected, but got %s", token_to_string(tok));
+            error("Comma expected, but got %s", t2s(tok));
     }
 }
 
@@ -956,7 +956,7 @@ static Ast *read_toplevel(void) {
     Ctype *ctype = read_decl_spec();
     Token *name = read_token();
     if (name->type != TTYPE_IDENT)
-        error("Identifier expected, but got %s", token_to_string(name));
+        error("Identifier expected, but got %s", t2s(name));
     ctype = read_array_dimensions(ctype);
     tok = peek_token();
     if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
@@ -970,7 +970,7 @@ static Ast *read_toplevel(void) {
         Ast *var = ast_gvar(ctype, name->sval, false);
         return ast_decl(var, NULL);
     }
-    error("Don't know how to handle %s", token_to_string(tok));
+    error("Don't know how to handle %s", t2s(tok));
 }
 
 List *read_toplevels(void) {

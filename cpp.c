@@ -26,14 +26,14 @@ static CondIncl *make_cond_incl(enum CondInclCtx ctx, bool wastrue) {
 static Token *read_ident(void) {
     Token *r = read_cpp_token();
     if (r->type != TTYPE_IDENT)
-        error("identifier expected, but got %s", token_to_string(r));
+        error("identifier expected, but got %s", t2s(r));
     return r;
 }
 
 void expect_newline(void) {
     Token *tok = read_cpp_token();
     if (!tok || tok->type != TTYPE_NEWLINE)
-        error("Newline expected, but got %s", token_to_string(tok));
+        error("Newline expected, but got %s", t2s(tok));
 }
 
 static Token *expand(Dict *hideset, Token *tok) {
@@ -83,7 +83,7 @@ static bool read_constexpr(void) {
     altbuffer = list_reverse(read_intexpr_line());
     Ast *expr = read_expr();
     if (list_len(altbuffer) > 0)
-        error("Stray token: %s", token_to_string(list_shift(altbuffer)));
+        error("Stray token: %s", t2s(list_shift(altbuffer)));
     altbuffer = NULL;
     return eval_intexpr(expr);
 }
@@ -135,7 +135,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "elif"))  read_elif();
     else if (is_ident(tok, "endif")) read_endif();
     else
-        error("unsupported preprocessor directive: %s", token_to_string(tok));
+        error("unsupported preprocessor directive: %s", t2s(tok));
 }
 
 void unget_token(Token *tok) {

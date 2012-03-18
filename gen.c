@@ -202,7 +202,7 @@ static void emit_assign_struct_ref(Ast *struc, Ctype *field, int off) {
         emit_assign_deref_int(field, field->offset + off);
         break;
     default:
-        error("internal error: %s", ast_to_string(struc));
+        error("internal error: %s", a2s(struc));
     }
 }
 
@@ -223,7 +223,7 @@ static void emit_load_struct_ref(Ast *struc, Ctype *field, int off) {
         emit_load_deref(struc->ctype, field, field->offset + off);
         break;
     default:
-        error("internal error: %s", ast_to_string(struc));
+        error("internal error: %s", a2s(struc));
     }
 }
 

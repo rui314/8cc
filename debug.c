@@ -45,15 +45,15 @@ char *ctype_to_string(Ctype *ctype) {
 }
 
 static void uop_to_string(String *buf, char *op, Ast *ast) {
-    string_appendf(buf, "(%s %s)", op, ast_to_string(ast->operand));
+    string_appendf(buf, "(%s %s)", op, a2s(ast->operand));
 }
 
 static void binop_to_string(String *buf, char *op, Ast *ast) {
     string_appendf(buf, "(%s %s %s)",
-                   op, ast_to_string(ast->left), ast_to_string(ast->right));
+                   op, a2s(ast->left), a2s(ast->right));
 }
 
-static void ast_to_string_int(String *buf, Ast *ast) {
+static void a2s_int(String *buf, Ast *ast) {
     if (!ast) {
         string_appendf(buf, "(nil)");
         return;
@@ -93,7 +93,7 @@ static void ast_to_string_int(String *buf, Ast *ast) {
     case AST_FUNCALL: {
         string_appendf(buf, "(%s)%s(", ctype_to_string(ast->ctype), ast->fname);
         for (Iter *i = list_iter(ast->args); !iter_end(i);) {
-            string_appendf(buf, "%s", ast_to_string(iter_next(i)));
+            string_appendf(buf, "%s", a2s(iter_next(i)));
             if (!iter_end(i))
                 string_appendf(buf, ",");
         }
@@ -104,12 +104,12 @@ static void ast_to_string_int(String *buf, Ast *ast) {
         string_appendf(buf, "(%s)%s(", ctype_to_string(ast->ctype), ast->fname);
         for (Iter *i = list_iter(ast->params); !iter_end(i);) {
             Ast *param = iter_next(i);
-            string_appendf(buf, "%s %s", ctype_to_string(param->ctype), ast_to_string(param));
+            string_appendf(buf, "%s %s", ctype_to_string(param->ctype), a2s(param));
             if (!iter_end(i))
                 string_appendf(buf, ",");
         }
         string_appendf(buf, ")");
-        ast_to_string_int(buf, ast->body);
+        a2s_int(buf, ast->body);
         break;
     }
     case AST_DECL:
@@ -117,14 +117,14 @@ static void ast_to_string_int(String *buf, Ast *ast) {
                        ctype_to_string(ast->declvar->ctype),
                        ast->declvar->varname);
         if (ast->declinit)
-            string_appendf(buf, " %s)", ast_to_string(ast->declinit));
+            string_appendf(buf, " %s)", a2s(ast->declinit));
         else
             string_appendf(buf, ")");
         break;
     case AST_ARRAY_INIT:
         string_appendf(buf, "{");
         for (Iter *i = list_iter(ast->arrayinit); !iter_end(i);) {
-            ast_to_string_int(buf, iter_next(i));
+            a2s_int(buf, iter_next(i));
             if (!iter_end(i))
                 string_appendf(buf, ",");
         }
@@ -132,39 +132,39 @@ static void ast_to_string_int(String *buf, Ast *ast) {
         break;
     case AST_IF:
         string_appendf(buf, "(if %s %s",
-                       ast_to_string(ast->cond),
-                       ast_to_string(ast->then));
+                       a2s(ast->cond),
+                       a2s(ast->then));
         if (ast->els)
-            string_appendf(buf, " %s", ast_to_string(ast->els));
+            string_appendf(buf, " %s", a2s(ast->els));
         string_appendf(buf, ")");
         break;
     case AST_TERNARY:
         string_appendf(buf, "(? %s %s %s)",
-                       ast_to_string(ast->cond),
-                       ast_to_string(ast->then),
-                       ast_to_string(ast->els));
+                       a2s(ast->cond),
+                       a2s(ast->then),
+                       a2s(ast->els));
         break;
     case AST_FOR:
         string_appendf(buf, "(for %s %s %s ",
-                       ast_to_string(ast->forinit),
-                       ast_to_string(ast->forcond),
-                       ast_to_string(ast->forstep));
-        string_appendf(buf, "%s)", ast_to_string(ast->forbody));
+                       a2s(ast->forinit),
+                       a2s(ast->forcond),
+                       a2s(ast->forstep));
+        string_appendf(buf, "%s)", a2s(ast->forbody));
         break;
     case AST_RETURN:
-        string_appendf(buf, "(return %s)", ast_to_string(ast->retval));
+        string_appendf(buf, "(return %s)", a2s(ast->retval));
         break;
     case AST_COMPOUND_STMT: {
         string_appendf(buf, "{");
         for (Iter *i = list_iter(ast->stmts); !iter_end(i);) {
-            ast_to_string_int(buf, iter_next(i));
+            a2s_int(buf, iter_next(i));
             string_appendf(buf, ";");
         }
         string_appendf(buf, "}");
         break;
     }
     case AST_STRUCT_REF:
-        ast_to_string_int(buf, ast->struc);
+        a2s_int(buf, ast->struc);
         string_appendf(buf, ".");
         string_appendf(buf, ast->field);
         break;
@@ -178,8 +178,8 @@ static void ast_to_string_int(String *buf, Ast *ast) {
     case '&': binop_to_string(buf, "&", ast); break;
     case '|': binop_to_string(buf, "|", ast); break;
     default: {
-        char *left = ast_to_string(ast->left);
-        char *right = ast_to_string(ast->right);
+        char *left = a2s(ast->left);
+        char *right = a2s(ast->right);
         if (ast->type == PUNCT_EQ)
             string_appendf(buf, "(== ");
         else
@@ -189,13 +189,13 @@ static void ast_to_string_int(String *buf, Ast *ast) {
     }
 }
 
-char *ast_to_string(Ast *ast) {
+char *a2s(Ast *ast) {
     String *s = make_string();
-    ast_to_string_int(s, ast);
+    a2s_int(s, ast);
     return get_cstring(s);
 }
 
-char *token_to_string(Token *tok) {
+char *t2s(Token *tok) {
     if (!tok)
         return "(null)";
     String *s = make_string();

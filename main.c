@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     for (Iter *i = list_iter(toplevels); !iter_end(i);) {
         Ast *v = iter_next(i);
         if (wantast)
-            printf("%s", ast_to_string(v));
+            printf("%s", a2s(v));
         else
             emit_toplevel(v);
     }
