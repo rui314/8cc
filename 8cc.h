@@ -38,6 +38,9 @@ enum {
 typedef struct {
     int type;
     bool space;
+    bool bol;
+    char *file;
+    int line;
     Dict *hideset;
     union {
         char *sval;

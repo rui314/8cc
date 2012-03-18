@@ -261,6 +261,11 @@ int funclike() {
     expect_string("x ## y", join(x, y));
 }
 
+int empty() {
+#define EMPTY
+    expect(1, 1 EMPTY);
+}
+
 int main() {
     printf("Testing macros ... ");
 
@@ -272,6 +277,7 @@ int main() {
     defined();
     ifdef();
     funclike();
+    empty();
 
     printf("OK\n");
     return 0;

@@ -5,7 +5,6 @@
 
 static Dict *macros = &EMPTY_DICT;
 static List *cond_incl_stack = &EMPTY_LIST;
-static bool bol = true;
 static List *std_include_path;
 static Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
@@ -71,6 +70,7 @@ static Token *make_macro_token(int position) {
     r->hideset = make_dict(NULL);
     r->position = position;
     r->space = false;
+    r->bol = false;
     return r;
 }
 
@@ -319,6 +319,8 @@ static void unget_all(List *tokens) {
 static Token *read_expand(void) {
     Token *tok = read_cpp_token();
     if (!tok) return NULL;
+    if (tok->type == TTYPE_NEWLINE)
+        return read_expand();
     if (tok->type != TTYPE_IDENT)
         return tok;
     char *name = tok->sval;
@@ -602,22 +604,29 @@ static Token *read_token_int(bool return_at_eol) {
         if (!tok)
             return NULL;
         if (tok && tok->type == TTYPE_NEWLINE) {
-            bol = true;
             if (return_at_eol)
                 return NULL;
             continue;
         }
-        if (bol && is_punct(tok, '#')) {
+        if (tok->bol && is_punct(tok, '#')) {
             read_directive();
-            bol = true;
             continue;
         }
-        bol = false;
         unget_token(tok);
-        return read_expand();
+        Token *r = read_expand();
+        if (r && r->bol && is_punct(r, '#') && dict_empty(r->hideset)) {
+            read_directive();
+            continue;
+        }
+        return r;
     }
 }
 
 Token *read_token(void) {
-    return read_token_int(false);
+    Token *r = read_token_int(false);
+    if (!r) return NULL;
+    assert(r->type != TTYPE_NEWLINE);
+    assert(r->type != TTYPE_SPACE);
+    assert(r->type != TTYPE_MACRO_PARAM);
+    return r;
 }

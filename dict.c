@@ -42,6 +42,10 @@ void dict_remove(Dict *dict, char *key) {
     dict->list = list;
 }
 
+bool dict_empty(Dict *dict) {
+    return list_len(dict->list) == 0;
+}
+
 List *dict_keys(Dict *dict) {
     List *r = make_list();
     for (; dict; dict = dict->parent)

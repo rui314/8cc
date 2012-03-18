@@ -978,8 +978,13 @@ static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
 }
 
 static Ast *read_toplevel(void) {
-    Token *tok = peek_token();
+    Token *tok = read_token();
     if (!tok) return NULL;
+    if (is_ident(tok, "typedef")) {
+        read_typedef();
+        return read_toplevel();
+    }
+    unget_token(tok);
     Ctype *ctype = read_decl_spec();
     Token *name = read_token();
     if (name->type != TTYPE_IDENT)
