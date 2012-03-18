@@ -12,6 +12,7 @@ static List *buffer = &EMPTY_LIST;
 static List *altbuffer = NULL;
 static List *file_stack = &EMPTY_LIST;
 static File *file;
+static int ungotten = -1;
 
 static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE, .space = false };
 static Token *space_token = &(Token){ .type = TTYPE_SPACE, .space = false };
@@ -82,15 +83,28 @@ char *input_position(void) {
     return format("%s:%d", file->name, file->line);
 }
 
-static int get(void) {
-    int c = getc(file->fp);
-    if (c == '\n') file->line++;
-    return c;
-}
-
 static void unget(int c) {
     if (c == '\n') file->line--;
-    ungetc(c, file->fp);
+    if (ungotten >= 0)
+        ungetc(ungotten, file->fp);
+    ungotten = c;
+}
+
+static int get(void) {
+    int c = (ungotten < 0) ? getc(file->fp) : ungotten;
+    ungotten = -1;
+    if (c == '\\') {
+        c = getc(file->fp);
+        if (c == '\n') {
+            file->line++;
+            return get();
+        }
+        unget(c);
+        return '\\';
+    }
+    if (c == '\n')
+        file->line++;
+    return c;
 }
 
 static int get_nonspace(void) {
