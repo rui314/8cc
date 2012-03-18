@@ -21,8 +21,8 @@ test: utiltest $(TESTS) sample/nqueen
 test/%.s: test/%.c 8cc
 	./8cc < $< > $@
 
-test/%.bin: test/%.s 8cc
-	@$(CC) $(CFLAGS) -o $@ $<
+test/%.bin: test/%.s test/util/util.o 8cc
+	@$(CC) $(CFLAGS) -o $@ $< test/util/util.o
 
 sample/nqueen: 8cc sample/nqueen.c
 	./8cc < sample/nqueen.c > sample/nqueen.s

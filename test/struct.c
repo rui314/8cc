@@ -1,11 +1,3 @@
-int expect(int a, int b) {
-    if (!(a == b)) {
-        printf("Failed\n");
-        printf("  %d expected, but got %d\n", a, b);
-        exit(1);
-    }
-}
-
 int t1() {
     struct { int a; } x;
     x.a = 61;
