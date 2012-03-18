@@ -167,6 +167,7 @@ extern Ctype *ctype_char;
 extern Ctype *ctype_float;
 extern Ctype *ctype_double;
 
+extern Token *cpp_token_zero;
 extern Token *cpp_token_one;
 
 extern String *make_string(void);

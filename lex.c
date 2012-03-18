@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include "8cc.h"
 
+Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
 
 static List *ungotten = &EMPTY_LIST;

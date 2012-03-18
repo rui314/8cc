@@ -67,12 +67,32 @@ static void read_undef(void) {
     dict_remove(macros, name->sval);
 }
 
+static void expect(char punct) {
+    Token *tok = read_cpp_token();
+    if (!tok || !is_punct(tok, punct))
+        error("%c expected, but got %s", t2s(tok));
+}
+
+static Token *read_defined_operator(void) {
+    Token *tok = read_cpp_token();
+    if (is_punct(tok, '(')) {
+        tok = read_cpp_token();
+        expect(')');
+    }
+    if (tok->type != TTYPE_IDENT)
+        error("Identifier expected, but got %s", t2s(tok));
+    return dict_get(macros, tok->sval) ?
+        cpp_token_one : cpp_token_zero;
+}
+
 static List *read_intexpr_line(void) {
     List *r = make_list();
     for (;;) {
         Token *tok = read_token_int(&EMPTY_DICT, true);
         if (!tok) return r;
-        if (tok->type == TTYPE_IDENT)
+        if (is_ident(tok, "defined"))
+            list_push(r, read_defined_operator());
+        else if (tok->type == TTYPE_IDENT)
             list_push(r, cpp_token_one);
         else
             list_push(r, tok);

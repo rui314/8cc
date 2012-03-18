@@ -97,6 +97,31 @@ int const_expr() {
     a = 11;
 #endif
     expect(10, a);
+
+#if LOOP - 1
+    a = 12;
+#else
+    a = 13;
+#endif
+    expect(13, a);
+}
+
+int defined_op() {
+    int a = 0;
+#if defined ZERO
+    a = 1;
+#endif
+    expect(1, a);
+#if defined(ZERO)
+    a = 2;
+#endif
+    expect(2, a);
+#if defined(NO_SUCH_MACRO)
+    a = 3;
+#else
+    a = 4;
+#endif
+    expect(4, a);
 }
 
 int main() {
@@ -107,6 +132,7 @@ int main() {
     undef();
     cond_incl();
     const_expr();
+    defined_op();
 
     printf("OK\n");
     return 0;
