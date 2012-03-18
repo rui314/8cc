@@ -17,6 +17,8 @@ static int ungotten = -1;
 static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE, .space = false };
 static Token *space_token = &(Token){ .type = TTYPE_SPACE, .space = false };
 
+static void skip_block_comment(void);
+
 static File *make_file(char *name, FILE *fp) {
     File *r = malloc(sizeof(File));
     r->name = name;
@@ -107,16 +109,6 @@ static int get(void) {
     return c;
 }
 
-static int get_nonspace(void) {
-    int c;
-    while ((c = get()) != EOF) {
-        if (c == ' ' || c == '\t')
-            continue;
-        return c;
-    }
-    return EOF;
-}
-
 static void skip_line(void) {
     for (;;) {
         int c = get();
@@ -125,32 +117,61 @@ static void skip_line(void) {
     }
 }
 
+static void skip_space(void) {
+    for (;;) {
+        int c = get();
+        if (c == EOF) return;
+        if (c == ' ' || c == '\t')
+            continue;
+        if (c == '/') {
+            c = get();
+            if (c == '*') {
+                skip_block_comment();
+                continue;
+            } else if (c == '/') {
+                skip_line();
+                continue;
+            }
+            unget(c);
+            unget('/');
+            return;
+        }
+        unget(c);
+        return;
+    }
+}
+
 void skip_cond_incl(void) {
     int nest = 0;
     for (;;) {
-        int c = get_nonspace();
+        skip_space();
+        int c = get();
         if (c == EOF)
             return;
+        if (c == '\n')
+            continue;
         if (c != '#') {
             skip_line();
             continue;
         }
+        skip_space();
         Token *tok = read_cpp_token();
         if (tok->type == TTYPE_NEWLINE)
             continue;
         if (tok->type != TTYPE_IDENT) {
             skip_line();
-        } else if (is_ident(tok, "if") || is_ident(tok, "ifdef") || is_ident(tok, "ifndef")) {
-            nest++;
-        } else if (nest && is_ident(tok, "endif")) {
-            nest--;
-        } else if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
+            continue;
+        }
+        if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
             unget_cpp_token(tok);
             unget_cpp_token(make_punct('#'));
             return;
-        } else {
-            skip_line();
         }
+        if (is_ident(tok, "if") || is_ident(tok, "ifdef") || is_ident(tok, "ifndef"))
+            nest++;
+        else if (nest && is_ident(tok, "endif"))
+            nest--;
+        skip_line();
     }
 }
 
@@ -220,28 +241,12 @@ static Token *read_ident(char c) {
     }
 }
 
-static void skip_line_comment(void) {
-    for (;;) {
-        int c = get();
-        if (c == '\n' || c == EOF)
-            return;
-    }
-}
-
-static void skip_space(void) {
-    for (;;) {
-        int c = get();
-        if (c == ' ' || c == '\t')
-            continue;
-        unget(c);
-        return;
-    }
-}
-
 static void skip_block_comment(void) {
     enum { in_comment, asterisk_read } state = in_comment;
     for (;;) {
         int c = get();
+        if (c == EOF)
+            error("premature end of block comment");
         if (c == '*')
             state = asterisk_read;
         else if (state == asterisk_read && c == '/')
@@ -282,7 +287,7 @@ static Token *read_token_int(void) {
     case '/': {
         c = get();
         if (c == '/') {
-            skip_line_comment();
+            skip_line();
             return read_token_int();
         }
         if (c == '*') {

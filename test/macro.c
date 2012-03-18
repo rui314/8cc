@@ -67,6 +67,14 @@ int cond_incl() {
     a = 12;
 #endif
     expect(12, a);
+
+#if 0
+# if 1
+# endif
+#else
+    a = 150;
+#endif
+    expect(150, a);
 }
 
 int const_expr() {
