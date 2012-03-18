@@ -67,17 +67,20 @@ static void read_undef(void) {
     dict_remove(macros, name->sval);
 }
 
-static List *read_line(void) {
+static List *read_intexpr_line(void) {
     List *r = make_list();
     for (;;) {
         Token *tok = read_token_int(&EMPTY_DICT, true);
         if (!tok) return r;
-        list_push(r, tok);
+        if (tok->type == TTYPE_IDENT)
+            list_push(r, cpp_token_one);
+        else
+            list_push(r, tok);
     }
 }
 
 static bool read_constexpr(void) {
-    altbuffer = list_reverse(read_line());
+    altbuffer = list_reverse(read_intexpr_line());
     Ast *expr = read_expr();
     if (list_len(altbuffer) > 0)
         error("Stray token: %s", token_to_string(list_shift(altbuffer)));

@@ -6,8 +6,10 @@ int expect(int a, int b) {
     }
 }
 
+#define ZERO 0
 #define ONE 1
 #define TWO ONE + ONE
+#define LOOP LOOP
 
 int simple() {
     expect(1, ONE);
@@ -81,6 +83,20 @@ int const_expr() {
     a = 7;
 #endif
     expect(7, a);
+
+#if ZERO
+    a = 8;
+#else
+    a = 9;
+#endif
+    expect(9, a);
+
+#if LOOP
+    a = 10;
+#else
+    a = 11;
+#endif
+    expect(10, a);
 }
 
 int main() {
