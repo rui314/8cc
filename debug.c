@@ -164,6 +164,8 @@ static void a2s_int(String *buf, Ast *ast) {
         break;
     case AST_ADDR:  uop_to_string(buf, "addr", ast); break;
     case AST_DEREF: uop_to_string(buf, "deref", ast); break;
+    case PUNCT_GE:  binop_to_string(buf, ">=", ast); break;
+    case PUNCT_LE:  binop_to_string(buf, "<=", ast); break;
     case PUNCT_INC: uop_to_string(buf, "++", ast); break;
     case PUNCT_DEC: uop_to_string(buf, "--", ast); break;
     case PUNCT_LOGAND: binop_to_string(buf, "and", ast); break;

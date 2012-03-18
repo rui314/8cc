@@ -67,6 +67,8 @@ enum {
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
     PUNCT_EQ,
+    PUNCT_LE,
+    PUNCT_GE,
     PUNCT_INC,
     PUNCT_DEC,
     PUNCT_LOGAND,
