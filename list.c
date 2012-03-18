@@ -9,6 +9,12 @@ List *make_list(void) {
     return r;
 }
 
+List *make_list1(void *e) {
+    List *r = make_list();
+    list_push(r, e);
+    return r;
+}
+
 void *make_node(void *elem) {
     ListNode *r = malloc(sizeof(ListNode));
     r->elem = elem;
@@ -121,3 +127,4 @@ void *iter_next(Iter *iter) {
 bool iter_end(Iter *iter) {
     return !iter->ptr;
 }
+

@@ -22,7 +22,7 @@ test/%.s: test/%.c 8cc
 	./8cc < $< > $@
 
 test/%.bin: test/%.s 8cc
-	$(CC) $(CFLAGS) -o $@ $<
+	@$(CC) $(CFLAGS) -o $@ $<
 
 sample/nqueen: 8cc sample/nqueen.c
 	./8cc < sample/nqueen.c > sample/nqueen.s

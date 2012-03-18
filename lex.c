@@ -4,9 +4,15 @@
 
 static List *buffer = &EMPTY_LIST;
 static List *altbuffer = NULL;
+static List *file_stack = &EMPTY_LIST;
+static FILE *file;
 
 static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE, .space = false };
 static Token *space_token = &(Token){ .type = TTYPE_SPACE, .space = false };
+
+static __attribute__((constructor)) void init(void) {
+    file = stdin;
+}
 
 static Token *make_ident(String *s) {
     Token *r = malloc(sizeof(Token));
@@ -59,9 +65,14 @@ static Token *make_string_ident(char *s) {
     return make_ident(buf);
 }
 
+void push_input_file(FILE *input) {
+    list_push(file_stack, file);
+    file = input;
+}
+
 static int getc_nonspace(void) {
     int c;
-    while ((c = getc(stdin)) != EOF) {
+    while ((c = getc(file)) != EOF) {
         if (c == ' ' || c == '\t')
             continue;
         return c;
@@ -71,7 +82,7 @@ static int getc_nonspace(void) {
 
 static void skip_line(void) {
     for (;;) {
-        int c = getc(stdin);
+        int c = getc(file);
         if (c == EOF || c == '\n')
             return;
     }
@@ -110,9 +121,9 @@ static Token *read_number(char c) {
     String *s = make_string();
     string_append(s, c);
     for (;;) {
-        int c = getc(stdin);
+        int c = getc(file);
         if (!isdigit(c) && !isalpha(c) && c != '.') {
-            ungetc(c, stdin);
+            ungetc(c, file);
             return make_number(get_cstring(s));
         }
         string_append(s, c);
@@ -120,13 +131,13 @@ static Token *read_number(char c) {
 }
 
 static Token *read_char(void) {
-    char c = getc(stdin);
+    char c = getc(file);
     if (c == EOF) goto err;
     if (c == '\\') {
-        c = getc(stdin);
+        c = getc(file);
         if (c == EOF) goto err;
     }
-    char c2 = getc(stdin);
+    char c2 = getc(file);
     if (c2 == EOF) goto err;
     if (c2 != '\'')
         error("Malformed char literal");
@@ -138,13 +149,13 @@ static Token *read_char(void) {
 static Token *read_string(void) {
     String *s = make_string();
     for (;;) {
-        int c = getc(stdin);
+        int c = getc(file);
         if (c == EOF)
             error("Unterminated string");
         if (c == '"')
             break;
         if (c == '\\') {
-            c = getc(stdin);
+            c = getc(file);
             switch (c) {
             case EOF: error("Unterminated \\");
             case '\"': break;
@@ -162,11 +173,11 @@ static Token *read_ident(char c) {
     String *s = make_string();
     string_append(s, c);
     for (;;) {
-        int c2 = getc(stdin);
+        int c2 = getc(file);
         if (isalnum(c2) || c2 == '_') {
             string_append(s, c2);
         } else {
-            ungetc(c2, stdin);
+            ungetc(c2, file);
             return make_ident(s);
         }
     }
@@ -174,7 +185,7 @@ static Token *read_ident(char c) {
 
 static void skip_line_comment(void) {
     for (;;) {
-        int c = getc(stdin);
+        int c = getc(file);
         if (c == '\n' || c == EOF)
             return;
     }
@@ -182,10 +193,10 @@ static void skip_line_comment(void) {
 
 static void skip_space(void) {
     for (;;) {
-        int c = getc(stdin);
+        int c = getc(file);
         if (c == ' ' || c == '\t')
             continue;
-        ungetc(c, stdin);
+        ungetc(c, file);
         return;
     }
 }
@@ -193,7 +204,7 @@ static void skip_space(void) {
 static void skip_block_comment(void) {
     enum { in_comment, asterisk_read } state = in_comment;
     for (;;) {
-        int c = getc(stdin);
+        int c = getc(file);
         if (state == in_comment) {
             if (c == '*')
                 state = asterisk_read;
@@ -204,15 +215,15 @@ static void skip_block_comment(void) {
 }
 
 static Token *read_rep(int expect, int t1, int t2) {
-    int c = getc(stdin);
+    int c = getc(file);
     if (c == expect)
         return make_punct(t2);
-    ungetc(c, stdin);
+    ungetc(c, file);
     return make_punct(t1);
 }
 
 static Token *read_token_int(void) {
-    int c = getc(stdin);
+    int c = getc(file);
     switch (c) {
     case ' ': case '\t':
         skip_space();
@@ -232,7 +243,7 @@ static Token *read_token_int(void) {
     case 'X': case 'Y': case 'Z': case '_':
         return read_ident(c);
     case '/': {
-        c = getc(stdin);
+        c = getc(file);
         if (c == '/') {
             skip_line_comment();
             return read_token_int();
@@ -241,35 +252,35 @@ static Token *read_token_int(void) {
             skip_block_comment();
             return read_token_int();
         }
-        ungetc(c, stdin);
+        ungetc(c, file);
         return make_punct('/');
     }
     case '.': {
-        c = getc(stdin);
+        c = getc(file);
         if (c == '.') {
-            c = getc(stdin);
+            c = getc(file);
             String *s = make_string();
             string_appendf(s, "..%c", c);
             return make_ident(s);
         }
-        ungetc(c, stdin);
+        ungetc(c, file);
         return make_punct('.');
     }
     case '*': case '(': case ')': case ',': case ';': case '[': case ']':
     case '{': case '}': case '<': case '>': case '!': case '?': case ':':
         return make_punct(c);
     case '#': {
-        c = getc(stdin);
+        c = getc(file);
         if (c == '#')
             return make_string_ident("##");
-        ungetc(c, stdin);
+        ungetc(c, file);
         return make_punct('#');
     }
     case '-':
-        c = getc(stdin);
+        c = getc(file);
         if (c == '-') return make_punct(PUNCT_DEC);
         if (c == '>') return make_punct(PUNCT_ARROW);
-        ungetc(c, stdin);
+        ungetc(c, file);
         return make_punct('-');
     case '=': return read_rep('=', '=', PUNCT_EQ);
     case '+': return read_rep('+', '+', PUNCT_INC);
@@ -282,6 +293,35 @@ static Token *read_token_int(void) {
     default:
         error("Unexpected character: '%c'", c);
     }
+}
+
+bool read_header_file_name(char **name, bool *std) {
+    skip_space();
+    char close;
+    int c = getc(file);
+    if (c == '"') {
+        *std = false;
+        close = '"';
+    } else if (c == '<') {
+        *std = true;
+        close = '>';
+    } else {
+        ungetc(c, file);
+        return false;
+    }
+    String *s = make_string();
+    for (;;) {
+        c = getc(file);
+        if (c == EOF || c == '\n')
+            error("premature end of header name");
+        if (c == close)
+            break;
+        string_append(s, c);
+    }
+    if (get_cstring(s)[0] == '\0')
+        error("header name should not be empty");
+    *name = get_cstring(s);
+    return true;
 }
 
 bool is_punct(Token *tok, int c) {
@@ -316,6 +356,11 @@ Token *read_cpp_token(void) {
     while (tok && tok->type == TTYPE_SPACE) {
         tok = read_token_int();
         if (tok) tok->space = true;
+    }
+    if (!tok && list_len(file_stack) > 0) {
+        fclose(file);
+        file = list_pop(file_stack);
+        return newline_token;
     }
     return tok;
 }

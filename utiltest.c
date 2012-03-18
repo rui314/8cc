@@ -18,7 +18,7 @@ static void assert_null2(int line, void *p) {
 
 static void assert_string2(int line, char *s, char *t) {
     if (strcmp(s, t))
-        error("%d: Expected %s but got %s", line, s, t);
+        error("%d: Expected \"%s\" but got \"%s\"", line, s, t);
 }
 
 static void assert_int2(int line, long a, long b) {

@@ -6,6 +6,7 @@
 static Dict *macros = &EMPTY_DICT;
 static List *cond_incl_stack = &EMPTY_LIST;
 static bool bol = true;
+static List *std_include_path;
 static Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
 
@@ -27,6 +28,13 @@ typedef struct {
 
 static Token *read_token_int(bool return_at_eol);
 static Token *read_expand(void);
+
+static __attribute__((constructor)) void init(void) {
+    std_include_path = make_list();
+    list_push(std_include_path, "/usr/local/include");
+    list_push(std_include_path, "/usr/include");
+    list_push(std_include_path, ".");
+}
 
 static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
     CondIncl *r = malloc(sizeof(CondIncl));
@@ -487,14 +495,75 @@ static void read_endif(void) {
     expect_newline();
 }
 
+static void read_cpp_header_name(char **name, bool *std) {
+    if (!get_input_buffer()) {
+        if (read_header_file_name(name, std))
+            return;
+    }
+    Token *tok = read_expand();
+    if (!tok || tok->type == TTYPE_NEWLINE)
+        error("expected file name, but got %s", t2s(tok));
+    if (tok->type == TTYPE_STRING) {
+        *name = tok->sval;
+        *std = false;
+        return;
+    }
+    if (!is_punct(tok, '<'))
+        error("'<' expected, but got %s", t2s(tok));
+    List *tokens = make_list();
+    for (;;) {
+        Token *tok = read_expand();
+        if (!tok || tok->type == TTYPE_NEWLINE)
+            error("premature end of header name");
+        if (is_punct(tok, '>'))
+            break;
+        list_push(tokens, tok);
+    }
+    *name = join_tokens(tokens, false);
+    *std = true;
+    return;
+}
+
+static char *construct_path(char *path1, char *path2) {
+    if (path1[0] == '\0')
+        return path2;
+    String *s = make_string();
+    string_appendf(s, "%s/%s", path1, path2);
+    return get_cstring(s);
+}
+
+static FILE *open_header_file(char *name, List *paths) {
+    for (Iter *i = list_iter(paths); !iter_end(i);) {
+        char *directory = iter_next(i);
+        char *path = construct_path(directory, name);
+        FILE *file = fopen(path, "r");
+        if (!file)
+            continue;
+        return file;
+    }
+    error("Cannot find header file: %s", name);
+}
+
+static void read_include(void) {
+    char *name;
+    bool std;
+    read_cpp_header_name(&name, &std);
+    expect_newline();
+
+    List *paths = std ? std_include_path : make_list1("");
+    FILE *file = open_header_file(name, paths);
+    push_input_file(file);
+}
+
 static void read_directive(void) {
     Token *tok = read_cpp_token();
-    if (is_ident(tok, "define"))     read_define();
-    else if (is_ident(tok, "undef")) read_undef();
-    else if (is_ident(tok, "if"))    read_if();
-    else if (is_ident(tok, "else"))  read_else();
-    else if (is_ident(tok, "elif"))  read_elif();
-    else if (is_ident(tok, "endif")) read_endif();
+    if (is_ident(tok, "define"))       read_define();
+    else if (is_ident(tok, "undef"))   read_undef();
+    else if (is_ident(tok, "if"))      read_if();
+    else if (is_ident(tok, "else"))    read_else();
+    else if (is_ident(tok, "elif"))    read_elif();
+    else if (is_ident(tok, "endif"))   read_endif();
+    else if (is_ident(tok, "include")) read_include();
     else
         error("unsupported preprocessor directive: %s", t2s(tok));
 }

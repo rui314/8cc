@@ -3,9 +3,24 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include "util.h"
-#include "list.h"
 #include "dict.h"
+#include "list.h"
+#include "util.h"
+
+typedef struct {
+    char *body;
+    int nalloc;
+    int len;
+} String;
+
+extern String *make_string(void);
+extern char *get_cstring(String *s);
+extern int string_len(String *s);
+extern void string_append(String *s, char c);
+extern void string_appendf(String *s, char *fmt, ...);
+
+#define STRING(x)                                                       \
+    (String){ .body = (x), .nalloc = sizeof(x), .len = sizeof(x) + 1 }
 
 enum {
     TTYPE_IDENT,
@@ -32,12 +47,6 @@ typedef struct {
         };
     };
 } Token;
-
-typedef struct {
-    char *body;
-    int nalloc;
-    int len;
-} String;
 
 enum {
     AST_LITERAL = 256,
@@ -174,18 +183,15 @@ extern Ctype *ctype_char;
 extern Ctype *ctype_float;
 extern Ctype *ctype_double;
 
-extern String *make_string(void);
-extern char *get_cstring(String *s);
-extern int string_len(String *s);
-extern void string_append(String *s, char c);
-extern void string_appendf(String *s, char *fmt, ...);
-
+extern void cpp_init(void);
 extern void unget_cpp_token(Token *tok);
 extern Token *peek_cpp_token(void);
 extern Token *read_cpp_token(void);
 extern void set_input_buffer(List *tokens);
 extern List *get_input_buffer(void);
 extern void skip_cond_incl(void);
+extern bool read_header_file_name(char **name, bool *std);
+extern void push_input_file(FILE *input);
 
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
