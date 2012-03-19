@@ -28,16 +28,27 @@ typedef struct {
 static Token *read_token_int(bool return_at_eol);
 static Token *read_expand(void);
 
+static void eval(char *buf) {
+    FILE *fp = fmemopen(buf, strlen(buf), "r");
+    set_input_file("(eval)", fp);
+    List *toplevels = read_toplevels();
+    for (Iter *i = list_iter(toplevels); !iter_end(i);)
+        emit_toplevel(iter_next(i));
+    set_input_file("(stdin)", stdin);
+}
+
 static __attribute__((constructor)) void init(void) {
     std_include_path = make_list();
     list_push(std_include_path, "/usr/local/include");
     list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
     list_push(std_include_path, "/usr/include/linux");
+    list_push(std_include_path, "/usr/lib/clang/2.9/include");
     list_push(std_include_path, "/usr/include");
     list_push(std_include_path, ".");
 
     dict_put(macros, "__x86_64__", cpp_token_one);
     dict_put(macros, "__8cc__", cpp_token_one);
+    eval("typedef int __builtin_va_list[1];");
 }
 
 static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
@@ -114,14 +125,14 @@ static List *read_args_int(Macro *macro) {
             error("unterminated macro argument list");
         if (tok->type == TTYPE_NEWLINE)
             continue;
-        if (depth) {
+        if (is_punct(tok, '(')) {
+            depth++;
+        } else if (depth) {
             if (is_punct(tok, ')'))
                 depth--;
             list_push(arg, tok);
             continue;
         }
-        if (is_punct(tok, '('))
-            depth++;
         if (is_punct(tok, ')')) {
             unget_token(tok);
             if (list_len(r) != 0 || list_len(arg) != 0)
@@ -573,6 +584,31 @@ static void read_include(void) {
     error("Cannot find header file: %s", name);
 }
 
+static char *macro_to_string(char *name, Macro *m) {
+    String *s = make_string();
+    if (m->type == MACRO_OBJ)
+        string_appendf(s, "%s ->", name, m->nargs);
+    else
+        string_appendf(s, "%s(%d) ->", name, m->nargs);
+    for (Iter *i = list_iter(m->body); !iter_end(i);)
+        string_appendf(s, " %s", t2s(iter_next(i)));
+    return get_cstring(s);
+}
+
+static void read_print(void) {
+    Token *tok = read_cpp_token();
+    expect_newline();
+    fprintf(stderr, "#print %s: ", input_position());
+    if (tok->type == TTYPE_IDENT) {
+        Macro *m = dict_get(macros, tok->sval);
+        if (m) {
+            fprintf(stderr, "%s\n", macro_to_string(tok->sval, m));
+            return;
+        }
+    }
+    fprintf(stderr, "%s\n", t2s(tok));
+}
+
 static void read_directive(void) {
     Token *tok = read_cpp_token();
     if (is_ident(tok, "define"))       read_define();
@@ -584,6 +620,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "elif"))    read_elif();
     else if (is_ident(tok, "endif"))   read_endif();
     else if (is_ident(tok, "include")) read_include();
+    else if (is_ident(tok, "print"))   read_print();
     else
         error("unsupported preprocessor directive: %s", t2s(tok));
 }

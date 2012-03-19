@@ -7,6 +7,7 @@ static bool at_bol = true;
 typedef struct {
     char *name;
     int line;
+    int column;
     FILE *fp;
 } File;
 
@@ -25,6 +26,7 @@ static File *make_file(char *name, FILE *fp) {
     File *r = malloc(sizeof(File));
     r->name = name;
     r->line = 1;
+    r->column = 1;
     r->fp = fp;
     return r;
 }
@@ -41,6 +43,7 @@ static Token *make_token(int type) {
     r->bol = false;
     r->file = file->name;
     r->line = file->line;
+    r->column = file->column;
     return r;
 }
 
@@ -77,10 +80,16 @@ static Token *make_char(char c) {
 void push_input_file(char *filename, FILE *fp) {
     list_push(file_stack, file);
     file = make_file(filename, fp);
+    at_bol = true;
+}
+
+void set_input_file(char *filename, FILE *fp) {
+    file = make_file(filename, fp);
+    at_bol = true;
 }
 
 char *input_position(void) {
-    return format("%s:%d", file->name, file->line);
+    return format("%s:%d:%d", file->name, file->line, file->column);
 }
 
 static void unget(int c) {
@@ -89,15 +98,19 @@ static void unget(int c) {
     if (ungotten >= 0)
         ungetc(ungotten, file->fp);
     ungotten = c;
+    file->column--;
 }
 
 static int get(void) {
-    int c = (ungotten < 0) ? getc(file->fp) : ungotten;
+    int c = (ungotten >= 0) ? ungotten : getc(file->fp);
+    file->column++;
     ungotten = -1;
     if (c == '\\') {
         c = getc(file->fp);
+        file->column++;
         if (c == '\n') {
             file->line++;
+            file->column = 1;
             return get();
         }
         unget(c);
@@ -106,6 +119,7 @@ static int get(void) {
     }
     if (c == '\n') {
         file->line++;
+        file->column = 1;
         at_bol = true;
     } else {
         at_bol = false;

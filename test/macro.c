@@ -212,6 +212,8 @@ int minus(int a, int b) {
 int funclike() {
 #define m1(x) x
     expect(5, m1(5));
+    expect(7, m1((5 + 2)));
+    expect(8, m1(plus(5, 3)));
 
 #define m2(x) x + x
     expect(10, m2(5));
@@ -264,6 +266,10 @@ int funclike() {
 int empty() {
 #define EMPTY
     expect(1, 1 EMPTY);
+#define EMPTY2(x)
+    expect(2, 2 EMPTY2(foo));
+    expect(2, 2 EMPTY2(foo bar));
+    expect(2, 2 EMPTY2(((()))));
 }
 
 int main() {
