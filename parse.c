@@ -19,6 +19,7 @@ static Dict *typedefs = &EMPTY_DICT;
 static List *localvars = NULL;
 static Ctype *current_func_rettype = NULL;
 
+Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
 Ctype *ctype_short = &(Ctype){ CTYPE_SHORT, 2, true };
 Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
@@ -644,32 +645,69 @@ static Ctype *read_ctype(Token *tok) {
     Ctype *r = dict_get(typedefs, tok->sval);
     if (r) return r;
 
-    enum { sign, unsign, unspec } si = unspec;
+    int unspec = 0;
+    enum { ssign = 1, sunsign } si = unspec;
+    enum { tchar = 1, tshort, tint, tlong, tllong } ti = unspec;
     for (;;) {
-        if (!strcmp(tok->sval, "signed")) si = sign;
-        else if (!strcmp(tok->sval, "unsigned")) si = unsign;
-        else break;
+        char *s = tok->sval;
+        if (!strcmp(s, "signed")) {
+            if (si != unspec) goto dupspec;
+            si = ssign;
+        } else if (!strcmp(s, "unsigned")) {
+            if (si != unspec) goto dupspec;
+            si = sunsign;
+        } else if (!strcmp(tok->sval, "char")) {
+            if (ti != unspec) goto duptype;
+            ti = tchar;
+        } else if (!strcmp(tok->sval, "short")) {
+            if (ti != unspec) goto duptype;
+            ti = tshort;
+        } else if (!strcmp(tok->sval, "int")) {
+            if (ti == unspec) ti = tint;
+            else if (ti == tchar) goto duptype;
+        } else if (!strcmp(tok->sval, "long")) {
+            if (ti == unspec) ti = tlong;
+            if (ti == tlong)  ti = tllong;
+            else goto duptype;
+        } else if (!strcmp(tok->sval, "float")) {
+            if (si != unspec) goto invspec;
+            if (ti != unspec) goto duptype;
+            return ctype_float;
+        } else if (!strcmp(tok->sval, "double")) {
+            if (si != unspec) goto invspec;
+            if (ti != unspec) goto duptype;
+            return ctype_double;
+        } else if (!strcmp(tok->sval, "void")) {
+            if (si != unspec) goto invspec;
+            if (ti != unspec) goto duptype;
+            return ctype_void;
+        } else {
+            unget_token(tok);
+            break;
+        }
         tok = read_token();
         if (tok->type != TTYPE_IDENT) {
             unget_token(tok);
-            return si == unsign ? ctype_uint : ctype_int;
+            break;
         }
     }
-    if (!strcmp(tok->sval, "char"))
-        return si == unsign ? ctype_uchar : ctype_char;
-    if (!strcmp(tok->sval, "short"))
-        return si == unsign ? ctype_ushort : ctype_short;
-    if (!strcmp(tok->sval, "int"))
-        return si == unsign ? ctype_uint : ctype_int;
-    if (!strcmp(tok->sval, "long"))
-        return si == unsign ? ctype_ulong : ctype_long;
-    if (!strcmp(tok->sval, "float"))  return ctype_float;
-    if (!strcmp(tok->sval, "double")) return ctype_double;
-    if (sign != unspec) {
-        unget_token(tok);
-        return si == unsign ? ctype_uint : ctype_int;
+    if (ti == unspec && si == unspec)
+        error("Type expected, but got '%s'", t2s(tok));
+    if (ti == unspec) ti = tint;
+    switch (ti) {
+    case tchar:   return si == sunsign ? ctype_uchar : ctype_char;
+    case tshort:  return si == sunsign ? ctype_ushort : ctype_short;
+    case tint:    return si == sunsign ? ctype_uint : ctype_int;
+    case tlong:
+    case tllong:  return si == sunsign ? ctype_ulong : ctype_long;
     }
-    error("Type expected, but got '%s'", t2s(tok));
+    error("internal error");
+ dupspec:
+    error("duplicate specifier: %s", t2s(tok));
+ duptype:
+    error("duplicate type specifier: %s", t2s(tok));
+ invspec:
+    error("cannot combine signed/unsigned with %s", t2s(tok));
 }
 
 static bool is_type_keyword(Token *tok) {
