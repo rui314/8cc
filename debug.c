@@ -165,19 +165,19 @@ static void a2s_int(String *buf, Ast *ast) {
         break;
     case AST_ADDR:  uop_to_string(buf, "addr", ast); break;
     case AST_DEREF: uop_to_string(buf, "deref", ast); break;
-    case PUNCT_GE:  binop_to_string(buf, ">=", ast); break;
-    case PUNCT_LE:  binop_to_string(buf, "<=", ast); break;
-    case PUNCT_INC: uop_to_string(buf, "++", ast); break;
-    case PUNCT_DEC: uop_to_string(buf, "--", ast); break;
-    case PUNCT_LOGAND: binop_to_string(buf, "and", ast); break;
-    case PUNCT_LOGOR:  binop_to_string(buf, "or", ast); break;
+    case OP_GE:  binop_to_string(buf, ">=", ast); break;
+    case OP_LE:  binop_to_string(buf, "<=", ast); break;
+    case OP_INC: uop_to_string(buf, "++", ast); break;
+    case OP_DEC: uop_to_string(buf, "--", ast); break;
+    case OP_LOGAND: binop_to_string(buf, "and", ast); break;
+    case OP_LOGOR:  binop_to_string(buf, "or", ast); break;
     case '!': uop_to_string(buf, "!", ast); break;
     case '&': binop_to_string(buf, "&", ast); break;
     case '|': binop_to_string(buf, "|", ast); break;
     default: {
         char *left = a2s(ast->left);
         char *right = a2s(ast->right);
-        if (ast->type == PUNCT_EQ)
+        if (ast->type == OP_EQ)
             string_appendf(buf, "(== ");
         else
             string_appendf(buf, "(%c ", ast->type);
@@ -199,7 +199,7 @@ char *t2s(Token *tok) {
     case TTYPE_IDENT:
         return tok->sval;
     case TTYPE_PUNCT:
-        if (is_punct(tok, PUNCT_EQ))
+        if (is_punct(tok, OP_EQ))
             return "==";
         return format("%c", tok->c);
     case TTYPE_CHAR:

@@ -70,14 +70,14 @@ enum {
     AST_RETURN,
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
-    PUNCT_EQ,
-    PUNCT_LE,
-    PUNCT_GE,
-    PUNCT_INC,
-    PUNCT_DEC,
-    PUNCT_LOGAND,
-    PUNCT_LOGOR,
-    PUNCT_ARROW,
+    OP_EQ,
+    OP_LE,
+    OP_GE,
+    OP_INC,
+    OP_DEC,
+    OP_LOGAND,
+    OP_LOGOR,
+    OP_ARROW,
 };
 
 enum {

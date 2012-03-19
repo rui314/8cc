@@ -338,16 +338,16 @@ static Token *read_token_int(void) {
     }
     case '-':
         c = get();
-        if (c == '-') return make_punct(PUNCT_DEC);
-        if (c == '>') return make_punct(PUNCT_ARROW);
+        if (c == '-') return make_punct(OP_DEC);
+        if (c == '>') return make_punct(OP_ARROW);
         unget(c);
         return make_punct('-');
-    case '<': return read_rep('=', PUNCT_LE, '<');
-    case '>': return read_rep('=', PUNCT_GE, '>');
-    case '=': return read_rep('=', PUNCT_EQ, '=');
-    case '+': return read_rep('+', PUNCT_INC, '+');
-    case '&': return read_rep('&', PUNCT_LOGAND, '&');
-    case '|': return read_rep('|', PUNCT_LOGOR, '|');
+    case '<': return read_rep('=', OP_LE, '<');
+    case '>': return read_rep('=', OP_GE, '>');
+    case '=': return read_rep('=', OP_EQ, '=');
+    case '+': return read_rep('+', OP_INC, '+');
+    case '&': return read_rep('&', OP_LOGAND, '&');
+    case '|': return read_rep('|', OP_LOGOR, '|');
     case '"': return read_string();
     case '\'': return read_char();
     case EOF:

@@ -340,9 +340,9 @@ static void emit_binop(Ast *ast) {
     switch (ast->type) {
     case '<': emit_comp("setl", ast); return;
     case '>': emit_comp("setg", ast); return;
-    case PUNCT_EQ: emit_comp("sete", ast); return;
-    case PUNCT_GE: emit_comp("setge", ast); return;
-    case PUNCT_LE: emit_comp("setle", ast); return;
+    case OP_EQ: emit_comp("sete", ast); return;
+    case OP_GE: emit_comp("setge", ast); return;
+    case OP_LE: emit_comp("setle", ast); return;
     }
     if (is_inttype(ast->ctype))
         emit_binop_int_arith(ast);
@@ -557,10 +557,10 @@ static void emit_expr(Ast *ast) {
     case AST_STRUCT_REF:
         emit_load_struct_ref(ast->struc, ast->ctype, 0);
         break;
-    case PUNCT_INC:
+    case OP_INC:
         emit_inc_dec(ast, "add");
         break;
-    case PUNCT_DEC:
+    case OP_DEC:
         emit_inc_dec(ast, "sub");
         break;
     case '!':
@@ -583,7 +583,7 @@ static void emit_expr(Ast *ast) {
         pop("rcx");
         emit("or %%rcx, %%rax");
         break;
-    case PUNCT_LOGAND: {
+    case OP_LOGAND: {
         char *end = make_label();
         emit_expr(ast->left);
         emit("test %%rax, %%rax");
@@ -597,7 +597,7 @@ static void emit_expr(Ast *ast) {
         emit("%s:", end);
         break;
     }
-    case PUNCT_LOGOR: {
+    case OP_LOGOR: {
         char *end = make_label();
         emit_expr(ast->left);
         emit("test %%rax, %%rax");

@@ -296,12 +296,12 @@ int eval_intexpr(Ast *ast) {
     case '*': return eval_intexpr(ast->left) * eval_intexpr(ast->right);
     case '/': return eval_intexpr(ast->left) / eval_intexpr(ast->right);
     case '!': return !eval_intexpr(ast->operand);
-    case PUNCT_EQ: return eval_intexpr(ast->left) == eval_intexpr(ast->right);
-    case PUNCT_GE: return eval_intexpr(ast->left) >= eval_intexpr(ast->right);
-    case PUNCT_LE: return eval_intexpr(ast->left) <= eval_intexpr(ast->right);
-    case PUNCT_LOGAND:
+    case OP_EQ: return eval_intexpr(ast->left) == eval_intexpr(ast->right);
+    case OP_GE: return eval_intexpr(ast->left) >= eval_intexpr(ast->right);
+    case OP_LE: return eval_intexpr(ast->left) <= eval_intexpr(ast->right);
+    case OP_LOGAND:
         return eval_intexpr(ast->left) && eval_intexpr(ast->right);
-    case PUNCT_LOGOR:
+    case OP_LOGOR:
         return eval_intexpr(ast->left) || eval_intexpr(ast->right);
     default:
         error("Integer expression expected, but got %s", a2s(ast));
@@ -310,25 +310,25 @@ int eval_intexpr(Ast *ast) {
 
 static int priority(Token *tok) {
     switch (tok->punct) {
-    case '[': case '.': case PUNCT_ARROW:
+    case '[': case '.': case OP_ARROW:
         return 1;
-    case PUNCT_INC: case PUNCT_DEC:
+    case OP_INC: case OP_DEC:
         return 2;
     case '*': case '/':
         return 3;
     case '+': case '-':
         return 4;
-    case '<': case '>': case PUNCT_LE: case PUNCT_GE:
+    case '<': case '>': case OP_LE: case OP_GE:
         return 6;
     case '&':
         return 8;
     case '|':
         return 10;
-    case PUNCT_EQ:
+    case OP_EQ:
         return 7;
-    case PUNCT_LOGAND:
+    case OP_LOGAND:
         return 11;
-    case PUNCT_LOGOR:
+    case OP_LOGOR:
         return 12;
     case '?':
         return 13;
@@ -616,7 +616,7 @@ static Ast *read_expr_int(int prec) {
             ast = read_struct_field(ast);
             continue;
         }
-        if (is_punct(tok, PUNCT_ARROW)) {
+        if (is_punct(tok, OP_ARROW)) {
             if (ast->ctype->type != CTYPE_PTR)
                 error("pointer type expected, but got %s %s",
                       ctype_to_string(ast->ctype), a2s(ast));
@@ -628,7 +628,7 @@ static Ast *read_expr_int(int prec) {
             ast = read_subscript_expr(ast);
             continue;
         }
-        if (is_punct(tok, PUNCT_INC) || is_punct(tok, PUNCT_DEC)) {
+        if (is_punct(tok, OP_INC) || is_punct(tok, OP_DEC)) {
             ensure_lvalue(ast);
             ast = ast_uop(tok->punct, ast->ctype, ast);
             continue;
