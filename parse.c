@@ -714,7 +714,7 @@ static bool is_type_keyword(Token *tok) {
     if (tok->type != TTYPE_IDENT)
         return false;
     char *keyword[] = { "char", "short", "int", "long", "float", "double",
-                        "struct", "union", "signed", "unsigned" };
+                        "struct", "union", "signed", "unsigned", "enum", };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
             return true;
@@ -813,19 +813,49 @@ static Ctype *read_struct_union_def(Dict *env, int (*compute_size)(Dict *)) {
     return r;
 }
 
+static Ctype *read_struct_def(void) {
+    return read_struct_union_def(struct_defs, compute_struct_size);
+}
+
 static Ctype *read_union_def(void) {
     return read_struct_union_def(union_defs, compute_union_size);
 }
 
-static Ctype *read_struct_def(void) {
-    return read_struct_union_def(struct_defs, compute_struct_size);
+static Ctype *read_enum_def(void) {
+    Token *tok = read_token();
+    if (tok->type == TTYPE_IDENT)
+        tok = read_token();
+    if (!is_punct(tok, '{')) {
+        unget_token(tok);
+        return ctype_int;
+    }
+    int val = 0;
+    for (;;) {
+        tok = read_token();
+        if (is_punct(tok, '}'))
+            break;
+        if (tok->type != TTYPE_IDENT)
+            error("Identifier expected, but got %s", t2s(tok));
+        Ast *constval = ast_inttype(ctype_int, val++);
+        dict_put(localenv ? localenv : globalenv, tok->sval, constval);
+        tok = read_token();
+        if (is_punct(tok, ','))
+            continue;
+        if (is_punct(tok, '}'))
+            break;
+        error("',' or '}' expected, but got %s", t2s(tok));
+    }
+    return ctype_int;
 }
 
 static Ctype *read_decl_spec(void) {
     Token *tok = read_token();
     if (!tok) return NULL;
+    if (tok->type != TTYPE_IDENT)
+        error("Identifier expected, but got %s", t2s(tok));
     Ctype *ctype = is_ident(tok, "struct") ? read_struct_def()
         : is_ident(tok, "union") ? read_union_def()
+        : is_ident(tok, "enum") ? read_enum_def()
         : read_ctype(tok);
     assert(ctype);
     for (;;) {
@@ -900,7 +930,13 @@ static Ast *read_decl_init(Ast *var) {
 
 static void read_decl_int(Token **name, Ctype **ctype) {
     Ctype *t = read_decl_spec();
-    *name = read_token();
+    Token *tok = read_token();
+    if (is_punct(tok, ';')) {
+        unget_token(tok);
+        *name = NULL;
+        return;
+    }
+    *name = tok;
     if ((*name)->type != TTYPE_IDENT)
         error("identifier expected, but got %s", t2s(*name));
     *ctype = read_array_dimensions(t);
@@ -910,6 +946,10 @@ static Ast *read_decl(void) {
     Token *varname;
     Ctype *ctype;
     read_decl_int(&varname, &ctype);
+    if (!varname) {
+        expect(';');
+        return NULL;
+    }
     Ast *var = ast_lvar(ctype, varname->sval);
     return read_decl_init(var);
 }
@@ -1004,7 +1044,7 @@ static Ast *read_compound_stmt(void) {
     for (;;) {
         Ast *stmt = read_decl_or_stmt();
         if (stmt) list_push(list, stmt);
-        if (!stmt) break;
+        if (!stmt) continue;
         Token *tok = read_token();
         if (is_punct(tok, '}'))
             break;
@@ -1060,7 +1100,7 @@ static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
         return read_func_def(rettype, fname, params);
     Ctype *type = make_func_type(rettype, param_types(params));
     dict_put(globalenv, fname, type);
-    return read_toplevel();
+    return NULL;
 }
 
 static Ast *read_toplevel(void) {
@@ -1084,8 +1124,12 @@ static Ast *read_toplevel(void) {
             Ast *var = ast_gvar(ctype, name->sval, false);
             return read_decl_init(var);
         }
-        if (is_punct(tok, '('))
-            return read_func_decl_or_def(ctype, name->sval);
+        if (is_punct(tok, '(')) {
+            Ast *func = read_func_decl_or_def(ctype, name->sval);
+            if (func)
+                return func;
+            continue;
+        }
         if (is_punct(tok, ';')) {
             read_token();
             Ast *var = ast_gvar(ctype, name->sval, false);
