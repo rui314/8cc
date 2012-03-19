@@ -753,8 +753,12 @@ static char *read_struct_union_tag(void) {
 }
 
 static Dict *read_struct_union_fields(void) {
+    Token *tok = read_token();
+    if (!is_punct(tok, '{')) {
+        unget_token(tok);
+        return NULL;
+    }
     Dict *r = make_dict(NULL);
-    expect('{');
     for (;;) {
         if (!is_type_keyword(peek_token()))
             break;
@@ -768,27 +772,16 @@ static Dict *read_struct_union_fields(void) {
     return r;
 }
 
-static Ctype *read_union_def(void) {
-    char *tag = read_struct_union_tag();
-    Ctype *ctype = dict_get(union_defs, tag);
-    if (ctype) return ctype;
-    Dict *fields = read_struct_union_fields();
+static int compute_union_size(Dict *fields) {
     int maxsize = 0;
     for (Iter *i = list_iter(dict_values(fields)); !iter_end(i);) {
         Ctype *fieldtype = iter_next(i);
         maxsize = (maxsize < fieldtype->size) ? fieldtype->size : maxsize;
     }
-    Ctype *r = make_struct_type(fields, maxsize);
-    if (tag)
-        dict_put(union_defs, tag, r);
-    return r;
+    return maxsize;
 }
 
-static Ctype *read_struct_def(void) {
-    char *tag = read_struct_union_tag();
-    Ctype *ctype = dict_get(struct_defs, tag);
-    if (ctype) return ctype;
-    Dict *fields = read_struct_union_fields();
+static int compute_struct_size(Dict *fields) {
     int offset = 0;
     for (Iter *i = list_iter(dict_values(fields)); !iter_end(i);) {
         Ctype *fieldtype = iter_next(i);
@@ -798,10 +791,34 @@ static Ctype *read_struct_def(void) {
         fieldtype->offset = offset;
         offset += fieldtype->size;
     }
-    Ctype *r = make_struct_type(fields, offset);
+    return offset;
+}
+
+static Ctype *read_struct_union_def(Dict *env, int (*compute_size)(Dict *)) {
+    char *tag = read_struct_union_tag();
+    Ctype *prev = tag ? dict_get(union_defs, tag) : NULL;
+    Dict *fields = read_struct_union_fields();
+    if (prev && !fields)
+        return prev;
+    if (prev && fields) {
+        prev->fields = fields;
+        prev->size = compute_size(fields);
+        return prev;
+    }
+    Ctype *r = fields
+        ? make_struct_type(fields, compute_size(fields))
+        : make_struct_type(NULL, 0);
     if (tag)
-        dict_put(struct_defs, tag, r);
+        dict_put(union_defs, tag, r);
     return r;
+}
+
+static Ctype *read_union_def(void) {
+    return read_struct_union_def(union_defs, compute_union_size);
+}
+
+static Ctype *read_struct_def(void) {
+    return read_struct_union_def(struct_defs, compute_struct_size);
 }
 
 static Ctype *read_decl_spec(void) {
@@ -1047,31 +1064,35 @@ static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
 }
 
 static Ast *read_toplevel(void) {
-    Token *tok = read_token();
-    if (!tok) return NULL;
-    if (is_ident(tok, "typedef")) {
-        read_typedef();
-        return read_toplevel();
+    for (;;) {
+        Token *tok = read_token();
+        if (!tok) return NULL;
+        if (is_ident(tok, "typedef")) {
+            read_typedef();
+            continue;
+        }
+        unget_token(tok);
+        Ctype *ctype = read_decl_spec();
+        Token *name = read_token();
+        if (is_punct(name, ';'))
+            continue;
+        if (name->type != TTYPE_IDENT)
+            error("Identifier expected, but got %s", t2s(name));
+        ctype = read_array_dimensions(ctype);
+        tok = peek_token();
+        if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
+            Ast *var = ast_gvar(ctype, name->sval, false);
+            return read_decl_init(var);
+        }
+        if (is_punct(tok, '('))
+            return read_func_decl_or_def(ctype, name->sval);
+        if (is_punct(tok, ';')) {
+            read_token();
+            Ast *var = ast_gvar(ctype, name->sval, false);
+            return ast_decl(var, NULL);
+        }
+        error("Don't know how to handle %s", t2s(tok));
     }
-    unget_token(tok);
-    Ctype *ctype = read_decl_spec();
-    Token *name = read_token();
-    if (name->type != TTYPE_IDENT)
-        error("Identifier expected, but got %s", t2s(name));
-    ctype = read_array_dimensions(ctype);
-    tok = peek_token();
-    if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
-        Ast *var = ast_gvar(ctype, name->sval, false);
-        return read_decl_init(var);
-    }
-    if (is_punct(tok, '('))
-        return read_func_decl_or_def(ctype, name->sval);
-    if (is_punct(tok, ';')) {
-        read_token();
-        Ast *var = ast_gvar(ctype, name->sval, false);
-        return ast_decl(var, NULL);
-    }
-    error("Don't know how to handle %s", t2s(tok));
 }
 
 List *read_toplevels(void) {
