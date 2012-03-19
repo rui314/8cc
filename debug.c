@@ -167,6 +167,7 @@ static void a2s_int(String *buf, Ast *ast) {
     case AST_DEREF: uop_to_string(buf, "deref", ast); break;
     case OP_GE:  binop_to_string(buf, ">=", ast); break;
     case OP_LE:  binop_to_string(buf, "<=", ast); break;
+    case OP_NE:  binop_to_string(buf, "!=", ast); break;
     case OP_INC: uop_to_string(buf, "++", ast); break;
     case OP_DEC: uop_to_string(buf, "--", ast); break;
     case OP_LOGAND: binop_to_string(buf, "and", ast); break;

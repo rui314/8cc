@@ -343,6 +343,7 @@ static void emit_binop(Ast *ast) {
     case OP_EQ: emit_comp("sete", ast); return;
     case OP_GE: emit_comp("setge", ast); return;
     case OP_LE: emit_comp("setle", ast); return;
+    case OP_NE: emit_comp("setne", ast); return;
     }
     if (is_inttype(ast->ctype))
         emit_binop_int_arith(ast);

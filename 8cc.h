@@ -71,6 +71,7 @@ enum {
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
     OP_EQ,
+    OP_NE,
     OP_LE,
     OP_GE,
     OP_INC,
@@ -78,6 +79,7 @@ enum {
     OP_LOGAND,
     OP_LOGOR,
     OP_ARROW,
+    OP_SIZEOF,
 };
 
 enum {

@@ -42,6 +42,8 @@ static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
 static void read_decl_int(Token **name, Ctype **ctype);
 static Ast *read_toplevel(void);
+static bool is_type_keyword(Token *tok);
+static Ast *read_unary_expr(void);
 
 static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
     Ast *r = malloc(sizeof(Ast));
@@ -299,6 +301,7 @@ int eval_intexpr(Ast *ast) {
     case OP_EQ: return eval_intexpr(ast->left) == eval_intexpr(ast->right);
     case OP_GE: return eval_intexpr(ast->left) >= eval_intexpr(ast->right);
     case OP_LE: return eval_intexpr(ast->left) <= eval_intexpr(ast->right);
+    case OP_NE: return eval_intexpr(ast->left) != eval_intexpr(ast->right);
     case OP_LOGAND:
         return eval_intexpr(ast->left) && eval_intexpr(ast->right);
     case OP_LOGOR:
@@ -318,7 +321,7 @@ static int priority(Token *tok) {
         return 3;
     case '+': case '-':
         return 4;
-    case '<': case '>': case OP_LE: case OP_GE:
+    case '<': case '>': case OP_LE: case OP_GE: case OP_NE:
         return 6;
     case '&':
         return 8;
@@ -542,14 +545,33 @@ Ctype *result_type(char op, Ctype *a, Ctype *b) {
           op, ctype_to_string(a), ctype_to_string(b));
 }
 
+static Ast *get_sizeof_size(bool allow_typename) {
+    Token *tok = read_token();
+    if (allow_typename && is_type_keyword(tok)) {
+        unget_token(tok);
+        Token *dummy;
+        Ctype *ctype = NULL;
+        read_decl_int(&dummy, &ctype);
+        assert(ctype);
+        return ast_inttype(ctype_long, ctype->size);
+    }
+    if (is_punct(tok, '(')) {
+        Ast *r = get_sizeof_size(true);
+        expect(')');
+        return r;
+    }
+    unget_token(tok);
+    Ast *expr = read_unary_expr();
+    if (expr->ctype->size == 0)
+        error("invalid operand for sizeof(): %s", a2s(expr));
+    return ast_inttype(ctype_long, expr->ctype->size);
+}
+
 static Ast *read_unary_expr(void) {
     Token *tok = read_token();
-
     if (!tok) error("premature end of input");
-    if (tok->type != TTYPE_PUNCT) {
-        unget_token(tok);
-        return read_prim();
-    }
+    if (is_ident(tok, "sizeof"))
+        return get_sizeof_size(false);
     if (is_punct(tok, '(')) {
         Ast *r = read_expr();
         expect(')');
@@ -943,9 +965,12 @@ static void read_decl_int(Token **name, Ctype **ctype) {
         *name = NULL;
         return;
     }
-    *name = tok;
-    if ((*name)->type != TTYPE_IDENT)
-        error("identifier expected, but got %s", t2s(*name));
+    if (tok->type != TTYPE_IDENT) {
+        unget_token(tok);
+        *name = NULL;
+    } else {
+        *name = tok;
+    }
     *ctype = read_array_dimensions(t);
 }
 

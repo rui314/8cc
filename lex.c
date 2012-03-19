@@ -327,7 +327,7 @@ static Token *read_token_int(void) {
         return make_punct('.');
     }
     case '*': case '(': case ')': case ',': case ';': case '[': case ']':
-    case '{': case '}': case '!': case '?': case ':':
+    case '{': case '}': case '?': case ':':
         return make_punct(c);
     case '#': {
         c = get();
@@ -345,6 +345,7 @@ static Token *read_token_int(void) {
     case '<': return read_rep('=', OP_LE, '<');
     case '>': return read_rep('=', OP_GE, '>');
     case '=': return read_rep('=', OP_EQ, '=');
+    case '!': return read_rep('=', OP_NE, '!');
     case '+': return read_rep('+', OP_INC, '+');
     case '&': return read_rep('&', OP_LOGAND, '&');
     case '|': return read_rep('|', OP_LOGOR, '|');

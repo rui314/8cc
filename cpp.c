@@ -439,7 +439,7 @@ static void read_undef(void) {
     dict_remove(macros, name->sval);
 }
 
-static Token *read_defined_operator(void) {
+static Token *read_defined_op(void) {
     Token *tok = read_cpp_token();
     if (is_punct(tok, '(')) {
         tok = read_cpp_token();
@@ -457,7 +457,7 @@ static List *read_intexpr_line(void) {
         Token *tok = read_token_int(true);
         if (!tok) return r;
         if (is_ident(tok, "defined"))
-            list_push(r, read_defined_operator());
+            list_push(r, read_defined_op());
         else if (tok->type == TTYPE_IDENT)
             list_push(r, cpp_token_one);
         else
