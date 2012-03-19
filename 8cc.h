@@ -82,6 +82,7 @@ enum {
 enum {
     CTYPE_VOID,
     CTYPE_CHAR,
+    CTYPE_SHORT,
     CTYPE_INT,
     CTYPE_LONG,
     CTYPE_FLOAT,
@@ -95,7 +96,10 @@ enum {
 typedef struct Ctype {
     int type;
     int size;
-    struct Ctype *ptr; // pointer or array
+    // signed or unsigned
+    bool sign;
+    // pointer or array
+    struct Ctype *ptr;
     // array length
     int len;
     // struct
@@ -183,9 +187,10 @@ typedef struct Ast {
     };
 } Ast;
 
+extern Ctype *ctype_char;
+extern Ctype *ctype_short;
 extern Ctype *ctype_int;
 extern Ctype *ctype_long;
-extern Ctype *ctype_char;
 extern Ctype *ctype_float;
 extern Ctype *ctype_double;
 

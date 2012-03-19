@@ -1,3 +1,11 @@
+int expects(short a, short b) {
+    if (!(a == b)) {
+        printf("Failed\n");
+        printf("  %d expected, but got %d\n", a, b);
+        exit(1);
+    }
+}
+
 int expectl(long a, long b) {
     if (!(a == b)) {
         printf("Failed\n");
@@ -8,6 +16,11 @@ int expectl(long a, long b) {
 
 int main() {
     printf("Testing long ... ");
+
+    short a = 10;
+    short b = 15;
+    expects(25, a + b);
+    expects(20, a + 10);
 
     expectl(10L, 10L);
     expectl(1152921504606846976, 1152921504606846976);

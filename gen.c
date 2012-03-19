@@ -48,6 +48,7 @@ static char *get_int_reg(Ctype *ctype, char r) {
     assert(r == 'a' || r == 'c');
     switch (ctype->size) {
     case 1: return (r == 'a') ? "al" : "cl";
+    case 2: return (r == 'a') ? "ax" : "cx";
     case 4: return (r == 'a') ? "eax" : "ecx";
     case 8: return (r == 'a') ? "rax" : "rcx";
     default:
@@ -93,7 +94,7 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
         return;
     }
     char *reg = get_int_reg(ctype, 'a');
-    if (ctype->size == 1)
+    if (ctype->size < 4)
         emit("mov $0, %%eax");
     if (off)
         emit("mov %s+%d(%%rip), %%%s", label, off, reg);
@@ -125,7 +126,7 @@ static void emit_lload(Ctype *ctype, int off) {
         emit("movsd %d(%%rbp), %%xmm0", off);
     } else {
         char *reg = get_int_reg(ctype, 'a');
-        if (ctype->size == 1)
+        if (ctype->size < 4)
             emit("mov $0, %%eax");
         emit("mov %d(%%rbp), %%%s", off, reg);
     }
@@ -366,7 +367,7 @@ static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off) {
         operand_type->ptr->type == CTYPE_ARRAY)
         return;
     char *reg = get_int_reg(result_type, 'c');
-    if (result_type->size == 1)
+    if (result_type->size < 4)
         emit("mov $0, %%ecx");
     if (off)
         emit("mov %d(%%rax), %%%s", off, reg);

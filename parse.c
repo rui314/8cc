@@ -19,11 +19,17 @@ static Dict *typedefs = &EMPTY_DICT;
 static List *localvars = NULL;
 static Ctype *current_func_rettype = NULL;
 
-Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, NULL };
-Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, NULL };
-Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, NULL };
-Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, NULL };
-Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, NULL };
+Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
+Ctype *ctype_short = &(Ctype){ CTYPE_SHORT, 2, true };
+Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
+Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, true };
+Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, true };
+Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, true };
+
+static Ctype *ctype_uchar = &(Ctype){ CTYPE_CHAR, 1, false };
+static Ctype *ctype_ushort = &(Ctype){ CTYPE_SHORT, 2, false };
+static Ctype *ctype_uint = &(Ctype){ CTYPE_INT, 4, false };
+static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
 
 static int labelseq = 0;
 
@@ -467,9 +473,10 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
     case CTYPE_VOID:
         goto err;
     case CTYPE_CHAR:
+    case CTYPE_SHORT:
     case CTYPE_INT:
         switch (b->type) {
-        case CTYPE_CHAR: case CTYPE_INT:
+        case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
             return ctype_int;
         case CTYPE_LONG:
             return ctype_long;
@@ -633,23 +640,47 @@ Ast *read_expr(void) {
     return read_expr_int(MAX_OP_PRIO);
 }
 
-static Ctype *get_ctype(Token *tok) {
-    if (!tok) return NULL;
-    if (tok->type != TTYPE_IDENT)
-        return NULL;
-    char *s = tok->sval;
-    if (!strcmp(s, "int"))    return ctype_int;
-    if (!strcmp(s, "long"))   return ctype_long;
-    if (!strcmp(s, "char"))   return ctype_char;
-    if (!strcmp(s, "float"))  return ctype_float;
-    if (!strcmp(s, "double")) return ctype_double;
-    return dict_get(typedefs, s);
+static Ctype *read_ctype(Token *tok) {
+    Ctype *r = dict_get(typedefs, tok->sval);
+    if (r) return r;
+
+    enum { sign, unsign, unspec } si = unspec;
+    for (;;) {
+        if (!strcmp(tok->sval, "signed")) si = sign;
+        else if (!strcmp(tok->sval, "unsigned")) si = unsign;
+        else break;
+        tok = read_token();
+        if (tok->type != TTYPE_IDENT) {
+            unget_token(tok);
+            return si == unsign ? ctype_uint : ctype_int;
+        }
+    }
+    if (!strcmp(tok->sval, "char"))
+        return si == unsign ? ctype_uchar : ctype_char;
+    if (!strcmp(tok->sval, "short"))
+        return si == unsign ? ctype_ushort : ctype_short;
+    if (!strcmp(tok->sval, "int"))
+        return si == unsign ? ctype_uint : ctype_int;
+    if (!strcmp(tok->sval, "long"))
+        return si == unsign ? ctype_ulong : ctype_long;
+    if (!strcmp(tok->sval, "float"))  return ctype_float;
+    if (!strcmp(tok->sval, "double")) return ctype_double;
+    if (sign != unspec) {
+        unget_token(tok);
+        return si == unsign ? ctype_uint : ctype_int;
+    }
+    error("Type expected, but got '%s'", t2s(tok));
 }
 
 static bool is_type_keyword(Token *tok) {
-    return get_ctype(tok) != NULL
-        || is_ident(tok, "struct")
-        || is_ident(tok, "union");
+    if (tok->type != TTYPE_IDENT)
+        return false;
+    char *keyword[] = { "char", "short", "int", "long", "float", "double",
+                        "struct", "union", "signed", "unsigned" };
+    for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
+        if (!strcmp(keyword[i], tok->sval))
+            return true;
+    return dict_get(typedefs, tok->sval);
 }
 
 static Ast *read_decl_array_init_int(Ctype *ctype) {
@@ -737,11 +768,11 @@ static Ctype *read_struct_def(void) {
 
 static Ctype *read_decl_spec(void) {
     Token *tok = read_token();
+    if (!tok) return NULL;
     Ctype *ctype = is_ident(tok, "struct") ? read_struct_def()
         : is_ident(tok, "union") ? read_union_def()
-        : get_ctype(tok);
-    if (!ctype)
-        error("Type expected, but got %s", t2s(tok));
+        : read_ctype(tok);
+    assert(ctype);
     for (;;) {
         tok = read_token();
         if (!is_punct(tok, '*')) {
