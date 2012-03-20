@@ -17,7 +17,7 @@ static Dict *struct_defs = &EMPTY_DICT;
 static Dict *union_defs = &EMPTY_DICT;
 static Dict *typedefs = &EMPTY_DICT;
 static List *localvars = NULL;
-static Ctype *current_func_rettype = NULL;
+static Ctype *current_func_type = NULL;
 
 Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
@@ -44,6 +44,7 @@ static void read_decl_int(Token **name, Ctype **ctype);
 static Ast *read_toplevel(void);
 static bool is_type_keyword(Token *tok);
 static Ast *read_unary_expr(void);
+static void read_func_params(Ctype **rtype, List *rparams, Ctype *rettype);
 
 static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
     Ast *r = malloc(sizeof(Ast));
@@ -95,7 +96,8 @@ static Ast *ast_lvar(Ctype *ctype, char *name) {
     r->type = AST_LVAR;
     r->ctype = ctype;
     r->varname = name;
-    dict_put(localenv, name, r);
+    if (localenv)
+        dict_put(localenv, name, r);
     if (localvars)
         list_push(localvars, r);
     return r;
@@ -247,11 +249,12 @@ static Ctype* make_struct_type(Dict *fields, int size) {
     return r;
 }
 
-static Ctype* make_func_type(Ctype *rettype, List *paramtypes) {
+static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs) {
     Ctype *r = malloc(sizeof(Ctype));
     r->type = CTYPE_FUNC;
     r->rettype = rettype;
     r->params = paramtypes;
+    r->hasva = has_varargs;
     return r;
 }
 
@@ -293,19 +296,23 @@ int eval_intexpr(Ast *ast) {
         if (is_inttype(ast->ctype))
             return ast->ival;
         error("Integer expression expected, but got %s", a2s(ast));
-    case '+': return eval_intexpr(ast->left) + eval_intexpr(ast->right);
-    case '-': return eval_intexpr(ast->left) - eval_intexpr(ast->right);
-    case '*': return eval_intexpr(ast->left) * eval_intexpr(ast->right);
-    case '/': return eval_intexpr(ast->left) / eval_intexpr(ast->right);
     case '!': return !eval_intexpr(ast->operand);
-    case OP_EQ: return eval_intexpr(ast->left) == eval_intexpr(ast->right);
-    case OP_GE: return eval_intexpr(ast->left) >= eval_intexpr(ast->right);
-    case OP_LE: return eval_intexpr(ast->left) <= eval_intexpr(ast->right);
-    case OP_NE: return eval_intexpr(ast->left) != eval_intexpr(ast->right);
-    case OP_LOGAND:
-        return eval_intexpr(ast->left) && eval_intexpr(ast->right);
-    case OP_LOGOR:
-        return eval_intexpr(ast->left) || eval_intexpr(ast->right);
+#define L (eval_intexpr(ast->left))
+#define R (eval_intexpr(ast->right))
+    case '+': return L + R;
+    case '-': return L - R;
+    case '*': return L * R;
+    case '/': return L / R;
+    case '<': return L < R;
+    case '>': return L > R;
+    case OP_EQ: return L == R;
+    case OP_GE: return L >= R;
+    case OP_LE: return L <= R;
+    case OP_NE: return L != R;
+    case OP_LOGAND: return L && R;
+    case OP_LOGOR:  return L || R;
+#undef L
+#undef R
     default:
         error("Integer expression expected, but got %s", a2s(ast));
     }
@@ -376,13 +383,14 @@ static Ast *read_func_args(char *fname) {
     }
     if (MAX_ARGS < list_len(args))
         error("Too many arguments: %s", fname);
-    Ctype *decl = dict_get(localenv, fname);
-    if (decl) {
-        if (decl->type != CTYPE_FUNC)
-            error("%s is not a function, but %s", fname, ctype_to_string(decl));
-        assert(decl->params);
-        function_type_check(fname, decl->params, param_types(args));
-        return ast_funcall(decl->rettype, fname, args, decl->params);
+    Ast *func = dict_get(localenv, fname);
+    if (func) {
+        Ctype *t = func->ctype;
+        if (t->type != CTYPE_FUNC)
+            error("%s is not a function, but %s", fname, ctype_to_string(t));
+        assert(t->params);
+        function_type_check(fname, t->params, param_types(args));
+        return ast_funcall(t->rettype, fname, args, t->params);
     }
     return ast_funcall(ctype_int, fname, args, make_list());
 }
@@ -986,24 +994,35 @@ static Ast *read_decl(void) {
     return read_decl_init(var);
 }
 
-static void read_typedef(void) {
+static void read_extern_typedef(char **rname, Ctype **rctype) {
     Token *name;
     Ctype *ctype;
     read_decl_int(&name, &ctype);
     if (!name)
-        error("Typedef name missing");
-    dict_put(typedefs, name->sval, ctype);
+        error("name missing");
+    Token *tok = read_token();
+
+    if (is_punct(tok, '('))
+        read_func_params(&ctype, NULL, ctype);
+    else
+        unget_token(tok);
     expect(';');
+    *rname = name->sval;
+    *rctype = ctype;
+}
+
+static void read_typedef(void) {
+    char *name;
+    Ctype *ctype;
+    read_extern_typedef(&name, &ctype);
+    dict_put(typedefs, name, ctype);
 }
 
 static void read_extern(void) {
-    Token *name;
+    char *name;
     Ctype *ctype;
-    read_decl_int(&name, &ctype);
-    if (!name)
-        error("Extern name missing");
-    ast_gvar(ctype, name->sval);
-    expect(';');
+    read_extern_typedef(&name, &ctype);
+    ast_gvar(ctype, name);
 }
 
 static Ast *read_if_stmt(void) {
@@ -1054,7 +1073,7 @@ static Ast *read_for_stmt(void) {
 static Ast *read_return_stmt(void) {
     Ast *retval = read_expr();
     expect(';');
-    return ast_return(current_func_rettype, retval);
+    return ast_return(current_func_type->rettype, retval);
 }
 
 static Ast *read_stmt(void) {
@@ -1098,38 +1117,57 @@ static Ast *read_compound_stmt(void) {
     return ast_compound_stmt(list);
 }
 
-static List *read_params(void) {
-    List *params = make_list();
+static void read_func_params(Ctype **rtype, List *paramvars, Ctype *rettype) {
+    bool typeonly = !paramvars;
+    List *paramtypes = make_list();
     Token *tok = read_token();
-    if (is_punct(tok, ')'))
-        return params;
+    if (is_punct(tok, ')')) {
+        *rtype = make_func_type(rettype, paramtypes, false);
+        return;
+    }
     unget_token(tok);
     for (;;) {
+        tok = read_token();
+        if (is_ident(tok, "...")) {
+            if (list_len(paramtypes) == 0)
+                error("at least one parameter is required");
+            expect(')');
+            *rtype = make_func_type(rettype, paramtypes, true);
+            return;
+        } else
+            unget_token(tok);
         Ctype *ctype = read_decl_spec();
         Token *pname = read_token();
-        if (pname->type != TTYPE_IDENT)
-            error("Identifier expected, but got %s", t2s(pname));
+        if (pname->type != TTYPE_IDENT) {
+            if (!typeonly)
+                error("Identifier expected, but got %s", t2s(pname));
+            unget_token(pname);
+            pname = NULL;
+        }
         ctype = read_array_dimensions(ctype);
         if (ctype->type == CTYPE_ARRAY)
             ctype = make_ptr_type(ctype->ptr);
-        list_push(params, ast_lvar(ctype, pname->sval));
+        list_push(paramtypes, ctype);
+        if (!typeonly)
+            list_push(paramvars, ast_lvar(ctype, pname->sval));
         Token *tok = read_token();
-        if (is_punct(tok, ')'))
-            return params;
+        if (is_punct(tok, ')')) {
+            *rtype = make_func_type(rettype, paramtypes, false);
+            return;
+        }
         if (!is_punct(tok, ','))
             error("Comma expected, but got %s", t2s(tok));
     }
 }
 
-static Ast *read_func_def(Ctype *rettype, char *fname, List *params) {
+static Ast *read_func_def(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
     localvars = make_list();
-    current_func_rettype = rettype;
+    current_func_type = functype;
     Ast *body = read_compound_stmt();
-    Ctype *type = make_func_type(rettype, param_types(params));
-    Ast *r = ast_func(type, fname, params, body, localvars);
-    dict_put(globalenv, fname, type);
-    current_func_rettype = NULL;
+    Ast *r = ast_func(functype, fname, params, body, localvars);
+    dict_put(globalenv, fname, r);
+    current_func_type = NULL;
     localenv = NULL;
     localvars = NULL;
     return r;
@@ -1138,12 +1176,14 @@ static Ast *read_func_def(Ctype *rettype, char *fname, List *params) {
 static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
     expect('(');
     localenv = make_dict(globalenv);
-    List *params = read_params();
+
+    Ctype *functype;
+    List *params = make_list();
+    read_func_params(&functype, params, rettype);
     Token *tok = read_token();
     if (is_punct(tok, '{'))
-        return read_func_def(rettype, fname, params);
-    Ctype *type = make_func_type(rettype, param_types(params));
-    dict_put(globalenv, fname, type);
+        return read_func_def(functype, fname, params);
+    dict_put(globalenv, fname, ast_gvar(functype, fname));
     return NULL;
 }
 

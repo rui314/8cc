@@ -26,7 +26,7 @@ static File *make_file(char *name, FILE *fp) {
     File *r = malloc(sizeof(File));
     r->name = name;
     r->line = 1;
-    r->column = 1;
+    r->column = 0;
     r->fp = fp;
     return r;
 }

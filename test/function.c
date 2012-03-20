@@ -56,6 +56,10 @@ int t7(int a, int b) {
     return a * b;
 }
 
+int t8(int a, ...) {
+    expect(23, a);
+}
+
 int main() {
     printf("Testing function ... ");
 
@@ -66,6 +70,7 @@ int main() {
     t5();
     expect(3, t6());
     expect(12, t7(3, 4));
+    t8(23);
 
     printf("OK\n");
     return 0;

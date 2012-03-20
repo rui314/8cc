@@ -111,6 +111,7 @@ typedef struct Ctype {
     // function
     struct Ctype *rettype;
     List *params;
+    bool hasva;
 } Ctype;
 
 typedef struct Ast {

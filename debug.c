@@ -35,7 +35,8 @@ char *ctype_to_string(Ctype *ctype) {
         string_append(s, ')');
         return get_cstring(s);
     }
-    default: error("Unknown ctype: %d", ctype);
+    default:
+        return format("(Unknown ctype: %d)", ctype->type);
     }
 }
 
