@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+int externvar = 99;
+
 void expect(int a, int b) {
     if (!(a == b)) {
         printf("Failed\n");

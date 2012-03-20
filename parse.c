@@ -101,12 +101,12 @@ static Ast *ast_lvar(Ctype *ctype, char *name) {
     return r;
 }
 
-static Ast *ast_gvar(Ctype *ctype, char *name, bool filelocal) {
+static Ast *ast_gvar(Ctype *ctype, char *name) {
     Ast *r = malloc(sizeof(Ast));
     r->type = AST_GVAR;
     r->ctype = ctype;
     r->varname = name;
-    r->glabel = filelocal ? make_label() : name;
+    r->glabel = name;
     dict_put(globalenv, name, r);
     return r;
 }
@@ -256,8 +256,8 @@ static Ctype* make_func_type(Ctype *rettype, List *paramtypes) {
 }
 
 bool is_inttype(Ctype *ctype) {
-    return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_INT ||
-        ctype->type == CTYPE_LONG;
+    return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_SHORT ||
+        ctype->type == CTYPE_INT || ctype->type == CTYPE_LONG;
 }
 
 bool is_flotype(Ctype *ctype) {
@@ -742,7 +742,7 @@ static bool is_type_keyword(Token *tok) {
         return false;
     char *keyword[] = {
         "char", "short", "int", "long", "float", "double", "struct",
-        "union", "signed", "unsigned", "enum", "void",
+        "union", "signed", "unsigned", "enum", "void", "extern",
     };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
@@ -996,6 +996,16 @@ static void read_typedef(void) {
     expect(';');
 }
 
+static void read_extern(void) {
+    Token *name;
+    Ctype *ctype;
+    read_decl_int(&name, &ctype);
+    if (!name)
+        error("Extern name missing");
+    ast_gvar(ctype, name->sval);
+    expect(';');
+}
+
 static Ast *read_if_stmt(void) {
     expect('(');
     Ast *cond = read_expr();
@@ -1060,14 +1070,16 @@ static Ast *read_stmt(void) {
 }
 
 static Ast *read_decl_or_stmt(void) {
-    Token *tok = read_token();
-    if (!tok) return NULL;
-    if (is_ident(tok, "typedef")) {
-        read_typedef();
-        return read_decl_or_stmt();
+    for (;;) {
+        Token *tok = read_token();
+        if (!tok) return NULL;
+        if (is_ident(tok, "typedef")) {
+            read_typedef();
+            continue;
+        }
+        unget_token(tok);
+        return is_type_keyword(tok) ? read_decl() : read_stmt();
     }
-    unget_token(tok);
-    return is_type_keyword(tok) ? read_decl() : read_stmt();
 }
 
 static Ast *read_compound_stmt(void) {
@@ -1143,6 +1155,10 @@ static Ast *read_toplevel(void) {
             read_typedef();
             continue;
         }
+        if (is_ident(tok, "extern")) {
+            read_extern();
+            continue;
+        }
         unget_token(tok);
         Ctype *ctype = read_decl_spec();
         Token *name = read_token();
@@ -1153,7 +1169,7 @@ static Ast *read_toplevel(void) {
         ctype = read_array_dimensions(ctype);
         tok = peek_token();
         if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
-            Ast *var = ast_gvar(ctype, name->sval, false);
+            Ast *var = ast_gvar(ctype, name->sval);
             return read_decl_init(var);
         }
         if (is_punct(tok, '(')) {
@@ -1164,7 +1180,7 @@ static Ast *read_toplevel(void) {
         }
         if (is_punct(tok, ';')) {
             read_token();
-            Ast *var = ast_gvar(ctype, name->sval, false);
+            Ast *var = ast_gvar(ctype, name->sval);
             return ast_decl(var, NULL);
         }
         error("Don't know how to handle %s", t2s(tok));
