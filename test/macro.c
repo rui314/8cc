@@ -259,6 +259,9 @@ int funclike() {
 #define m8(x, y) x ## y
     expect(2, m8(TW, O));
 
+#define m9(x, y, z) x y + z
+    expect(8, m9(1,, 7));
+
 #define hash_hash # ## #
 #define mkstr(a) # a
 #define in_between(a) mkstr(a)

@@ -1,6 +1,6 @@
 #include "8cc.h"
 
-char *ctype_to_string(Ctype *ctype) {
+static char *ctype_to_string_int(Dict *dict, Ctype *ctype) {
     if (!ctype)
         return "(nil)";
     switch (ctype->type) {
@@ -12,23 +12,26 @@ char *ctype_to_string(Ctype *ctype) {
     case CTYPE_FLOAT: return "float";
     case CTYPE_DOUBLE: return "double";
     case CTYPE_PTR:
-        return format("*%s", ctype_to_string(ctype->ptr));
+        return format("*%s", ctype_to_string_int(dict, ctype->ptr));
     case CTYPE_ARRAY:
-        return format("[%d]%s", ctype->len, ctype_to_string(ctype->ptr));
+        return format("[%d]%s", ctype->len, ctype_to_string_int(dict, ctype->ptr));
     case CTYPE_STRUCT: {
+        if (dict_get(dict, format("%p", ctype)))
+            return "(struct)";
+        dict_put(dict, format("%p", ctype), (void *)1);
         String *s = make_string();
         string_appendf(s, "(struct");
         for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);)
-            string_appendf(s, " (%s)", ctype_to_string(iter_next(i)));
+            string_appendf(s, " (%s)", ctype_to_string_int(dict, iter_next(i)));
         string_appendf(s, ")");
         return get_cstring(s);
     }
     case CTYPE_FUNC: {
         String *s = make_string();
-        string_appendf(s, "%s(", ctype_to_string(ctype->rettype));
+        string_appendf(s, "%s(", ctype_to_string_int(dict, ctype->rettype));
         for (Iter *i = list_iter(ctype->params); !iter_end(i);) {
             Ctype *t = iter_next(i);
-            string_appendf(s, "%s", ctype_to_string(t));
+            string_appendf(s, "%s", ctype_to_string_int(dict, t));
             if (!iter_end(i))
                 string_append(s, ',');
         }
@@ -38,6 +41,10 @@ char *ctype_to_string(Ctype *ctype) {
     default:
         return format("(Unknown ctype: %d)", ctype->type);
     }
+}
+
+char *ctype_to_string(Ctype *ctype) {
+    return ctype_to_string_int(make_dict(NULL), ctype);
 }
 
 static void uop_to_string(String *buf, char *op, Ast *ast) {

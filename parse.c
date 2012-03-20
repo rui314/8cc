@@ -683,10 +683,13 @@ static Ctype *read_ctype(Token *tok) {
 
     int unspec = 0;
     enum { ssign = 1, sunsign } si = unspec;
-    enum { tchar = 1, tshort, tint, tlong, tllong } ti = unspec;
+    enum { tchar = 1, tshort, tint, tlong, tllong,
+           tfloat, tdouble, tvoid } ti = unspec;
     for (;;) {
         char *s = tok->sval;
-        if (!strcmp(s, "signed")) {
+        if (!strcmp(s, "const")) {
+            // ignore
+        } else if (!strcmp(s, "signed")) {
             if (si != unspec) goto dupspec;
             si = ssign;
         } else if (!strcmp(s, "unsigned")) {
@@ -702,21 +705,22 @@ static Ctype *read_ctype(Token *tok) {
             if (ti == unspec) ti = tint;
             else if (ti == tchar) goto duptype;
         } else if (!strcmp(tok->sval, "long")) {
-            if (ti == unspec) ti = tlong;
-            if (ti == tlong)  ti = tllong;
+            if (ti == unspec)  ti = tlong;
+            else if (ti == tlong)   ti = tllong;
+            else if (ti == tdouble) ti = tdouble;
             else goto duptype;
         } else if (!strcmp(tok->sval, "float")) {
             if (si != unspec) goto invspec;
             if (ti != unspec) goto duptype;
-            return ctype_float;
+            else ti = tfloat;
         } else if (!strcmp(tok->sval, "double")) {
             if (si != unspec) goto invspec;
-            if (ti != unspec) goto duptype;
-            return ctype_double;
+            if (ti != unspec && ti != tlong) goto duptype;
+            else ti = tfloat;
         } else if (!strcmp(tok->sval, "void")) {
             if (si != unspec) goto invspec;
             if (ti != unspec) goto duptype;
-            return ctype_void;
+            else ti = tvoid;
         } else {
             unget_token(tok);
             break;
@@ -736,6 +740,9 @@ static Ctype *read_ctype(Token *tok) {
     case tint:    return si == sunsign ? ctype_uint : ctype_int;
     case tlong:
     case tllong:  return si == sunsign ? ctype_ulong : ctype_long;
+    case tfloat:  return ctype_float;
+    case tdouble: return ctype_double;
+    case tvoid:   return ctype_void;
     }
     error("internal error");
  dupspec:
@@ -850,7 +857,7 @@ static int compute_struct_size(Dict *fields) {
 
 static Ctype *read_struct_union_def(Dict *env, int (*compute_size)(Dict *)) {
     char *tag = read_struct_union_tag();
-    Ctype *prev = tag ? dict_get(union_defs, tag) : NULL;
+    Ctype *prev = tag ? dict_get(env, tag) : NULL;
     Dict *fields = read_struct_union_fields();
     if (prev && !fields)
         return prev;
@@ -863,7 +870,7 @@ static Ctype *read_struct_union_def(Dict *env, int (*compute_size)(Dict *)) {
         ? make_struct_type(fields, compute_size(fields))
         : make_struct_type(NULL, 0);
     if (tag)
-        dict_put(union_defs, tag, r);
+        dict_put(env, tag, r);
     return r;
 }
 
@@ -904,9 +911,16 @@ static Ctype *read_enum_def(void) {
 
 static Ctype *read_decl_spec(void) {
     Token *tok = read_token();
-    if (!tok) return NULL;
-    if (tok->type != TTYPE_IDENT)
-        error("Identifier expected, but got %s", t2s(tok));
+    for (;;) {
+        if (!tok) return NULL;
+        if (tok->type != TTYPE_IDENT)
+            error("Identifier expected, but got %s", t2s(tok));
+        if (is_ident(tok, "static") || is_ident(tok, "const"))
+            tok = read_token();
+        else
+            break;
+    }
+
     Ctype *ctype = is_ident(tok, "struct") ? read_struct_def()
         : is_ident(tok, "union") ? read_union_def()
         : is_ident(tok, "enum") ? read_enum_def()
@@ -914,6 +928,8 @@ static Ctype *read_decl_spec(void) {
     assert(ctype);
     for (;;) {
         tok = read_token();
+        if (is_ident(tok, "const"))
+            continue;
         if (!is_punct(tok, '*')) {
             unget_token(tok);
             return ctype;
@@ -1061,6 +1077,7 @@ static void read_typedef(void) {
     char *name;
     Ctype *ctype;
     read_extern_typedef(&name, &ctype);
+    fprintf(stderr, "  typedef: %s -> %s\n", name, ctype_to_string(ctype));
     dict_put(typedefs, name, ctype);
 }
 
@@ -1237,7 +1254,7 @@ static Ast *read_toplevel(void) {
     for (;;) {
         Token *tok = read_token();
         if (!tok) return NULL;
-        if (is_ident(tok, "static"))
+        if (is_ident(tok, "static") || is_ident(tok, "const"))
             continue;
         if (is_ident(tok, "typedef")) {
             read_typedef();
