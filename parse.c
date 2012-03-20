@@ -45,6 +45,7 @@ static Ast *read_toplevel(void);
 static bool is_type_keyword(Token *tok);
 static Ast *read_unary_expr(void);
 static void read_func_params(Ctype **rtype, List *rparams, Ctype *rettype);
+static Ast *read_decl_init_val(Ctype *ctype);
 
 static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
     Ast *r = malloc(sizeof(Ast));
@@ -152,11 +153,11 @@ static Ast *ast_decl(Ast *var, Ast *init) {
     return r;
 }
 
-static Ast *ast_array_init(List *arrayinit) {
+static Ast *ast_init_list(List *initlist) {
     Ast *r = malloc(sizeof(Ast));
-    r->type = AST_ARRAY_INIT;
+    r->type = AST_INIT_LIST;
     r->ctype = NULL;
-    r->arrayinit = arrayinit;
+    r->initlist = initlist;
     return r;
 }
 
@@ -758,27 +759,43 @@ static bool is_type_keyword(Token *tok) {
     return dict_get(typedefs, tok->sval);
 }
 
-static Ast *read_decl_array_init_int(Ctype *ctype) {
+static void read_decl_init_elem(List *initlist, Ctype *ctype) {
+    Token *tok = peek_token();
+    Ast *init = read_expr();
+    if (!init)
+        error("expression expected: %s", t2s(tok));
+    result_type('=', init->ctype, ctype);
+    init->totype = ctype;
+    tok = read_token();
+    if (!is_punct(tok, ','))
+        unget_token(tok);
+    list_push(initlist, init);
+}
+
+static void read_decl_array_init_int(List *initlist, Ctype *ctype) {
     Token *tok = read_token();
-    if (ctype->ptr->type == CTYPE_CHAR && tok->type == TTYPE_STRING)
-        return ast_string(tok->sval);
+    assert(ctype->type == CTYPE_ARRAY);
+    if (ctype->ptr->type == CTYPE_CHAR && tok->type == TTYPE_STRING) {
+        for (char *p = tok->sval; *p; p++) {
+            Ast *c = ast_inttype(ctype_char, *p);
+            c->totype = ctype_char;
+            list_push(initlist, c);
+        }
+        Ast *c = ast_inttype(ctype_char, '\0');
+        c->totype = ctype_char;
+        list_push(initlist, c);
+        return;
+    }
     if (!is_punct(tok, '{'))
         error("Expected an initializer list for %s, but got %s",
               ctype_to_string(ctype), t2s(tok));
-    List *initlist = make_list();
     for (;;) {
         Token *tok = read_token();
         if (is_punct(tok, '}'))
             break;
         unget_token(tok);
-        Ast *init = read_expr();
-        list_push(initlist, init);
-        result_type('=', init->ctype, ctype->ptr);
-        tok = read_token();
-        if (!is_punct(tok, ','))
-            unget_token(tok);
+        read_decl_init_elem(initlist, ctype->ptr);
     }
-    return ast_array_init(initlist);
 }
 
 static char *read_struct_union_tag(void) {
@@ -905,27 +922,50 @@ static Ctype *read_decl_spec(void) {
     }
 }
 
-static Ast *read_decl_init_val(Ast *var) {
-    if (var->ctype->type == CTYPE_ARRAY) {
-        Ast *init = read_decl_array_init_int(var->ctype);
-        int len = (init->type == AST_STRING)
-            ? strlen(init->sval) + 1
-            : list_len(init->arrayinit);
-        if (var->ctype->len == -1) {
-            var->ctype->len = len;
-            var->ctype->size = len * var->ctype->ptr->size;
-        } else if (var->ctype->len != len) {
-            error("Invalid array initializer: expected %d items but got %d",
-                  var->ctype->len, len);
-        }
-        expect(';');
-        return ast_decl(var, init);
+static Ast *read_decl_array_init_val(Ctype *ctype) {
+    List *initlist = make_list();
+    read_decl_array_init_int(initlist, ctype);
+    Ast *init = ast_init_list(initlist);
+
+    int len = (init->type == AST_STRING)
+        ? strlen(init->sval) + 1
+        : list_len(init->initlist);
+    if (ctype->len == -1) {
+        ctype->len = len;
+        ctype->size = len * ctype->ptr->size;
+    } else if (ctype->len != len) {
+        error("Invalid array initializer: expected %d items but got %d",
+              ctype->len, len);
     }
-    Ast *init = read_expr();
+    return init;
+}
+
+static Ast *read_decl_struct_init_val(Ctype *ctype) {
+    expect('{');
+    List *initlist = make_list();
+    for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
+        Ctype *fieldtype = iter_next(i);
+        Token *tok = read_token();
+        if (is_punct(tok, '{')) {
+            if (fieldtype->type != CTYPE_ARRAY)
+                error("array expected, but got %s", ctype_to_string(fieldtype));
+            unget_token(tok);
+            read_decl_array_init_int(initlist, fieldtype);
+            continue;
+        }
+        unget_token(tok);
+        read_decl_init_elem(initlist, fieldtype);
+    }
+    expect('}');
+    return ast_init_list(initlist);
+}
+
+static Ast *read_decl_init_val(Ctype *ctype) {
+    Ast *init = (ctype->type == CTYPE_ARRAY) ? read_decl_array_init_val(ctype)
+        : (ctype->type == CTYPE_STRUCT) ? read_decl_struct_init_val(ctype)
+        : read_expr();
     expect(';');
-    if (var->type == AST_GVAR)
-        init = ast_inttype(ctype_int, eval_intexpr(init));
-    return ast_decl(var, init);
+    return init;
 }
 
 static Ctype *read_array_dimensions_int(Ctype *basetype) {
@@ -956,8 +996,12 @@ static Ctype *read_array_dimensions(Ctype *basetype) {
 
 static Ast *read_decl_init(Ast *var) {
     Token *tok = read_token();
-    if (is_punct(tok, '='))
-        return read_decl_init_val(var);
+    if (is_punct(tok, '=')) {
+        Ast *init = read_decl_init_val(var->ctype);
+        if (var->type == AST_GVAR && is_inttype(var->ctype))
+            init = ast_inttype(ctype_int, eval_intexpr(init));
+        return ast_decl(var, init);
+    }
     if (var->ctype->len == -1)
         error("Missing array initializer");
     unget_token(tok);
@@ -1191,6 +1235,8 @@ static Ast *read_toplevel(void) {
     for (;;) {
         Token *tok = read_token();
         if (!tok) return NULL;
+        if (is_ident(tok, "static"))
+            continue;
         if (is_ident(tok, "typedef")) {
             read_typedef();
             continue;

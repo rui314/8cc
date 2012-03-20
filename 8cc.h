@@ -61,7 +61,7 @@ enum {
     AST_FUNCALL,
     AST_FUNC,
     AST_DECL,
-    AST_ARRAY_INIT,
+    AST_INIT_LIST,
     AST_ADDR,
     AST_DEREF,
     AST_IF,
@@ -161,8 +161,11 @@ typedef struct Ast {
             struct Ast *declvar;
             struct Ast *declinit;
         };
-        // Array initializer
-        struct List *arrayinit;
+        // array or struct initializer
+        struct {
+            struct List *initlist;
+            Ctype *totype;
+        };
         // If statement or ternary operator
         struct {
             struct Ast *cond;

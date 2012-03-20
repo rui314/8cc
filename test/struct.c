@@ -108,6 +108,16 @@ int t12() {
     expect(85, p[3]);
 }
 
+int t13() {
+    struct { char c; } v = { 'a' };
+    expect('a', v.c);
+}
+
+int t14() {
+    struct { int a[3]; } v = { { 1, 2, 3 } };
+    expect(2, v.a[1]);
+}
+
 int main() {
     printf("Testing struct ... ");
 
@@ -123,6 +133,8 @@ int main() {
     t10();
     t11();
     t12();
+    t13();
+    t14();
 
     printf("OK\n");
     return 0;

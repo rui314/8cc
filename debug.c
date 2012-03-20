@@ -58,12 +58,10 @@ static void a2s_int(String *buf, Ast *ast) {
     case AST_LITERAL:
         switch (ast->ctype->type) {
         case CTYPE_CHAR:
-            if (ast->ival == '\n')
-                string_appendf(buf, "'\n'");
-            else if (ast->ival == '\\')
-                string_appendf(buf, "'\\\\'");
-            else
-                string_appendf(buf, "'%c'", ast->ival);
+            if (ast->ival == '\n')      string_appendf(buf, "'\n'");
+            else if (ast->ival == '\\') string_appendf(buf, "'\\\\'");
+            else if (ast->ival == '\0') string_appendf(buf, "'\\0'");
+            else string_appendf(buf, "'%c'", ast->ival);
             break;
         case CTYPE_INT:
             string_appendf(buf, "%d", ast->ival);
@@ -117,9 +115,9 @@ static void a2s_int(String *buf, Ast *ast) {
         else
             string_appendf(buf, ")");
         break;
-    case AST_ARRAY_INIT:
+    case AST_INIT_LIST:
         string_appendf(buf, "{");
-        for (Iter *i = list_iter(ast->arrayinit); !iter_end(i);) {
+        for (Iter *i = list_iter(ast->initlist); !iter_end(i);) {
             a2s_int(buf, iter_next(i));
             if (!iter_end(i))
                 string_appendf(buf, ",");
