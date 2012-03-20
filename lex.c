@@ -308,11 +308,11 @@ static Token *read_token_int(void) {
         c = get();
         if (c == '/') {
             skip_line();
-            return read_token_int();
+            return space_token;
         }
         if (c == '*') {
             skip_block_comment();
-            return read_token_int();
+            return space_token;
         }
         unget(c);
         return make_punct('/');
