@@ -10,6 +10,7 @@ int test_basic() {
     expect(98, 'a' + 1);
     int a = 0 - 1;
     expect(0 - 1, a);
+    expect(-1, a);
     expect(0, a + 1);
 }
 

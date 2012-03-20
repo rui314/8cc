@@ -595,6 +595,10 @@ static Ast *read_unary_expr(void) {
         Ast *operand = read_unary_expr();
         return ast_uop('!', ctype_int, operand);
     }
+    if (is_punct(tok, '-')) {
+        Ast *expr = read_expr();
+        return ast_binop('-', ast_inttype(ctype_int, 0), expr);
+    }
     if (is_punct(tok, '*')) {
         Ast *operand = read_unary_expr();
         Ctype *ctype = convert_array(operand->ctype);
@@ -897,8 +901,16 @@ static Ctype *read_enum_def(void) {
             break;
         if (tok->type != TTYPE_IDENT)
             error("Identifier expected, but got %s", t2s(tok));
+        char *name = tok->sval;
+
+        tok = read_token();
+        if (is_punct(tok, '='))
+            val = eval_intexpr(read_expr());
+        else
+            unget_token(tok);
+
         Ast *constval = ast_inttype(ctype_int, val++);
-        dict_put(localenv ? localenv : globalenv, tok->sval, constval);
+        dict_put(localenv ? localenv : globalenv, name, constval);
         tok = read_token();
         if (is_punct(tok, ','))
             continue;

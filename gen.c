@@ -145,7 +145,10 @@ static void emit_gsave(char *varname, Ctype *ctype, int off) {
 static void emit_lsave(Ctype *ctype, int off) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT) {
-        emit("cvtpd2ps %%xmm0, %d(%%rbp)", off);
+        push_xmm(0);
+        emit("cvtpd2ps %%xmm0, %%xmm0");
+        emit("movss %%xmm0, %d(%%rbp)", off);
+        pop_xmm(0);
     } else if (ctype->type == CTYPE_DOUBLE) {
         emit("movsd %%xmm0, %d(%%rbp)", off);
     } else {
