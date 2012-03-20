@@ -421,7 +421,7 @@ static Ast *read_number(char *s) {
         }
     }
     char *start = p;
-    while (isdigit(*p))
+    while (isdigit(*p) || (base == 16 && ((('a' <= *p) && ('f' <= *p)) || (('A' <= *p) && ('F' <= *p)))))
         p++;
     if (*p == '.') {
         if (base != 10)
@@ -441,7 +441,7 @@ static Ast *read_number(char *s) {
         return ast_inttype(ctype_ulong, strtoul(start, NULL, base));
     } else {
         if (*p != '\0')
-            error("malformed number: %s", s);
+            error("malformed number: %s %c", s);
         long val = strtol(start, NULL, base);
         if (val & ~(long)UINT_MAX)
             return ast_inttype(ctype_long, val);
@@ -763,7 +763,7 @@ static void read_decl_init_elem(List *initlist, Ctype *ctype) {
     Token *tok = peek_token();
     Ast *init = read_expr();
     if (!init)
-        error("expression expected: %s", t2s(tok));
+        error("expression expected, but got %s", t2s(tok));
     result_type('=', init->ctype, ctype);
     init->totype = ctype;
     tok = read_token();
@@ -946,6 +946,8 @@ static Ast *read_decl_struct_init_val(Ctype *ctype) {
     for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
         Ctype *fieldtype = iter_next(i);
         Token *tok = read_token();
+        if (is_punct(tok, '}'))
+            return ast_init_list(initlist);
         if (is_punct(tok, '{')) {
             if (fieldtype->type != CTYPE_ARRAY)
                 error("array expected, but got %s", ctype_to_string(fieldtype));
