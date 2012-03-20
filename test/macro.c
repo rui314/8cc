@@ -214,6 +214,7 @@ int funclike() {
     expect(5, m1(5));
     expect(7, m1((5 + 2)));
     expect(8, m1(plus(5, 3)));
+    expect(10, m1() 10);
 
 #define m2(x) x + x
     expect(10, m2(5));

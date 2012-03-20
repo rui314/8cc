@@ -136,8 +136,7 @@ static List *read_args_int(Macro *macro) {
         }
         if (is_punct(tok, ')')) {
             unget_token(tok);
-            if (list_len(r) != 0 || list_len(arg) != 0)
-                list_push(r, arg);
+            list_push(r, arg);
             return r;
         }
         bool in_threedots = macro->is_varg && list_len(r) + 1 == macro->nargs;
