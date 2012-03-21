@@ -1089,7 +1089,6 @@ static void read_typedef(void) {
     char *name;
     Ctype *ctype;
     read_extern_typedef(&name, &ctype);
-    fprintf(stderr, "  typedef: %s -> %s\n", name, ctype_to_string(ctype));
     dict_put(typedefs, name, ctype);
 }
 
