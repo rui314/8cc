@@ -1,34 +1,34 @@
-int t1() {
+void t1() {
     int a = 1;
     expect(3, a + 2);
 }
 
-int t2() {
+void t2() {
     int a = 1;
     int b = 48 + 2;
     int c = a + b;
     expect(102, c * 2);
 }
 
-int t3() {
+void t3() {
     int a[] = { 55 };
     int *b = a;
     expect(55, *b);
 }
 
-int t4() {
+void t4() {
     int a[] = { 55, 67 };
     int *b = a + 1;
     expect(67, *b);
 }
 
-int t5() {
+void t5() {
     int a[] = { 20, 30, 40 };
     int *b = a + 1;
     expect(30, *b);
 }
 
-int t6() {
+void t6() {
     int a[] = { 20, 30, 40 };
     expect(20, *a);
 }

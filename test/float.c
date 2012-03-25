@@ -1,9 +1,9 @@
 void expectf(float a, float b);
 void expectd(double a, double b);
 
-float  tf1(float a)  { return a; }
-float  tf2(double a) { return a; }
-float  tf3(int a)    { return a; }
+float tf1(float a)  { return a; }
+float tf2(double a) { return a; }
+float tf3(int a)    { return a; }
 
 double td1(float a)  { return a; }
 double td2(double a) { return a; }

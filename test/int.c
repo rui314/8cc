@@ -1,4 +1,4 @@
-int expects(short a, short b) {
+void expects(short a, short b) {
     if (!(a == b)) {
         printf("Failed\n");
         printf("  %d expected, but got %d\n", a, b);
@@ -6,7 +6,7 @@ int expects(short a, short b) {
     }
 }
 
-int expectl(long a, long b) {
+void expectl(long a, long b) {
     if (!(a == b)) {
         printf("Failed\n");
         printf("  %ld expected, but got %ld\n", a, b);

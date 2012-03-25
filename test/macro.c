@@ -3,7 +3,7 @@
 #define TWO ONE + ONE
 #define LOOP LOOP
 
-int simple() {
+void simple() {
     expect(1, ONE);
     expect(2, TWO);
 }
@@ -11,14 +11,14 @@ int simple() {
 #define VAR1 VAR2
 #define VAR2 VAR1
 
-int loop() {
+void loop() {
     int VAR1 = 1;
     int VAR2 = 2;
     expect(1, VAR1);
     expect(2, VAR2);
 }
 
-int undef() {
+void undef() {
     int a = 3;
 #define a 10
     expect(10, a);
@@ -29,7 +29,7 @@ int undef() {
 #undef a
 }
 
-int cond_incl() {
+void cond_incl() {
     int a = 1;
 #if 0
     a = 2;
@@ -77,7 +77,7 @@ int cond_incl() {
     expect(150, a);
 }
 
-int const_expr() {
+void const_expr() {
     int a = 1;
 #if 0 + 1
     a = 2;
@@ -152,7 +152,7 @@ int const_expr() {
     expect(13, a);
 }
 
-int defined() {
+void defined() {
     int a = 0;
 #if defined ZERO
     a = 1;
@@ -170,7 +170,7 @@ int defined() {
     expect(4, a);
 }
 
-int ifdef() {
+void ifdef() {
     int a = 0;
 #ifdef ONE
     a = 1;
@@ -209,7 +209,7 @@ int minus(int a, int b) {
     return a - b;
 }
 
-int funclike() {
+void funclike() {
 #define m1(x) x
     expect(5, m1(5));
     expect(7, m1((5 + 2)));
@@ -269,7 +269,7 @@ int funclike() {
     expect_string("x ## y", join(x, y));
 }
 
-int empty() {
+void empty() {
 #define EMPTY
     expect(1, 1 EMPTY);
 #define EMPTY2(x)
@@ -278,7 +278,7 @@ int empty() {
     expect(2, 2 EMPTY2(((()))));
 }
 
-int main() {
+void main() {
     printf("Testing macros ... ");
 
     simple();

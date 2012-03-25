@@ -9,7 +9,7 @@ int test_if8() { if (0) return 0; else return 'h'; return 0; }
 int test_if9() { if (0+1) return 'i'; return 0; }
 int test_if10() { if (1-1) return 0; return 'j'; }
 
-int test_if() {
+void test_if() {
     expect('a', test_if1());
     expect('b', test_if2());
     expect('c', test_if3());
@@ -22,7 +22,7 @@ int test_if() {
     expect('j', test_if10());
 }
 
-int test_for() {
+void test_for() {
     int i;
     int acc = 0;
     for (i = 0; i < 5; i = i + 1) {
@@ -36,7 +36,7 @@ int test_for() {
     expect(10, acc);
 }
 
-int test_while() {
+void test_while() {
     int acc = 0;
     int i = 0;
     while (i <= 100)
@@ -51,7 +51,7 @@ int test_while() {
     expect(5051, acc);
 }
 
-int test_do() {
+void test_do() {
     int acc = 0;
     int i = 0;
     do {

@@ -1,4 +1,4 @@
-int test_type() {
+void test_type() {
     char a;
     short b;
     int c;
@@ -13,7 +13,7 @@ int test_type() {
     long double j;
 }
 
-int test_signed() {
+void test_signed() {
     signed char a;
     signed short b;
     signed int c;
@@ -24,7 +24,7 @@ int test_signed() {
     signed long long int f;
 }
 
-int test_unsigned() {
+void test_unsigned() {
     unsigned char a;
     unsigned short b;
     unsigned int c;
@@ -35,7 +35,7 @@ int test_unsigned() {
     unsigned long long int f;
 }
 
-int test_storage_class() {
+void test_storage_class() {
     static a;
     auto b;
     register c;
@@ -44,7 +44,7 @@ int test_storage_class() {
     register int f;
 }
 
-int test_pointer() {
+void test_pointer() {
     int *a;
     expect(8, sizeof(a));
     int *b[5];
@@ -53,11 +53,11 @@ int test_pointer() {
     expect(8, sizeof(c));
 }
 
-int test_unusual_order() {
+void test_unusual_order() {
     int unsigned auto * const * const a;
 }
 
-int test_typedef() {
+void test_typedef() {
     typedef int integer;
     integer a = 5;
     expect(5, a);

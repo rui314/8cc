@@ -1,4 +1,4 @@
-int test_basic() {
+void test_basic() {
     expect(0, 0);
     expect(3, 1 + 2);
     expect(3, 1 + 2);
@@ -16,7 +16,7 @@ int test_basic() {
     expect(0, a + 1);
 }
 
-int test_inc_dec() {
+void test_inc_dec() {
     int a = 15;
     expect(15, a++);
     expect(16, a);
@@ -24,12 +24,12 @@ int test_inc_dec() {
     expect(15, a);
 }
 
-int test_bool() {
+void test_bool() {
     expect(0, !1);
     expect(1 ,!0);
 }
 
-int test_ternary() {
+void test_ternary() {
     expect(51, (1 + 2) ? 51 : 52);
     expect(52, (1 - 1) ? 51 : 52);
     expect(26, (1 - 1) ? 51 : 52 / 2);

@@ -1,11 +1,11 @@
-int t1() {
+void t1() {
     int a[2][3];
     int *p = a;
     *p = 1;
     expect(1, *p);
 }
 
-int t2() {
+void t2() {
     int a[2][3];
     int *p = a + 1;
     *p = 1;
@@ -14,21 +14,21 @@ int t2() {
     expect(32, *(q + 3));
 }
 
-int t3() {
+void t3() {
     int a[4][5];
     int *p = a;
     *(*(a + 1) + 2) = 62;
     expect(62, *(p + 7));
 }
 
-int t4() {
+void t4() {
     int a[3] = { 1, 2, 3 };
     expect(1, a[0]);
     expect(2, a[1]);
     expect(3, a[2]);
 }
 
-int t5() {
+void t5() {
     int a[2][3];
     a[0][1] = 1;
     a[1][1] = 2;
@@ -37,18 +37,18 @@ int t5() {
     expect(2, p[4]);
 }
 
-int t6a(int e, int x[][3]) {
+void t6a(int e, int x[][3]) {
     expect(e, *(*(x + 1) + 1));
 }
 
-int t6() {
+void t6() {
     int a[2][3];
     int *p = a;
     *(p + 4) = 65;
     t6a(65, a);
 }
 
-int t7() {
+void t7() {
     int a[3*3];  // integer constant expression
     a[8] = 68;
     expect(68, a[8]);
