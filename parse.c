@@ -715,7 +715,8 @@ static bool is_type_keyword(Token *tok) {
         return false;
     char *keyword[] = {
         "char", "short", "int", "long", "float", "double", "struct",
-        "union", "signed", "unsigned", "enum", "void", "extern", "typedef",
+        "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
+        "static", "auto", "register", "const", "volatile", "inline"
     };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
