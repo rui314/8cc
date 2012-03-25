@@ -2,17 +2,22 @@ The files under this directory are written by Rui Ueyama <rui314@gmail.com> and
 licensed under the MIT license.
 
 
-Useful links for C compiler development:
+Some useful links for C compiler development:
 
 lcc: A Retargetable C Compiler: Design and Implementation
 Addison-Wesley, 1995, ISBN 0805316701, ISBN-13 9780805316704
 http://www.amazon.com/dp/0805316701
+https://github.com/drh/lcc
 
 TCC: Tiny C Compiler
 http://bellard.org/tcc/
+http://repo.or.cz/w/tinycc.git/tree
 
 C99 standard final draft
 http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
+
+C11 standard final draft
+http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
 
 Dave Prosser's C Preprocessing Algorithm
 http://www.spinellis.gr/blog/20060626/
