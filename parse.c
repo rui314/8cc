@@ -45,7 +45,7 @@ static Ast *read_decl_init_val(Ctype *ctype);
 static void read_func_param(Ctype **rtype, char **name, bool optional);
 static void read_decl(List *toplevel, MakeVarFn make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
-static void read_decl_spec(Ctype **rtype, int *sclass);
+static Ctype *read_decl_spec(int *sclass);
 
 enum {
     S_TYPEDEF = 1,
@@ -813,9 +813,7 @@ static Dict *read_struct_union_fields(void) {
     for (;;) {
         if (!is_type_keyword(peek_token()))
             break;
-        Ctype *basetype;
-        int dummy;
-        read_decl_spec(&basetype, &dummy);
+        Ctype *basetype = read_decl_spec(NULL);
         for (;;) {
             char *name;
             Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
@@ -1002,12 +1000,11 @@ static Ctype *read_declarator(char **rname, Ctype *basetype, List *params, int c
     return t;
 }
 
-static void read_decl_spec(Ctype **rtype, int *sclass) {
-    *rtype = NULL;
-    *sclass = 0;
+static Ctype *read_decl_spec(int *rsclass) {
+    int sclass = 0;
     Token *tok = peek_token();
     if (!tok || tok->type != TTYPE_IDENT)
-        return;
+        error("internal error");
 
 #define unused __attribute__((unused))
     bool kconst unused = false, kvolatile unused = false, kinline unused = false;
@@ -1019,8 +1016,8 @@ static void read_decl_spec(Ctype **rtype, int *sclass) {
 
     for (;;) {
 #define setsclass(val)                          \
-        if (*sclass != 0) goto err;             \
-        *sclass = val
+        if (sclass != 0) goto err;              \
+        sclass = val
 #define set(var, val)                                                   \
         if (var != 0) goto err;                                         \
         var = val;                                                      \
@@ -1075,22 +1072,22 @@ static void read_decl_spec(Ctype **rtype, int *sclass) {
 #undef set
 #undef setsclass
     }
-    if (usertype) {
-        *rtype = usertype;
-        return;
-    }
+    if (rsclass)
+        *rsclass = sclass;
+    if (usertype)
+        return usertype;
     switch (type) {
-    case kvoid:   *rtype = ctype_void; return;
-    case kchar:   *rtype = make_type(CTYPE_CHAR, sig != kunsigned); return;
-    case kfloat:  *rtype = make_type(CTYPE_FLOAT, false); return;
-    case kdouble: *rtype = make_type(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false); return;
+    case kvoid:   return ctype_void;
+    case kchar:   return make_type(CTYPE_CHAR, sig != kunsigned);
+    case kfloat:  return make_type(CTYPE_FLOAT, false);
+    case kdouble: return make_type(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false);
     default: break;
     }
     switch (size) {
-    case kshort: *rtype = make_type(CTYPE_SHORT, sig != kunsigned); return;
-    case klong:  *rtype = make_type(CTYPE_LONG, sig != kunsigned); return;
-    case kllong: *rtype = make_type(CTYPE_LLONG, sig != kunsigned); return;
-    default:     *rtype = make_type(CTYPE_INT, sig != kunsigned); return;
+    case kshort: return make_type(CTYPE_SHORT, sig != kunsigned);
+    case klong:  return make_type(CTYPE_LONG, sig != kunsigned);
+    case kllong: return make_type(CTYPE_LLONG, sig != kunsigned);
+    default:     return make_type(CTYPE_INT, sig != kunsigned);
     }
     error("internal error: type: %d, size: %d", type, size);
  err:
@@ -1177,9 +1174,8 @@ static Ast *read_decl_init(Ast *var) {
 }
 
 static void read_func_param(Ctype **rtype, char **name, bool optional) {
-    Ctype *basetype;
     int sclass;
-    read_decl_spec(&basetype, &sclass);
+    Ctype *basetype = read_decl_spec(&sclass);
     basetype = read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
     *rtype = read_array_dimensions(basetype);
 }
@@ -1355,12 +1351,10 @@ static bool is_funcdef(void) {
 }
 
 static Ast *read_funcdef(void) {
-    Ctype *basetype;
-    int sclass;
+    Ctype *basetype = read_decl_spec(NULL);
+    localenv = make_dict(globalenv);
     char *name;
     List *params = make_list();
-    read_decl_spec(&basetype, &sclass);
-    localenv = make_dict(globalenv);
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
     expect('{');
     Ast *r = read_func_body(functype, name, params);
@@ -1369,9 +1363,8 @@ static Ast *read_funcdef(void) {
 }
 
 static void read_decl(List *block, MakeVarFn make_var) {
-    Ctype *basetype;
     int sclass;
-    read_decl_spec(&basetype, &sclass);
+    Ctype *basetype = read_decl_spec(&sclass);
     Token *tok = read_token();
     if (is_punct(tok, ';'))
         return;
