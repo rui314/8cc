@@ -41,7 +41,6 @@ static Ast *read_decl_or_stmt(void);
 static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
 static void read_decl_int(Token **name, Ctype **ctype);
-static Ast *read_toplevel(void);
 static bool is_type_keyword(Token *tok);
 static Ast *read_unary_expr(void);
 static void read_func_params(Ctype **rtype, List *rparams, Ctype *rettype);
@@ -921,6 +920,20 @@ static Ctype *read_enum_def(void) {
     return ctype_int;
 }
 
+static Ctype *read_declarator(Ctype *basetype) {
+    Ctype *ctype = basetype;
+    for (;;) {
+        Token *tok = read_token();
+        if (is_ident(tok, "const"))
+            continue;
+        if (!is_punct(tok, '*')) {
+            unget_token(tok);
+            return ctype;
+        }
+        ctype = make_ptr_type(ctype);
+    }
+}
+
 static Ctype *read_decl_spec(void) {
     Token *tok = read_token();
     for (;;) {
@@ -932,22 +945,12 @@ static Ctype *read_decl_spec(void) {
         else
             break;
     }
-
     Ctype *ctype = is_ident(tok, "struct") ? read_struct_def()
         : is_ident(tok, "union") ? read_union_def()
         : is_ident(tok, "enum") ? read_enum_def()
         : read_ctype(tok);
     assert(ctype);
-    for (;;) {
-        tok = read_token();
-        if (is_ident(tok, "const"))
-            continue;
-        if (!is_punct(tok, '*')) {
-            unget_token(tok);
-            return ctype;
-        }
-        ctype = make_ptr_type(ctype);
-    }
+    return ctype;
 }
 
 static Ast *read_decl_array_init_val(Ctype *ctype) {
@@ -1040,7 +1043,8 @@ static Ast *read_decl_init(Ast *var) {
 }
 
 static void read_decl_int(Token **name, Ctype **ctype) {
-    Ctype *t = read_decl_spec();
+    Ctype *basetype = read_decl_spec();
+    Ctype *t = read_declarator(basetype);
     Token *tok = read_token();
     if (is_punct(tok, ';')) {
         unget_token(tok);
@@ -1210,7 +1214,8 @@ static void read_func_params(Ctype **rtype, List *paramvars, Ctype *rettype) {
             return;
         } else
             unget_token(tok);
-        Ctype *ctype = read_decl_spec();
+        Ctype *basetype = read_decl_spec();
+        Ctype *ctype = read_declarator(basetype);
         Token *pname = read_token();
         if (pname->type != TTYPE_IDENT) {
             if (!typeonly)
@@ -1261,10 +1266,11 @@ static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
     return NULL;
 }
 
-static Ast *read_toplevel(void) {
+List *read_toplevels(void) {
+    List *r = make_list();
     for (;;) {
         Token *tok = read_token();
-        if (!tok) return NULL;
+        if (!tok) return r;
         if (is_ident(tok, "static") || is_ident(tok, "const"))
             continue;
         if (is_ident(tok, "typedef")) {
@@ -1276,7 +1282,8 @@ static Ast *read_toplevel(void) {
             continue;
         }
         unget_token(tok);
-        Ctype *ctype = read_decl_spec();
+        Ctype *basetype = read_decl_spec();
+        Ctype *ctype = read_declarator(basetype);
         Token *name = read_token();
         if (is_punct(name, ';'))
             continue;
@@ -1286,29 +1293,21 @@ static Ast *read_toplevel(void) {
         tok = peek_token();
         if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
             Ast *var = ast_gvar(ctype, name->sval);
-            return read_decl_init(var);
+            list_push(r, read_decl_init(var));
+            continue;
         }
         if (is_punct(tok, '(')) {
             Ast *func = read_func_decl_or_def(ctype, name->sval);
             if (func)
-                return func;
+                list_push(r, func);
             continue;
         }
         if (is_punct(tok, ';')) {
             read_token();
             Ast *var = ast_gvar(ctype, name->sval);
-            return ast_decl(var, NULL);
+            list_push(r, ast_decl(var, NULL));
+            continue;
         }
         error("Don't know how to handle %s", t2s(tok));
     }
-}
-
-List *read_toplevels(void) {
-    List *r = make_list();
-    for (;;) {
-        Ast *ast = read_toplevel();
-        if (!ast) return r;
-        list_push(r, ast);
-    }
-    return r;
 }
