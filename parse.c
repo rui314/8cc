@@ -356,6 +356,8 @@ int eval_intexpr(Ast *ast) {
     case '!': return !eval_intexpr(ast->operand);
     case '~': return ~eval_intexpr(ast->operand);
     case OP_CAST: return eval_intexpr(ast->operand);
+    case AST_TERNARY:
+        return eval_intexpr(ast->cond) ? eval_intexpr(ast->then) : eval_intexpr(ast->els);
 #define L (eval_intexpr(ast->left))
 #define R (eval_intexpr(ast->right))
     case '+': return L + R;
