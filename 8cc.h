@@ -222,7 +222,7 @@ extern char *t2s(Token *tok);
 extern bool is_punct(Token *tok, int c);
 extern bool is_ident(Token *tok, char *s);
 extern char *a2s(Ast *ast);
-extern char *ctype_to_string(Ctype *ctype);
+extern char *c2s(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);

@@ -52,7 +52,7 @@ static char *get_int_reg(Ctype *ctype, char r) {
     case 4: return (r == 'a') ? "eax" : "ecx";
     case 8: return (r == 'a') ? "rax" : "rcx";
     default:
-        error("Unknown data size: %s: %d", ctype_to_string(ctype), ctype->size);
+        error("Unknown data size: %s: %d", c2s(ctype), ctype->size);
     }
 }
 

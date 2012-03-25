@@ -1,6 +1,6 @@
 #include "8cc.h"
 
-static char *ctype_to_string_int(Dict *dict, Ctype *ctype) {
+static char *c2s_int(Dict *dict, Ctype *ctype) {
     if (!ctype)
         return "(nil)";
     switch (ctype->type) {
@@ -14,9 +14,9 @@ static char *ctype_to_string_int(Dict *dict, Ctype *ctype) {
     case CTYPE_DOUBLE: return "double";
     case CTYPE_LDOUBLE: return "long double";
     case CTYPE_PTR:
-        return format("*%s", ctype_to_string_int(dict, ctype->ptr));
+        return format("*%s", c2s_int(dict, ctype->ptr));
     case CTYPE_ARRAY:
-        return format("[%d]%s", ctype->len, ctype_to_string_int(dict, ctype->ptr));
+        return format("[%d]%s", ctype->len, c2s_int(dict, ctype->ptr));
     case CTYPE_STRUCT: {
         if (dict_get(dict, format("%p", ctype)))
             return "(struct)";
@@ -24,16 +24,16 @@ static char *ctype_to_string_int(Dict *dict, Ctype *ctype) {
         String *s = make_string();
         string_appendf(s, "(struct");
         for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);)
-            string_appendf(s, " (%s)", ctype_to_string_int(dict, iter_next(i)));
+            string_appendf(s, " (%s)", c2s_int(dict, iter_next(i)));
         string_appendf(s, ")");
         return get_cstring(s);
     }
     case CTYPE_FUNC: {
         String *s = make_string();
-        string_appendf(s, "%s(", ctype_to_string_int(dict, ctype->rettype));
+        string_appendf(s, "%s(", c2s_int(dict, ctype->rettype));
         for (Iter *i = list_iter(ctype->params); !iter_end(i);) {
             Ctype *t = iter_next(i);
-            string_appendf(s, "%s", ctype_to_string_int(dict, t));
+            string_appendf(s, "%s", c2s_int(dict, t));
             if (!iter_end(i))
                 string_append(s, ',');
         }
@@ -45,8 +45,8 @@ static char *ctype_to_string_int(Dict *dict, Ctype *ctype) {
     }
 }
 
-char *ctype_to_string(Ctype *ctype) {
-    return ctype_to_string_int(make_dict(NULL), ctype);
+char *c2s(Ctype *ctype) {
+    return c2s_int(make_dict(NULL), ctype);
 }
 
 static void uop_to_string(String *buf, char *op, Ast *ast) {
@@ -94,7 +94,7 @@ static void a2s_int(String *buf, Ast *ast) {
         string_appendf(buf, "%s", ast->varname);
         break;
     case AST_FUNCALL: {
-        string_appendf(buf, "(%s)%s(", ctype_to_string(ast->ctype), ast->fname);
+        string_appendf(buf, "(%s)%s(", c2s(ast->ctype), ast->fname);
         for (Iter *i = list_iter(ast->args); !iter_end(i);) {
             string_appendf(buf, "%s", a2s(iter_next(i)));
             if (!iter_end(i))
@@ -104,10 +104,10 @@ static void a2s_int(String *buf, Ast *ast) {
         break;
     }
     case AST_FUNC: {
-        string_appendf(buf, "(%s)%s(", ctype_to_string(ast->ctype), ast->fname);
+        string_appendf(buf, "(%s)%s(", c2s(ast->ctype), ast->fname);
         for (Iter *i = list_iter(ast->params); !iter_end(i);) {
             Ast *param = iter_next(i);
-            string_appendf(buf, "%s %s", ctype_to_string(param->ctype), a2s(param));
+            string_appendf(buf, "%s %s", c2s(param->ctype), a2s(param));
             if (!iter_end(i))
                 string_appendf(buf, ",");
         }
@@ -117,7 +117,7 @@ static void a2s_int(String *buf, Ast *ast) {
     }
     case AST_DECL:
         string_appendf(buf, "(decl %s %s",
-                       ctype_to_string(ast->declvar->ctype),
+                       c2s(ast->declvar->ctype),
                        ast->declvar->varname);
         if (ast->declinit)
             string_appendf(buf, " %s)", a2s(ast->declinit));
