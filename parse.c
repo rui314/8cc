@@ -759,7 +759,7 @@ static bool is_type_keyword(Token *tok) {
         "char", "short", "int", "long", "float", "double", "struct",
         "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
         "static", "auto", "register", "const", "volatile", "inline",
-        "__signed__",
+        "restrict", "__signed__",
     };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
@@ -957,7 +957,9 @@ static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
 static void skip_type_qualifiers(void) {
     for (;;) {
         Token *tok = read_token();
-        if (is_ident(tok, "const") || is_ident(tok, "volatile"))
+        if (is_ident(tok, "const") ||
+            is_ident(tok, "volatile") ||
+            is_ident(tok, "restrict"))
             continue;
         unget_token(tok);
         return;
