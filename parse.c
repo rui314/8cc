@@ -1225,7 +1225,7 @@ static void read_func_params(Ctype **rtype, List *paramvars, Ctype *rettype) {
     }
 }
 
-static Ast *read_func_def(Ctype *functype, char *fname, List *params) {
+static Ast *read_func_body(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
     localvars = make_list();
     current_func_type = functype;
@@ -1284,7 +1284,7 @@ static Ast *read_funcdef(void) {
     expect('(');
     read_func_params(&functype, params, rettype);
     expect('{');
-    Ast *r = read_func_def(functype, name->sval, params);
+    Ast *r = read_func_body(functype, name->sval, params);
     localenv = NULL;
     return r;
 }
