@@ -224,7 +224,7 @@ static void emit_load_struct_ref(Ast *struc, Ctype *field, int off) {
         break;
     case AST_DEREF:
         emit_expr(struc->operand);
-        emit_load_deref(struc->ctype, field, field->offset + off);
+        emit_load_deref(field, field, field->offset + off);
         break;
     default:
         error("internal error: %s", a2s(struc));

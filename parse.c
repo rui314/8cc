@@ -36,6 +36,7 @@ static Ctype* make_ptr_type(Ctype *ctype);
 static Ctype* make_array_type(Ctype *ctype, int size);
 static Ast *read_compound_stmt(void);
 static void read_decl_or_stmt(List *list);
+static Ast *read_expr_int(int prec);
 static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
 static bool is_type_keyword(Token *tok);
@@ -648,26 +649,26 @@ static Ast *read_unary_expr(void) {
         return r;
     }
     if (is_punct(tok, '&')) {
-        Ast *operand = read_unary_expr();
+        Ast *operand = read_expr_int(3);
         ensure_lvalue(operand);
         return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
     }
     if (is_punct(tok, '!')) {
-        Ast *operand = read_unary_expr();
+        Ast *operand = read_expr_int(3);
         return ast_uop('!', ctype_int, operand);
     }
     if (is_punct(tok, '-')) {
-        Ast *expr = read_expr();
+        Ast *expr = read_expr_int(3);
         return ast_binop('-', ast_inttype(ctype_int, 0), expr);
     }
     if (is_punct(tok, '~')) {
-        Ast *expr = read_expr();
+        Ast *expr = read_expr_int(3);
         if (!is_inttype(expr->ctype))
             error("invalid use of ~: %s", a2s(expr));
         return ast_uop('~', expr->ctype, expr);
     }
     if (is_punct(tok, '*')) {
-        Ast *operand = read_unary_expr();
+        Ast *operand = read_expr_int(3);
         Ctype *ctype = convert_array(operand->ctype);
         if (ctype->type != CTYPE_PTR)
             error("pointer type expected, but got %s", a2s(operand));
