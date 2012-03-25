@@ -322,6 +322,11 @@ static void ensure_lvalue(Ast *ast) {
     }
 }
 
+static void ensure_inttype(Ast *ast) {
+    if (!is_inttype(ast->ctype))
+        error("integer type expected, but got %s", a2s(ast));
+}
+
 static void expect(char punct) {
     Token *tok = read_token();
     if (!is_punct(tok, punct))
@@ -343,6 +348,7 @@ int eval_intexpr(Ast *ast) {
             return ast->ival;
         error("Integer expression expected, but got %s", a2s(ast));
     case '!': return !eval_intexpr(ast->operand);
+    case '~': return ~eval_intexpr(ast->operand);
 #define L (eval_intexpr(ast->left))
 #define R (eval_intexpr(ast->right))
     case '+': return L + R;
@@ -351,6 +357,8 @@ int eval_intexpr(Ast *ast) {
     case '/': return L / R;
     case '<': return L < R;
     case '>': return L > R;
+    case '^': return L ^ R;
+    case '&': return L & R;
     case OP_EQ: return L == R;
     case OP_GE: return L >= R;
     case OP_LE: return L <= R;
@@ -376,22 +384,15 @@ static int priority(Token *tok) {
         return 4;
     case '<': case '>': case OP_LE: case OP_GE: case OP_NE:
         return 6;
-    case '&':
-        return 8;
-    case '|':
-        return 10;
-    case OP_EQ:
-        return 7;
-    case OP_LOGAND:
-        return 11;
-    case OP_LOGOR:
-        return 12;
-    case '?':
-        return 13;
-    case '=':
-        return 14;
-    default:
-        return -1;
+    case OP_EQ:     return 7;
+    case '&':       return 8;
+    case '^':       return 9;
+    case '|':       return 10;
+    case OP_LOGAND: return 11;
+    case OP_LOGOR:  return 12;
+    case '?':       return 13;
+    case '=':       return 14;
+    default:        return -1;
     }
 }
 
@@ -722,6 +723,10 @@ static Ast *read_expr_int(int prec) {
         Ast *rest = read_expr_int(prec2 + (is_right_assoc(tok) ? 1 : 0));
         if (!rest)
             error("second operand missing");
+        if (is_punct(tok, '^')) {
+            ensure_inttype(ast);
+            ensure_inttype(rest);
+        }
         ast = ast_binop(tok->punct, ast, rest);
     }
 }

@@ -15,12 +15,17 @@ void test_not() {
     expect(0, ~-1);
 }
 
+void test_xor() {
+    expect(10, 15 ^ 5);
+}
+
 int main() {
     printf("Testing bitwise operators ... ");
 
     test_or();
     test_and();
     test_not();
+    test_xor();
 
     printf("OK\n");
     return 0;

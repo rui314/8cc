@@ -86,7 +86,7 @@ int const_expr() {
 #endif
     expect(2, a);
 
-#if 0 + 1 * 2 + 4 / 2
+#if 0 + 1 * 2 + 4 / 2 ^ 3 & ~1
     a = 4;
 #else
     a = 5;

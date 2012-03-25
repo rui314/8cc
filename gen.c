@@ -272,6 +272,7 @@ static void emit_binop_int_arith(Ast *ast) {
     case '+': op = "add"; break;
     case '-': op = "sub"; break;
     case '*': op = "imul"; break;
+    case '^': op = "xor"; break;
     case '/': break;
     default: error("invalid operator '%d'", ast->type);
     }
