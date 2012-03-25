@@ -30,7 +30,6 @@ static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
 
 static int labelseq = 0;
 
-typedef void DefineFn(void *opaque, Ctype *ctype, char *name);
 typedef Ast *MakeVarFn(Ctype *ctype, char *name);
 
 static Ctype* make_ptr_type(Ctype *ctype);
@@ -41,11 +40,12 @@ static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Ast *read_unary_expr(void);
-static void read_func_param_list(Ctype **rtype, List *rparams, Ctype *rettype);
+static Ctype *read_func_param_list(List *rparams, Ctype *rettype);
 static Ast *read_decl_init_val(Ctype *ctype);
 static void read_func_param(Ctype **rtype, char **name, bool optional);
 static void read_decl(List *toplevel, MakeVarFn make_var);
-static void read_decl_type(void *opaque, DefineFn define);
+static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
+static void read_decl_spec(Ctype **rtype, int *sclass);
 
 enum {
     S_TYPEDEF = 1,
@@ -53,6 +53,13 @@ enum {
     S_STATIC,
     S_AUTO,
     S_REGISTER,
+};
+
+enum {
+    DECL_BODY = 1,
+    DECL_PARAM,
+    DECL_PARAM_TYPEONLY,
+    DECL_CAST,
 };
 
 static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
@@ -286,6 +293,13 @@ static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs)
     r->rettype = rettype;
     r->params = paramtypes;
     r->hasva = has_varargs;
+    return r;
+}
+
+static Ctype *make_stub_type(void) {
+    Ctype *r = malloc(sizeof(Ctype));
+    r->type = CTYPE_STUB;
+    r->size = 0;
     return r;
 }
 
@@ -601,7 +615,7 @@ static Ast *get_sizeof_size(bool allow_typename) {
     unget_token(tok);
     Ast *expr = read_unary_expr();
     if (expr->ctype->size == 0)
-        error("invalid operand for sizeof(): %s", a2s(expr));
+        error("invalid operand for sizeof(): %s type=%s size=%d", a2s(expr), c2s(expr->ctype), expr->ctype->size);
     return ast_inttype(ctype_long, expr->ctype->size);
 }
 
@@ -771,10 +785,6 @@ static char *read_struct_union_tag(void) {
     return NULL;
 }
 
-static void define_struct_union_field(void *dict, Ctype *ctype, char *name) {
-    dict_put(dict, name, make_struct_field_type(ctype, 0));
-}
-
 static Dict *read_struct_union_fields(void) {
     Token *tok = read_token();
     if (!is_punct(tok, '{')) {
@@ -785,7 +795,20 @@ static Dict *read_struct_union_fields(void) {
     for (;;) {
         if (!is_type_keyword(peek_token()))
             break;
-        read_decl_type(r, define_struct_union_field);
+        Ctype *basetype;
+        int dummy;
+        read_decl_spec(&basetype, &dummy);
+        for (;;) {
+            char *name;
+            Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
+            dict_put(r, name, make_struct_field_type(fieldtype, 0));
+            tok = read_token();
+            if (is_punct(tok, ','))
+                continue;
+            unget_token(tok);
+            expect(';');
+            break;
+        }
     }
     expect('}');
     return r;
@@ -875,19 +898,89 @@ static Ctype *read_enum_def(void) {
     return ctype_int;
 }
 
-static Ctype *read_declarator(Ctype *basetype) {
-    Ctype *ctype = basetype;
+static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
+    Token *tok = read_token();
+    if (is_punct(tok, '[')) {
+        int len;
+        tok = read_token();
+        if (is_punct(tok, ']')) {
+            len = -1;
+        } else {
+            unget_token(tok);
+            len = eval_intexpr(read_expr());
+            expect(']');
+        }
+        Ctype *t = read_direct_declarator2(basetype, params);
+        if (t->type == CTYPE_FUNC)
+            error("array of functions");
+        return make_array_type(t, len);
+    }
+    if (is_punct(tok, '(')) {
+        if (basetype->type == CTYPE_FUNC)
+            error("function returning an function");
+        if (basetype->type == CTYPE_ARRAY)
+            error("function returning an array");
+        return read_func_param_list(params, basetype);
+    }
+    unget_token(tok);
+    return basetype;
+}
+
+static void skip_type_qualifiers(void) {
     for (;;) {
         Token *tok = read_token();
-        if (is_ident(tok, "const"))
+        if (is_ident(tok, "const") || is_ident(tok, "volatile"))
             continue;
-        if (is_punct(tok, '*')) {
-            ctype = make_ptr_type(ctype);
-            continue;
-        }
         unget_token(tok);
-        return ctype;
+        return;
     }
+}
+
+static Ctype *read_direct_declarator1(char **rname, Ctype *basetype, List *params, int ctx) {
+    Token *tok = read_token();
+    Token *next = peek_token();
+    if (is_punct(tok, '(') && !is_type_keyword(next) && !is_punct(next, ')')) {
+        Ctype *stub = make_stub_type();
+        Ctype *t = read_direct_declarator1(rname, stub, params, ctx);
+        expect(')');
+        *stub = *read_direct_declarator2(basetype, params);
+        return t;
+    }
+    if (is_punct(tok, '*')) {
+        skip_type_qualifiers();
+        Ctype *stub = make_stub_type();
+        Ctype *t = read_direct_declarator1(rname, stub, params, ctx);
+        *stub = *make_ptr_type(basetype);
+        return t;
+    }
+    if (tok->type == TTYPE_IDENT) {
+        if (ctx == DECL_CAST)
+            error("identifier is NOT expected, but got %s", t2s(tok));
+        *rname = tok->sval;
+        return read_direct_declarator2(basetype, params);
+    }
+    if (ctx == DECL_BODY || ctx == DECL_PARAM)
+        error("identifier, ( or * are expected, but got %s", t2s(tok));
+    unget_token(tok);
+    return read_direct_declarator2(basetype, params);
+}
+
+static void fix_array_size(Ctype *t) {
+    assert(t->type != CTYPE_STUB);
+    if (t->type == CTYPE_ARRAY) {
+        fix_array_size(t->ptr);
+        t->size = t->len * t->ptr->size;
+    } else if (t->type == CTYPE_PTR) {
+        fix_array_size(t->ptr);
+    } else if (t->type == CTYPE_FUNC) {
+        fix_array_size(t->rettype);
+    }
+}
+
+static Ctype *read_declarator(char **rname, Ctype *basetype, List *params, int ctx) {
+    Ctype *t = read_direct_declarator1(rname, basetype, params, ctx);
+    fix_array_size(t);
+    return t;
 }
 
 static void read_decl_spec(Ctype **rtype, int *sclass) {
@@ -1066,42 +1159,8 @@ static void read_func_param(Ctype **rtype, char **name, bool optional) {
     Ctype *basetype;
     int sclass;
     read_decl_spec(&basetype, &sclass);
-    basetype = read_declarator(basetype);
-    Token *tok = read_token();
-    if (tok->type == TTYPE_IDENT) {
-        if (name == NULL && !optional)
-            error("identifier is not expected, but got %s", t2s(tok));
-        if (name)
-            *name = tok->sval;
-    } else if (!optional) {
-        error("identifier expected, but got %s", t2s(tok));
-    } else {
-        unget_token(tok);
-    }
+    basetype = read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
     *rtype = read_array_dimensions(basetype);
-}
-
-static void read_decl_type(void *opaque, DefineFn define) {
-    Ctype *basetype;
-    int dummy;
-    read_decl_spec(&basetype, &dummy);
-    for (;;) {
-        Ctype *t = read_declarator(basetype);
-        Token *tok = read_token();
-        char *name = NULL;
-        if (tok->type == TTYPE_IDENT)
-            name = tok->sval;
-        else
-            unget_token(tok);
-        Ctype *ctype = read_array_dimensions(t);
-        define(opaque, ctype, name);
-        tok = read_token();
-        if (is_punct(tok, ','))
-            continue;
-        unget_token(tok);
-        expect(';');
-        return;
-    }
 }
 
 static Ast *read_if_stmt(void) {
@@ -1193,14 +1252,12 @@ static Ast *read_compound_stmt(void) {
     return ast_compound_stmt(list);
 }
 
-static void read_func_param_list(Ctype **rtype, List *paramvars, Ctype *rettype) {
+static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
     bool typeonly = !paramvars;
     List *paramtypes = make_list();
     Token *tok = read_token();
-    if (is_punct(tok, ')')) {
-        *rtype = make_func_type(rettype, paramtypes, false);
-        return;
-    }
+    if (is_punct(tok, ')'))
+        return make_func_type(rettype, paramtypes, false);
     unget_token(tok);
     for (;;) {
         tok = read_token();
@@ -1208,8 +1265,7 @@ static void read_func_param_list(Ctype **rtype, List *paramvars, Ctype *rettype)
             if (list_len(paramtypes) == 0)
                 error("at least one parameter is required");
             expect(')');
-            *rtype = make_func_type(rettype, paramtypes, true);
-            return;
+            return make_func_type(rettype, paramtypes, true);
         } else
             unget_token(tok);
         Ctype *ptype;
@@ -1221,10 +1277,8 @@ static void read_func_param_list(Ctype **rtype, List *paramvars, Ctype *rettype)
         if (!typeonly)
             list_push(paramvars, ast_lvar(ptype, name));
         Token *tok = read_token();
-        if (is_punct(tok, ')')) {
-            *rtype = make_func_type(rettype, paramtypes, false);
-            return;
-        }
+        if (is_punct(tok, ')'))
+            return make_func_type(rettype, paramtypes, false);
         if (!is_punct(tok, ','))
             error("comma expected, but got %s", t2s(tok));
     }
@@ -1275,21 +1329,15 @@ static bool is_funcdef(void) {
 }
 
 static Ast *read_funcdef(void) {
-    Ctype *basetype, *functype;
+    Ctype *basetype;
     int sclass;
-
-    read_decl_spec(&basetype, &sclass);
-    Ctype *rettype = read_declarator(basetype);
-    Token *name = read_token();
-    if (name->type != TTYPE_IDENT)
-        error("function name expected, but got %s", t2s(name));
-
-    localenv = make_dict(globalenv);
+    char *name;
     List *params = make_list();
-    expect('(');
-    read_func_param_list(&functype, params, rettype);
+    read_decl_spec(&basetype, &sclass);
+    localenv = make_dict(globalenv);
+    Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
     expect('{');
-    Ast *r = read_func_body(functype, name->sval, params);
+    Ast *r = read_func_body(functype, name, params);
     localenv = NULL;
     return r;
 }
@@ -1298,36 +1346,28 @@ static void read_decl(List *block, MakeVarFn make_var) {
     Ctype *basetype;
     int sclass;
     read_decl_spec(&basetype, &sclass);
+    Token *tok = read_token();
+    if (is_punct(tok, ';'))
+        return;
+    unget_token(tok);
     for (;;) {
-        Ctype *ctype = read_declarator(basetype);
-        Token *name = read_token();
-        if (is_punct(name, ';'))
-            return;
-        if (name->type != TTYPE_IDENT)
-            error("Identifier expected, but got %s", t2s(name));
-        ctype = read_array_dimensions(ctype);
-        Token *tok = read_token();
+        char *name = NULL;
+        Ctype *ctype = read_declarator(&name, basetype, NULL, DECL_BODY);
+        tok = read_token();
         if (is_punct(tok, '=')) {
             if (sclass == S_TYPEDEF)
                 error("= after typedef");
-            Ast *var = make_var(ctype, name->sval);
+            Ast *var = make_var(ctype, name);
             list_push(block, read_decl_init(var));
             tok = read_token();
-        } else if (is_punct(tok, '(')) {
-            read_func_param_list(&ctype, NULL, ctype);
-            if (sclass == S_TYPEDEF)
-                dict_put(typedefs, name->sval, ctype);
-            else
-                make_var(ctype, name->sval);
-            tok = read_token();
+        } else if (sclass == S_TYPEDEF) {
+            dict_put(typedefs, name, ctype);
+        } else if (ctype->type == CTYPE_FUNC) {
+            make_var(ctype, name);
         } else {
-            if (sclass == S_TYPEDEF) {
-                dict_put(typedefs, name->sval, ctype);
-            } else {
-                Ast *var = make_var(ctype, name->sval);
-                if (sclass != S_EXTERN)
-                    list_push(block, ast_decl(var, NULL));
-            }
+            Ast *var = make_var(ctype, name);
+            if (sclass != S_EXTERN)
+                list_push(block, ast_decl(var, NULL));
         }
         if (is_punct(tok, ';'))
             return;

@@ -30,14 +30,14 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
     }
     case CTYPE_FUNC: {
         String *s = make_string();
-        string_appendf(s, "%s(", c2s_int(dict, ctype->rettype));
+        string_appendf(s, "(");
         for (Iter *i = list_iter(ctype->params); !iter_end(i);) {
             Ctype *t = iter_next(i);
             string_appendf(s, "%s", c2s_int(dict, t));
             if (!iter_end(i))
                 string_append(s, ',');
         }
-        string_append(s, ')');
+        string_appendf(s, ") -> %s", c2s_int(dict, ctype->rettype));
         return get_cstring(s);
     }
     default:

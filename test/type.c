@@ -49,12 +49,12 @@ int test_pointer() {
     expect(8, sizeof(a));
     int *b[5];
     expect(40, sizeof(b));
-    // int (*c)[5];
-    // expect(8, sizeof(c));
+    int (*c)[5];
+    expect(8, sizeof(c));
 }
 
 int test_unusual_order() {
-    int unsigned const const * const a;
+    int unsigned auto * const * const a;
 }
 
 int test_typedef() {

@@ -22,4 +22,16 @@ int main() {
     expect(7, sizeof(char[7]));
     expect(30, sizeof(char[3][10]));
     expect(32, sizeof(int[4][2]));
+
+    char a[] = { 1, 2, 3 };
+    expect(3, sizeof(a));
+    char b[] = "abc";
+    expect(4, sizeof(b));
+    char *c[5];
+    expect(40, sizeof(c));
+    char *(*d)[3];
+    expect(8, sizeof(d));
+    expect(24, sizeof(*d));
+    expect(8, sizeof(**d));
+    expect(1, sizeof(***d));
 }
