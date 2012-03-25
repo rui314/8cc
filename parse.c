@@ -746,7 +746,8 @@ static bool is_type_keyword(Token *tok) {
     char *keyword[] = {
         "char", "short", "int", "long", "float", "double", "struct",
         "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
-        "static", "auto", "register", "const", "volatile", "inline"
+        "static", "auto", "register", "const", "volatile", "inline",
+        "__signed__",
     };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
@@ -1053,6 +1054,7 @@ static void read_decl_spec(Ctype **rtype, int *sclass) {
         else if (_("float"))    { set(type, kfloat); }
         else if (_("double"))   { set(type, kdouble); }
         else if (_("signed"))   { set(sig, ksigned); }
+        else if (_("__signed__")) { set(sig, ksigned); }
         else if (_("unsigned")) { set(sig, kunsigned); }
         else if (_("short"))    { set(size, kshort); }
         else if (_("struct"))   { set(usertype, read_struct_def()); }
