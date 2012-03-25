@@ -28,7 +28,9 @@ sample/nqueen: 8cc sample/nqueen.c
 	./8cc < sample/nqueen.c > sample/nqueen.s
 	$(CC) $(CFLAGS) -o sample/nqueen sample/nqueen.s
 
-.PHONY: clean test
+.PHONY: clean test all
 clean:
 	rm -f 8cc *.o tmp.* test/*.s test/*.o sample/*.o utiltest sample/nqueen.s sample/nqueen
 	rm -f $(TESTS)
+
+all: 8cc

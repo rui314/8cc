@@ -30,17 +30,22 @@ static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
 
 static int labelseq = 0;
 
+typedef void DefineFn(void *opaque, Ctype *ctype, char *name);
+typedef Ast *MakeVarFn(Ctype *ctype, char *name);
+
 static Ctype* make_ptr_type(Ctype *ctype);
 static Ctype* make_array_type(Ctype *ctype, int size);
 static Ast *read_compound_stmt(void);
-static Ast *read_decl_or_stmt(void);
+static void read_decl_or_stmt(List *list);
 static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
-static void read_decl_int(char **name, Ctype **ctype, int *sclass);
 static bool is_type_keyword(Token *tok);
 static Ast *read_unary_expr(void);
 static void read_func_params(Ctype **rtype, List *rparams, Ctype *rettype);
 static Ast *read_decl_init_val(Ctype *ctype);
+static Ctype *read_cast_type(void);
+static void read_decl(List *toplevel, MakeVarFn make_var);
+static void read_decl_type(void *opaque, DefineFn define);
 
 enum {
     S_TYPEDEF = 1,
@@ -584,11 +589,7 @@ static Ast *get_sizeof_size(bool allow_typename) {
     Token *tok = read_token();
     if (allow_typename && is_type_keyword(tok)) {
         unget_token(tok);
-        char *dummy;
-        Ctype *ctype = NULL;
-        int sclass;
-        read_decl_int(&dummy, &ctype, &sclass);
-        assert(ctype);
+        Ctype *ctype = read_cast_type();
         return ast_inttype(ctype_long, ctype->size);
     }
     if (is_punct(tok, '(')) {
@@ -768,6 +769,10 @@ static char *read_struct_union_tag(void) {
     return NULL;
 }
 
+static void define_struct_union_field(void *dict, Ctype *ctype, char *name) {
+    dict_put(dict, name, make_struct_field_type(ctype, 0));
+}
+
 static Dict *read_struct_union_fields(void) {
     Token *tok = read_token();
     if (!is_punct(tok, '{')) {
@@ -778,12 +783,7 @@ static Dict *read_struct_union_fields(void) {
     for (;;) {
         if (!is_type_keyword(peek_token()))
             break;
-        char *name;
-        Ctype *fieldtype;
-        int sclass;
-        read_decl_int(&name, &fieldtype, &sclass);
-        dict_put(r, name, make_struct_field_type(fieldtype, 0));
-        expect(';');
+        read_decl_type(r, define_struct_union_field);
     }
     expect('}');
     return r;
@@ -879,11 +879,12 @@ static Ctype *read_declarator(Ctype *basetype) {
         Token *tok = read_token();
         if (is_ident(tok, "const"))
             continue;
-        if (!is_punct(tok, '*')) {
-            unget_token(tok);
-            return ctype;
+        if (is_punct(tok, '*')) {
+            ctype = make_ptr_type(ctype);
+            continue;
         }
-        ctype = make_ptr_type(ctype);
+        unget_token(tok);
+        return ctype;
     }
 }
 
@@ -1059,49 +1060,34 @@ static Ast *read_decl_init(Ast *var) {
     return ast_decl(var, init);
 }
 
-static void read_decl_int(char **name, Ctype **ctype, int *sclass) {
+static Ctype *read_cast_type(void) {
     Ctype *basetype;
-    read_decl_spec(&basetype, sclass);
-    Ctype *t = read_declarator(basetype);
-    Token *tok = read_token();
-    if (is_punct(tok, ';')) {
-        unget_token(tok);
-        *name = NULL;
-        return;
-    }
-    if (tok->type != TTYPE_IDENT) {
-        unget_token(tok);
-        *name = NULL;
-    } else {
-        *name = tok->sval;
-    }
-    *ctype = read_array_dimensions(t);
+    int sclass;
+    read_decl_spec(&basetype, &sclass);
+    return read_declarator(basetype);
 }
 
-static Ast *read_decl(void) {
-    char *name;
-    Ctype *ctype;
-    int sclass;
-    read_decl_int(&name, &ctype, &sclass);
-    if (!name) {
+static void read_decl_type(void *opaque, DefineFn define) {
+    Ctype *basetype;
+    int dummy;
+    read_decl_spec(&basetype, &dummy);
+    for (;;) {
+        Ctype *t = read_declarator(basetype);
+        Token *tok = read_token();
+        char *name = NULL;
+        if (tok->type == TTYPE_IDENT)
+            name = tok->sval;
+        else
+            unget_token(tok);
+        Ctype *ctype = read_array_dimensions(t);
+        define(opaque, ctype, name);
+        tok = read_token();
+        if (is_punct(tok, ','))
+            continue;
+        unget_token(tok);
         expect(';');
-        return NULL;
+        return;
     }
-    if (sclass == S_TYPEDEF) {
-        dict_put(typedefs, name, ctype);
-        expect(';');
-        return NULL;
-    }
-    Ast *var = ast_lvar(ctype, name);
-    Token *tok = read_token();
-    if (is_punct(tok, '=')) {
-        Ast *r = read_decl_init(var);
-        expect(';');
-        return r;
-    }
-    unget_token(tok);
-    expect(';');
-    return ast_decl(var, NULL);
 }
 
 static Ast *read_if_stmt(void) {
@@ -1123,7 +1109,9 @@ static Ast *read_opt_decl_or_stmt(void) {
     if (is_punct(tok, ';'))
         return NULL;
     unget_token(tok);
-    return read_decl_or_stmt();
+    List *list = make_list();
+    read_decl_or_stmt(list);
+    return list_shift(list);
 }
 
 static Ast *read_opt_expr(void) {
@@ -1167,22 +1155,21 @@ static Ast *read_stmt(void) {
     return r;
 }
 
-static Ast *read_decl_or_stmt(void) {
-    for (;;) {
-        Token *tok = peek_token();
-        if (tok == NULL)
-            error("premature end of input");
-        return is_type_keyword(tok) ? read_decl() : read_stmt();
-    }
+static void read_decl_or_stmt(List *list) {
+    Token *tok = peek_token();
+    if (tok == NULL)
+        error("premature end of input");
+    if (is_type_keyword(tok))
+        read_decl(list, ast_lvar);
+    else
+        list_push(list, read_stmt());
 }
 
 static Ast *read_compound_stmt(void) {
     localenv = make_dict(localenv);
     List *list = make_list();
     for (;;) {
-        Ast *stmt = read_decl_or_stmt();
-        if (stmt) list_push(list, stmt);
-        if (!stmt) continue;
+        read_decl_or_stmt(list);
         Token *tok = read_token();
         if (is_punct(tok, '}'))
             break;
@@ -1302,7 +1289,7 @@ static Ast *read_funcdef(void) {
     return r;
 }
 
-static void read_toplevel(List *toplevel) {
+static void read_decl(List *block, MakeVarFn make_var) {
     Ctype *basetype;
     int sclass;
     read_decl_spec(&basetype, &sclass);
@@ -1310,7 +1297,7 @@ static void read_toplevel(List *toplevel) {
         Ctype *ctype = read_declarator(basetype);
         Token *name = read_token();
         if (is_punct(name, ';'))
-            continue;
+            return;
         if (name->type != TTYPE_IDENT)
             error("Identifier expected, but got %s", t2s(name));
         ctype = read_array_dimensions(ctype);
@@ -1318,23 +1305,23 @@ static void read_toplevel(List *toplevel) {
         if (is_punct(tok, '=')) {
             if (sclass == S_TYPEDEF)
                 error("= after typedef");
-            Ast *var = ast_gvar(ctype, name->sval);
-            list_push(toplevel, read_decl_init(var));
+            Ast *var = make_var(ctype, name->sval);
+            list_push(block, read_decl_init(var));
             tok = read_token();
         } else if (is_punct(tok, '(')) {
             read_func_params(&ctype, NULL, ctype);
             if (sclass == S_TYPEDEF)
                 dict_put(typedefs, name->sval, ctype);
             else
-                ast_gvar(ctype, name->sval);
+                make_var(ctype, name->sval);
             tok = read_token();
         } else {
             if (sclass == S_TYPEDEF) {
                 dict_put(typedefs, name->sval, ctype);
             } else {
-                Ast *var = ast_gvar(ctype, name->sval);
+                Ast *var = make_var(ctype, name->sval);
                 if (sclass != S_EXTERN)
-                    list_push(toplevel, ast_decl(var, NULL));
+                    list_push(block, ast_decl(var, NULL));
             }
         }
         if (is_punct(tok, ';'))
@@ -1352,6 +1339,6 @@ List *read_toplevels(void) {
         if (is_funcdef())
             list_push(r, read_funcdef());
         else
-            read_toplevel(r);
+            read_decl(r, ast_gvar);
     }
 }
