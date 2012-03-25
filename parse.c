@@ -354,6 +354,7 @@ int eval_intexpr(Ast *ast) {
         error("Integer expression expected, but got %s", a2s(ast));
     case '!': return !eval_intexpr(ast->operand);
     case '~': return ~eval_intexpr(ast->operand);
+    case OP_CAST: return eval_intexpr(ast->operand);
 #define L (eval_intexpr(ast->left))
 #define R (eval_intexpr(ast->right))
     case '+': return L + R;
@@ -626,12 +627,22 @@ static Ast *get_sizeof_size(bool allow_typename) {
     return ast_inttype(ctype_long, expr->ctype->size);
 }
 
+static Ast *read_cast(void) {
+    Ctype *basetype = read_decl_spec(NULL);
+    Ctype *ctype = read_declarator(NULL, basetype, NULL, DECL_CAST);
+    expect(')');
+    Ast *expr = read_expr();
+    return ast_uop(OP_CAST, ctype, expr);
+}
+
 static Ast *read_unary_expr(void) {
     Token *tok = read_token();
     if (!tok) error("premature end of input");
     if (is_ident(tok, "sizeof"))
         return get_sizeof_size(false);
     if (is_punct(tok, '(')) {
+        if (is_type_keyword(peek_token()))
+            return read_cast();
         Ast *r = read_expr();
         expect(')');
         return r;

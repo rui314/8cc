@@ -20,3 +20,19 @@ void expect_string(char *a, char *b) {
         exit(1);
     }
 }
+
+void expectf(float a, float b) {
+    if (!(a == b)) {
+        printf("Failed\n");
+        printf("  %f expected, but got %f\n", a, b);
+        exit(1);
+    }
+}
+
+void expectd(double a, double b) {
+    if (!(a == b)) {
+        printf("Failed\n");
+        printf("  %lf expected, but got %lf\n", a, b);
+        exit(1);
+    }
+}

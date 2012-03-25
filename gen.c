@@ -628,6 +628,11 @@ static void emit_expr(Ast *ast) {
         emit("%s:", end);
         break;
     }
+    case OP_CAST: {
+        emit_expr(ast->operand);
+        emit_load_convert(ast->ctype, ast->operand->ctype);
+        break;
+    }
     default:
         emit_binop(ast);
     }

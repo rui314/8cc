@@ -183,6 +183,13 @@ static void a2s_int(String *buf, Ast *ast) {
     case '!': uop_to_string(buf, "!", ast); break;
     case '&': binop_to_string(buf, "&", ast); break;
     case '|': binop_to_string(buf, "|", ast); break;
+    case OP_CAST: {
+        string_appendf(buf, "((%s) -> (%s) %s)",
+                       c2s(ast->operand->ctype),
+                       c2s(ast->ctype),
+                       a2s(ast->operand));
+        break;
+    }
     default: {
         char *left = a2s(ast->left);
         char *right = a2s(ast->right);

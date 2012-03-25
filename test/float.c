@@ -1,18 +1,5 @@
-int expectf(float a, float b) {
-    if (!(a == b)) {
-        printf("Failed\n");
-        printf("  %f expected, but got %f\n", a, b);
-        exit(1);
-    }
-}
-
-int expectd(double a, double b) {
-    if (!(a == b)) {
-        printf("Failed\n");
-        printf("  %lf expected, but got %lf\n", a, b);
-        exit(1);
-    }
-}
+void expectf(float a, float b);
+void expectd(double a, double b);
 
 float  tf1(float a)  { return a; }
 float  tf2(double a) { return a; }

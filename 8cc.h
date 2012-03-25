@@ -80,6 +80,7 @@ enum {
     OP_LOGOR,
     OP_ARROW,
     OP_SIZEOF,
+    OP_CAST,
 };
 
 enum {
