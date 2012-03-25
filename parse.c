@@ -1250,26 +1250,66 @@ static Ast *read_func_def(Ctype *functype, char *fname, List *params) {
     return r;
 }
 
-static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
+static bool is_funcdef(void) {
+    List *buf = make_list();
+    int nest = 0;
+    bool paren = false;
+    bool r = true;
+    for (;;) {
+        Token *tok = read_token();
+        list_push(buf, tok);
+        if (!tok)
+            error("premature end of input");
+        if (nest == 0 && paren && is_punct(tok, '{'))
+            break;
+        if (nest == 0 && (is_punct(tok, ';') || is_punct(tok, ',') || is_punct(tok, '='))) {
+            r = false;
+            break;
+        }
+        if (is_punct(tok, '(')) {
+            nest++;
+        }
+        if (is_punct(tok, ')')) {
+            if (nest == 0)
+                error("extra close parenthesis");
+            paren = true;
+            nest--;
+        }
+    }
+    while (list_len(buf) > 0)
+        unget_token(list_pop(buf));
+    return r;
+}
+
+static Ast *read_funcdef(void) {
+    Ctype *basetype, *functype;
+    int sclass;
+
+    read_decl_spec(&basetype, &sclass);
+    Ctype *rettype = read_declarator(basetype);
+    Token *name = read_token();
+    if (name->type != TTYPE_IDENT)
+        error("function name expected, but got %s", t2s(name));
+
     localenv = make_dict(globalenv);
-    Ctype *functype;
     List *params = make_list();
+    expect('(');
     read_func_params(&functype, params, rettype);
-    Token *tok = read_token();
-    if (is_punct(tok, '{'))
-        return read_func_def(functype, fname, params);
-    dict_put(globalenv, fname, ast_gvar(functype, fname));
-    return NULL;
+    expect('{');
+    Ast *r = read_func_def(functype, name->sval, params);
+    localenv = NULL;
+    return r;
 }
 
 List *read_toplevels(void) {
     List *r = make_list();
     for (;;) {
-        Token *tok = read_token();
+        Token *tok = peek_token();
         if (!tok) return r;
-        if (is_ident(tok, "static") || is_ident(tok, "const"))
+        if (is_funcdef()) {
+            list_push(r, read_funcdef());
             continue;
-        unget_token(tok);
+        }
         Ctype *basetype;
         int sclass;
         read_decl_spec(&basetype, &sclass);
@@ -1289,19 +1329,12 @@ List *read_toplevels(void) {
             continue;
         }
         if (is_punct(tok, '(')) {
-            if (sclass == S_EXTERN) {
-                read_func_params(&ctype, NULL, ctype);
-                expect(';');
-                ast_gvar(ctype, name->sval);
-            } else if (sclass == S_TYPEDEF) {
-                read_func_params(&ctype, NULL, ctype);
-                expect(';');
+            read_func_params(&ctype, NULL, ctype);
+            expect(';');
+            if (sclass == S_TYPEDEF)
                 dict_put(typedefs, name->sval, ctype);
-            } else {
-                Ast *func = read_func_decl_or_def(ctype, name->sval);
-                if (func)
-                    list_push(r, func);
-            }
+            else
+                ast_gvar(ctype, name->sval);
             continue;
         }
         if (is_punct(tok, ';')) {
