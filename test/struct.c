@@ -118,6 +118,24 @@ int t14() {
     expect(2, v.a[1]);
 }
 
+int unnamed() {
+    struct {
+        union {
+            struct {
+                int x;
+                int y;
+            };
+            struct {
+                char c[8];
+            };
+        };
+    } v;
+    v.x = 1;
+    v.y = 7;
+    expect(1, v.c[0]);
+    expect(7, v.c[4]);
+}
+
 int main() {
     printf("Testing struct ... ");
 
@@ -135,6 +153,7 @@ int main() {
     t12();
     t13();
     t14();
+    unnamed();
 
     printf("OK\n");
     return 0;

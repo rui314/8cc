@@ -830,6 +830,15 @@ static int compute_padding(int offset, int size) {
     return (offset % size == 0) ? 0 : size - offset % size;
 }
 
+static void squash_unnamed_struct(Dict *dict, Ctype *unnamed, int offset) {
+    for (Iter *i = list_iter(dict_keys(unnamed->fields)); !iter_end(i);) {
+        char *name = iter_next(i);
+        Ctype *type = copy_type(dict_get(unnamed->fields, name));
+        type->offset += offset;
+        dict_put(dict, name, type);
+    }
+}
+
 static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
     Token *tok = read_token();
     if (!is_punct(tok, '{')) {
@@ -842,6 +851,15 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
         if (!is_type_keyword(peek_token()))
             break;
         Ctype *basetype = read_decl_spec(NULL);
+        if (basetype->type == CTYPE_STRUCT && is_punct(peek_token(), ';')) {
+            read_token();
+            squash_unnamed_struct(r, basetype, offset);
+            if (is_struct)
+                offset += basetype->size;
+            else
+                maxsize = MAX(maxsize, basetype->size);
+            continue;
+        }
         for (;;) {
             char *name;
             Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
@@ -851,7 +869,7 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
                 fieldtype = make_struct_field_type(fieldtype, offset);
                 offset += fieldtype->size;
             } else {
-                maxsize = MAX(fieldtype->size, maxsize);
+                maxsize = MAX(maxsize, fieldtype->size);
                 fieldtype = make_struct_field_type(fieldtype, 0);
             }
             dict_put(r, name, fieldtype);
