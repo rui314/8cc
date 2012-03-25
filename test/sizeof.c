@@ -17,4 +17,9 @@ int main() {
     expect(4, sizeof 1);
     expect(8, sizeof 1L);
     expect(8, sizeof 1.0);
+
+    expect(1, sizeof(char[1]));
+    expect(7, sizeof(char[7]));
+    expect(30, sizeof(char[3][10]));
+    expect(32, sizeof(int[4][2]));
 }

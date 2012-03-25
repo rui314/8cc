@@ -1064,7 +1064,8 @@ static Ctype *read_cast_type(void) {
     Ctype *basetype;
     int sclass;
     read_decl_spec(&basetype, &sclass);
-    return read_declarator(basetype);
+    basetype = read_declarator(basetype);
+    return read_array_dimensions(basetype);
 }
 
 static void read_decl_type(void *opaque, DefineFn define) {
