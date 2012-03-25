@@ -327,7 +327,7 @@ static Token *read_token_int(void) {
         return make_punct('.');
     }
     case '*': case '(': case ')': case ',': case ';': case '[': case ']':
-    case '{': case '}': case '?': case ':': case '~': case '^':
+    case '{': case '}': case '?': case ':': case '~': case '^': case '%':
         return make_punct(c);
     case '#': {
         c = get();
