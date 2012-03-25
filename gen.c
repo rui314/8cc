@@ -553,8 +553,10 @@ static void emit_expr(Ast *ast) {
         break;
     }
     case AST_RETURN:
-        emit_expr(ast->retval);
-        emit_save_convert(ast->ctype, ast->retval->ctype);
+        if (ast->retval) {
+            emit_expr(ast->retval);
+            emit_save_convert(ast->ctype, ast->retval->ctype);
+        }
         emit("leave");
         emit("ret");
         break;
