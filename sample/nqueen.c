@@ -1,6 +1,8 @@
+#include <stdio.h>
+
 #define N 8
 
-int print_board(int board[][N]) {
+void print_board(int board[][N]) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++)
             printf(board[i][j] ? "Q " : ". ");
@@ -22,10 +24,10 @@ int conflict(int board[][N], int row, int col) {
     return 0;
 }
 
-int solve(int board[][N], int row) {
+void solve(int board[][N], int row) {
     if (row == N) {
         print_board(board);
-        return 0;
+        return;
     }
     for (int i = 0; i < N; i++) {
         if (!conflict(board, row, i)) {
@@ -38,8 +40,7 @@ int solve(int board[][N], int row) {
 
 int main(int argc, char **argv) {
     int board[N * N];
-    int i;
-    for (i = 0; i < N * N; i++)
+    for (int i = 0; i < N * N; i++)
         board[i] = 0;
     solve(board, 0);
     return 0;
