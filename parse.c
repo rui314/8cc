@@ -371,6 +371,8 @@ int eval_intexpr(Ast *ast) {
     case OP_GE: return L >= R;
     case OP_LE: return L <= R;
     case OP_NE: return L != R;
+    case OP_LSH: return L << R;
+    case OP_RSH: return L >> R;
     case OP_LOGAND: return L && R;
     case OP_LOGOR:  return L || R;
 #undef L
@@ -390,6 +392,8 @@ static int priority(Token *tok) {
         return 3;
     case '+': case '-':
         return 4;
+    case OP_LSH: case OP_RSH:
+        return 5;
     case '<': case '>': case OP_LE: case OP_GE: case OP_NE:
         return 6;
     case OP_EQ:     return 7;
@@ -741,7 +745,8 @@ static Ast *read_expr_int(int prec) {
         Ast *rest = read_expr_int(prec2 + (is_right_assoc(tok) ? 1 : 0));
         if (!rest)
             error("second operand missing");
-        if (is_punct(tok, '^') || is_punct(tok, '%')) {
+        if (is_punct(tok, '^') || is_punct(tok, '%') ||
+            is_punct(tok, OP_LSH) || is_punct(tok, OP_RSH)) {
             ensure_inttype(ast);
             ensure_inttype(rest);
         }

@@ -273,6 +273,8 @@ static void emit_binop_int_arith(Ast *ast) {
     case '-': op = "sub"; break;
     case '*': op = "imul"; break;
     case '^': op = "xor"; break;
+    case OP_LSH: op = "sal"; break;
+    case OP_RSH: op = "sar"; break;
     case '/': case '%': break;
     default: error("invalid operator '%d'", ast->type);
     }
@@ -288,6 +290,8 @@ static void emit_binop_int_arith(Ast *ast) {
         emit("idiv %%rcx");
         if (ast->type == '%')
             emit("mov %%edx, %%eax");
+    } else if (ast->type == OP_LSH || ast->type == OP_RSH) {
+        emit("%s %%cl, %%rax", op);
     } else {
         emit("%s %%rcx, %%rax", op);
     }

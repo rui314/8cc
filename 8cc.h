@@ -81,6 +81,8 @@ enum {
     OP_ARROW,
     OP_SIZEOF,
     OP_CAST,
+    OP_LSH,
+    OP_RSH,
 };
 
 enum {

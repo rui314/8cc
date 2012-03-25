@@ -276,12 +276,22 @@ static void skip_block_comment(void) {
     }
 }
 
-static Token *read_rep(char expect, int t1, int t2) {
+static Token *read_rep(char expect, int t1, int els) {
     int c = get();
     if (c == expect)
         return make_punct(t1);
     unget(c);
-    return make_punct(t2);
+    return make_punct(els);
+}
+
+static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
+    int c = get();
+    if (c == expect1)
+        return make_punct(t1);
+    if (c == expect2)
+        return make_punct(t2);
+    unget(c);
+    return make_punct(els);
 }
 
 static Token *read_token_int(void) {
@@ -334,8 +344,8 @@ static Token *read_token_int(void) {
         if (c == '>') return make_punct(OP_ARROW);
         unget(c);
         return make_punct('-');
-    case '<': return read_rep('=', OP_LE, '<');
-    case '>': return read_rep('=', OP_GE, '>');
+    case '<': return read_rep2('=', OP_LE, '<', OP_LSH, '<');
+    case '>': return read_rep2('=', OP_GE, '>', OP_RSH, '>');
     case '=': return read_rep('=', OP_EQ, '=');
     case '!': return read_rep('=', OP_NE, '!');
     case '+': return read_rep('+', OP_INC, '+');
