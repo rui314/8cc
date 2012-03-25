@@ -9,6 +9,9 @@
 #define MAX_OP_PRIO 16
 #define MAX_ALIGN 16
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 List *strings = &EMPTY_LIST;
 List *flonums = &EMPTY_LIST;
 static Dict *globalenv = &EMPTY_DICT;
@@ -822,12 +825,18 @@ static char *read_struct_union_tag(void) {
     return NULL;
 }
 
-static Dict *read_struct_union_fields(void) {
+static int compute_padding(int offset, int size) {
+    size = MIN(size, MAX_ALIGN);
+    return (offset % size == 0) ? 0 : size - offset % size;
+}
+
+static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
     Token *tok = read_token();
     if (!is_punct(tok, '{')) {
         unget_token(tok);
         return NULL;
     }
+    int offset = 0, maxsize = 0;
     Dict *r = make_dict(NULL);
     for (;;) {
         if (!is_type_keyword(peek_token()))
@@ -837,7 +846,15 @@ static Dict *read_struct_union_fields(void) {
             char *name;
             Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
             ensure_not_void(fieldtype);
-            dict_put(r, name, make_struct_field_type(fieldtype, 0));
+            if (is_struct) {
+                offset += compute_padding(offset, fieldtype->size);
+                fieldtype = make_struct_field_type(fieldtype, offset);
+                offset += fieldtype->size;
+            } else {
+                maxsize = MAX(fieldtype->size, maxsize);
+                fieldtype = make_struct_field_type(fieldtype, 0);
+            }
+            dict_put(r, name, fieldtype);
             tok = read_token();
             if (is_punct(tok, ','))
                 continue;
@@ -847,44 +864,24 @@ static Dict *read_struct_union_fields(void) {
         }
     }
     expect('}');
+    *rsize = is_struct ? offset : maxsize;
     return r;
 }
 
-static int compute_union_size(Dict *fields) {
-    int maxsize = 0;
-    for (Iter *i = list_iter(dict_values(fields)); !iter_end(i);) {
-        Ctype *fieldtype = iter_next(i);
-        maxsize = (maxsize < fieldtype->size) ? fieldtype->size : maxsize;
-    }
-    return maxsize;
-}
-
-static int compute_struct_size(Dict *fields) {
-    int offset = 0;
-    for (Iter *i = list_iter(dict_values(fields)); !iter_end(i);) {
-        Ctype *fieldtype = iter_next(i);
-        int size = (fieldtype->size < MAX_ALIGN) ? fieldtype->size : MAX_ALIGN;
-        if (offset % size != 0)
-            offset += size - offset % size;
-        fieldtype->offset = offset;
-        offset += fieldtype->size;
-    }
-    return offset;
-}
-
-static Ctype *read_struct_union_def(Dict *env, int (*compute_size)(Dict *)) {
+static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
     char *tag = read_struct_union_tag();
     Ctype *prev = tag ? dict_get(env, tag) : NULL;
-    Dict *fields = read_struct_union_fields();
+    int size;
+    Dict *fields = read_struct_union_fields(&size, is_struct);
     if (prev && !fields)
         return prev;
     if (prev && fields) {
         prev->fields = fields;
-        prev->size = compute_size(fields);
+        prev->size = size;
         return prev;
     }
     Ctype *r = fields
-        ? make_struct_type(fields, compute_size(fields))
+        ? make_struct_type(fields, size)
         : make_struct_type(NULL, 0);
     if (tag)
         dict_put(env, tag, r);
@@ -892,11 +889,11 @@ static Ctype *read_struct_union_def(Dict *env, int (*compute_size)(Dict *)) {
 }
 
 static Ctype *read_struct_def(void) {
-    return read_struct_union_def(struct_defs, compute_struct_size);
+    return read_struct_union_def(struct_defs, true);
 }
 
 static Ctype *read_union_def(void) {
-    return read_struct_union_def(union_defs, compute_union_size);
+    return read_struct_union_def(union_defs, false);
 }
 
 static Ctype *read_enum_def(void) {
