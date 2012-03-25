@@ -88,8 +88,10 @@ enum {
     CTYPE_SHORT,
     CTYPE_INT,
     CTYPE_LONG,
+    CTYPE_LLONG,
     CTYPE_FLOAT,
     CTYPE_DOUBLE,
+    CTYPE_LDOUBLE,
     CTYPE_ARRAY,
     CTYPE_PTR,
     CTYPE_STRUCT,
@@ -99,8 +101,8 @@ enum {
 typedef struct Ctype {
     int type;
     int size;
-    // signed or unsigned
-    bool sign;
+    // true if signed
+    bool sig;
     // pointer or array
     struct Ctype *ptr;
     // array length

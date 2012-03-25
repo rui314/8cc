@@ -26,10 +26,6 @@ Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
 Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, true };
 Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, true };
 Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, true };
-
-static Ctype *ctype_uchar = &(Ctype){ CTYPE_CHAR, 1, false };
-static Ctype *ctype_ushort = &(Ctype){ CTYPE_SHORT, 2, false };
-static Ctype *ctype_uint = &(Ctype){ CTYPE_INT, 4, false };
 static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
 
 static int labelseq = 0;
@@ -40,11 +36,19 @@ static Ast *read_compound_stmt(void);
 static Ast *read_decl_or_stmt(void);
 static Ctype *convert_array(Ctype *ctype);
 static Ast *read_stmt(void);
-static void read_decl_int(Token **name, Ctype **ctype);
+static void read_decl_int(char **name, Ctype **ctype, int *sclass);
 static bool is_type_keyword(Token *tok);
 static Ast *read_unary_expr(void);
 static void read_func_params(Ctype **rtype, List *rparams, Ctype *rettype);
 static Ast *read_decl_init_val(Ctype *ctype);
+
+enum {
+    S_TYPEDEF = 1,
+    S_EXTERN,
+    S_STATIC,
+    S_AUTO,
+    S_REGISTER,
+};
 
 static Ast *ast_uop(int type, Ctype *ctype, Ast *operand) {
     Ast *r = malloc(sizeof(Ast));
@@ -217,6 +221,29 @@ static Ast *ast_struct_ref(Ctype *ctype, Ast *struc, char *name) {
     return r;
 }
 
+static Ctype *copy_type(Ctype *ctype) {
+    Ctype *r = malloc(sizeof(Ctype));
+    memcpy(r, ctype, sizeof(Ctype));
+    return r;
+}
+
+static Ctype *make_type(int type, bool sig) {
+    Ctype *r = malloc(sizeof(Ctype));
+    r->type = type;
+    r->sig = sig;
+    if (type == CTYPE_VOID)         r->size = 0;
+    else if (type == CTYPE_CHAR)    r->size = 1;
+    else if (type == CTYPE_SHORT)   r->size = 2;
+    else if (type == CTYPE_INT)     r->size = 4;
+    else if (type == CTYPE_LONG)    r->size = 8;
+    else if (type == CTYPE_LLONG)   r->size = 8;
+    else if (type == CTYPE_FLOAT)   r->size = 8;
+    else if (type == CTYPE_DOUBLE)  r->size = 8;
+    else if (type == CTYPE_LDOUBLE) r->size = 8;
+    else error("internal error");
+    return r;
+}
+
 static Ctype* make_ptr_type(Ctype *ctype) {
     Ctype *r = malloc(sizeof(Ctype));
     r->type = CTYPE_PTR;
@@ -235,8 +262,7 @@ static Ctype* make_array_type(Ctype *ctype, int len) {
 }
 
 static Ctype* make_struct_field_type(Ctype *ctype, int offset) {
-    Ctype *r = malloc(sizeof(Ctype));
-    memcpy(r, ctype, sizeof(Ctype));
+    Ctype *r = copy_type(ctype);
     r->offset = offset;
     return r;
 }
@@ -260,11 +286,12 @@ static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs)
 
 bool is_inttype(Ctype *ctype) {
     return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_SHORT ||
-        ctype->type == CTYPE_INT || ctype->type == CTYPE_LONG;
+        ctype->type == CTYPE_INT || ctype->type == CTYPE_LONG || ctype->type == CTYPE_LLONG;
 }
 
 bool is_flotype(Ctype *ctype) {
-    return ctype->type == CTYPE_FLOAT || ctype->type == CTYPE_DOUBLE;
+    return ctype->type == CTYPE_FLOAT || ctype->type == CTYPE_DOUBLE ||
+        ctype->type == CTYPE_LDOUBLE;
 }
 
 static void ensure_lvalue(Ast *ast) {
@@ -495,30 +522,30 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
         switch (b->type) {
         case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
             return ctype_int;
-        case CTYPE_LONG:
+        case CTYPE_LONG: case CTYPE_LLONG:
             return ctype_long;
-        case CTYPE_FLOAT: case CTYPE_DOUBLE:
+        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
             return ctype_double;
         case CTYPE_ARRAY: case CTYPE_PTR:
             return b;
         }
         error("internal error");
-    case CTYPE_LONG:
+    case CTYPE_LONG: case CTYPE_LLONG:
         switch (b->type) {
-        case CTYPE_LONG:
+        case CTYPE_LONG: case CTYPE_LLONG:
             return ctype_long;
-        case CTYPE_FLOAT: case CTYPE_DOUBLE:
+        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
             return ctype_double;
         case CTYPE_ARRAY: case CTYPE_PTR:
             return b;
         }
         error("internal error");
     case CTYPE_FLOAT:
-        if (b->type == CTYPE_FLOAT || b->type == CTYPE_DOUBLE)
+        if (b->type == CTYPE_FLOAT || b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
             return ctype_double;
         goto err;
-    case CTYPE_DOUBLE:
-        if (b->type == CTYPE_DOUBLE)
+    case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
+        if (b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
             return ctype_double;
         goto err;
     case CTYPE_ARRAY:
@@ -557,9 +584,10 @@ static Ast *get_sizeof_size(bool allow_typename) {
     Token *tok = read_token();
     if (allow_typename && is_type_keyword(tok)) {
         unget_token(tok);
-        Token *dummy;
+        char *dummy;
         Ctype *ctype = NULL;
-        read_decl_int(&dummy, &ctype);
+        int sclass;
+        read_decl_int(&dummy, &ctype, &sclass);
         assert(ctype);
         return ast_inttype(ctype_long, ctype->size);
     }
@@ -680,88 +708,12 @@ Ast *read_expr(void) {
     return read_expr_int(MAX_OP_PRIO);
 }
 
-static Ctype *read_ctype(Token *tok) {
-    Ctype *r = dict_get(typedefs, tok->sval);
-    if (r) return r;
-
-    int unspec = 0;
-    enum { ssign = 1, sunsign } si = unspec;
-    enum { tchar = 1, tshort, tint, tlong, tllong,
-           tfloat, tdouble, tvoid } ti = unspec;
-    for (;;) {
-        char *s = tok->sval;
-        if (!strcmp(s, "const")) {
-            // ignore
-        } else if (!strcmp(s, "signed")) {
-            if (si != unspec) goto dupspec;
-            si = ssign;
-        } else if (!strcmp(s, "unsigned")) {
-            if (si != unspec) goto dupspec;
-            si = sunsign;
-        } else if (!strcmp(tok->sval, "char")) {
-            if (ti != unspec) goto duptype;
-            ti = tchar;
-        } else if (!strcmp(tok->sval, "short")) {
-            if (ti != unspec) goto duptype;
-            ti = tshort;
-        } else if (!strcmp(tok->sval, "int")) {
-            if (ti == unspec) ti = tint;
-            else if (ti == tchar) goto duptype;
-        } else if (!strcmp(tok->sval, "long")) {
-            if (ti == unspec)  ti = tlong;
-            else if (ti == tlong)   ti = tllong;
-            else if (ti == tdouble) ti = tdouble;
-            else goto duptype;
-        } else if (!strcmp(tok->sval, "float")) {
-            if (si != unspec) goto invspec;
-            if (ti != unspec) goto duptype;
-            else ti = tfloat;
-        } else if (!strcmp(tok->sval, "double")) {
-            if (si != unspec) goto invspec;
-            if (ti != unspec && ti != tlong) goto duptype;
-            else ti = tfloat;
-        } else if (!strcmp(tok->sval, "void")) {
-            if (si != unspec) goto invspec;
-            if (ti != unspec) goto duptype;
-            else ti = tvoid;
-        } else {
-            unget_token(tok);
-            break;
-        }
-        tok = read_token();
-        if (tok->type != TTYPE_IDENT) {
-            unget_token(tok);
-            break;
-        }
-    }
-    if (ti == unspec && si == unspec)
-        error("Type expected, but got '%s'", t2s(tok));
-    if (ti == unspec) ti = tint;
-    switch (ti) {
-    case tchar:   return si == sunsign ? ctype_uchar : ctype_char;
-    case tshort:  return si == sunsign ? ctype_ushort : ctype_short;
-    case tint:    return si == sunsign ? ctype_uint : ctype_int;
-    case tlong:
-    case tllong:  return si == sunsign ? ctype_ulong : ctype_long;
-    case tfloat:  return ctype_float;
-    case tdouble: return ctype_double;
-    case tvoid:   return ctype_void;
-    }
-    error("internal error");
- dupspec:
-    error("duplicate specifier: %s", t2s(tok));
- duptype:
-    error("duplicate type specifier: %s", t2s(tok));
- invspec:
-    error("cannot combine signed/unsigned with %s", t2s(tok));
-}
-
 static bool is_type_keyword(Token *tok) {
     if (tok->type != TTYPE_IDENT)
         return false;
     char *keyword[] = {
         "char", "short", "int", "long", "float", "double", "struct",
-        "union", "signed", "unsigned", "enum", "void", "extern",
+        "union", "signed", "unsigned", "enum", "void", "extern", "typedef",
     };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
@@ -826,10 +778,11 @@ static Dict *read_struct_union_fields(void) {
     for (;;) {
         if (!is_type_keyword(peek_token()))
             break;
-        Token *name;
+        char *name;
         Ctype *fieldtype;
-        read_decl_int(&name, &fieldtype);
-        dict_put(r, name->sval, make_struct_field_type(fieldtype, 0));
+        int sclass;
+        read_decl_int(&name, &fieldtype, &sclass);
+        dict_put(r, name, make_struct_field_type(fieldtype, 0));
         expect(';');
     }
     expect('}');
@@ -934,23 +887,97 @@ static Ctype *read_declarator(Ctype *basetype) {
     }
 }
 
-static Ctype *read_decl_spec(void) {
-    Token *tok = read_token();
+static void read_decl_spec(Ctype **rtype, int *sclass) {
+    *rtype = NULL;
+    *sclass = 0;
+    Token *tok = peek_token();
+    if (!tok || tok->type != TTYPE_IDENT)
+        return;
+
+#define unused __attribute__((unused))
+    bool kconst unused = false, kvolatile unused = false, kinline unused = false;
+#undef unused
+    Ctype *usertype = NULL, *tmp = NULL;
+    enum { kvoid = 1, kchar, kint, kfloat, kdouble } type = 0;
+    enum { kshort = 1, klong, kllong } size = 0;
+    enum { ksigned = 1, kunsigned } sig = 0;
+
     for (;;) {
-        if (!tok) return NULL;
-        if (tok->type != TTYPE_IDENT)
-            error("Identifier expected, but got %s", t2s(tok));
-        if (is_ident(tok, "static") || is_ident(tok, "const"))
-            tok = read_token();
-        else
+#define setsclass(val)                          \
+        if (*sclass != 0) goto err;             \
+        *sclass = val
+#define set(var, val)                                                   \
+        if (var != 0) goto err;                                         \
+        var = val;                                                      \
+        if (size == kshort && (type != 0 && type != kint))              \
+            goto err;                                                   \
+        if (size == klong && (type != 0 && type != kint && type != kdouble)) \
+            goto err;                                                   \
+        if (sig != 0 && (type == kvoid || type == kfloat || type == kdouble)) \
+            goto err;                                                   \
+        if (usertype && (type != 0 || size != 0 || sig != 0))           \
+            goto err
+#define _(s) (!strcmp(tok->sval, s))
+
+        tok = read_token();
+        if (!tok)
+            error("premature end of input");
+        if (tok->type != TTYPE_IDENT) {
+            unget_token(tok);
             break;
+        }
+        if (_("typedef"))       { setsclass(S_TYPEDEF); }
+        else if (_("extern"))   { setsclass(S_EXTERN); }
+        else if (_("static"))   { setsclass(S_STATIC); }
+        else if (_("auto"))     { setsclass(S_AUTO); }
+        else if (_("register")) { setsclass(S_REGISTER); }
+        else if (_("const"))    { kconst = 1; }
+        else if (_("volatile")) { kvolatile = 1; }
+        else if (_("inline"))   { kinline = 1; }
+        else if (_("void"))     { set(type, kvoid); }
+        else if (_("char"))     { set(type, kchar); }
+        else if (_("int"))      { set(type, kint); }
+        else if (_("float"))    { set(type, kfloat); }
+        else if (_("double"))   { set(type, kdouble); }
+        else if (_("signed"))   { set(sig, ksigned); }
+        else if (_("unsigned")) { set(sig, kunsigned); }
+        else if (_("short"))    { set(size, kshort); }
+        else if (_("struct"))   { set(usertype, read_struct_def()); }
+        else if (_("union"))    { set(usertype, read_union_def()); }
+        else if (_("enum"))     { set(usertype, read_enum_def());
+        } else if ((tmp = dict_get(typedefs, tok->sval)) != NULL) {
+            set(usertype, tmp);
+        } else if (_("long")) {
+            if (size == 0) set(size, klong);
+            else if (size == klong) size = kllong;
+            else goto err;
+        } else {
+            unget_token(tok);
+            break;
+        }
+#undef _
+#undef set
+#undef setsclass
     }
-    Ctype *ctype = is_ident(tok, "struct") ? read_struct_def()
-        : is_ident(tok, "union") ? read_union_def()
-        : is_ident(tok, "enum") ? read_enum_def()
-        : read_ctype(tok);
-    assert(ctype);
-    return ctype;
+    if (usertype) {
+        *rtype = usertype;
+        return;
+    }
+    switch (type) {
+    case kchar:   *rtype = make_type(CTYPE_CHAR, sig != kunsigned); return;
+    case kfloat:  *rtype = make_type(CTYPE_FLOAT, false); return;
+    case kdouble: *rtype = make_type(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false); return;
+    default: break;
+    }
+    switch (size) {
+    case kshort: *rtype = make_type(CTYPE_SHORT, sig != kunsigned); return;
+    case klong:  *rtype = make_type(CTYPE_LONG, sig != kunsigned); return;
+    case kllong: *rtype = make_type(CTYPE_LLONG, sig != kunsigned); return;
+    default:     *rtype = make_type(CTYPE_INT, sig != kunsigned); return;
+    }
+    error("internal error: type: %d, size: %d", type, size);
+ err:
+    error("type mismatch: %s", t2s(tok));
 }
 
 static Ast *read_decl_array_init_val(Ctype *ctype) {
@@ -1028,22 +1055,15 @@ static Ctype *read_array_dimensions(Ctype *basetype) {
 }
 
 static Ast *read_decl_init(Ast *var) {
-    Token *tok = read_token();
-    if (is_punct(tok, '=')) {
-        Ast *init = read_decl_init_val(var->ctype);
-        if (var->type == AST_GVAR && is_inttype(var->ctype))
-            init = ast_inttype(ctype_int, eval_intexpr(init));
-        return ast_decl(var, init);
-    }
-    if (var->ctype->len == -1)
-        error("Missing array initializer");
-    unget_token(tok);
-    expect(';');
-    return ast_decl(var, NULL);
+    Ast *init = read_decl_init_val(var->ctype);
+    if (var->type == AST_GVAR && is_inttype(var->ctype))
+        init = ast_inttype(ctype_int, eval_intexpr(init));
+    return ast_decl(var, init);
 }
 
-static void read_decl_int(Token **name, Ctype **ctype) {
-    Ctype *basetype = read_decl_spec();
+static void read_decl_int(char **name, Ctype **ctype, int *sclass) {
+    Ctype *basetype;
+    read_decl_spec(&basetype, sclass);
     Ctype *t = read_declarator(basetype);
     Token *tok = read_token();
     if (is_punct(tok, ';')) {
@@ -1055,52 +1075,32 @@ static void read_decl_int(Token **name, Ctype **ctype) {
         unget_token(tok);
         *name = NULL;
     } else {
-        *name = tok;
+        *name = tok->sval;
     }
     *ctype = read_array_dimensions(t);
 }
 
 static Ast *read_decl(void) {
-    Token *varname;
+    char *name;
     Ctype *ctype;
-    read_decl_int(&varname, &ctype);
-    if (!varname) {
+    int sclass;
+    read_decl_int(&name, &ctype, &sclass);
+    if (!name) {
         expect(';');
         return NULL;
     }
-    Ast *var = ast_lvar(ctype, varname->sval);
-    return read_decl_init(var);
-}
-
-static void read_extern_typedef(char **rname, Ctype **rctype) {
-    Token *name;
-    Ctype *ctype;
-    read_decl_int(&name, &ctype);
-    if (!name)
-        error("name missing");
+    if (sclass == S_TYPEDEF) {
+        dict_put(typedefs, name, ctype);
+        expect(';');
+        return NULL;
+    }
+    Ast *var = ast_lvar(ctype, name);
     Token *tok = read_token();
-
-    if (is_punct(tok, '('))
-        read_func_params(&ctype, NULL, ctype);
-    else
-        unget_token(tok);
+    if (is_punct(tok, '='))
+        return read_decl_init(var);
+    unget_token(tok);
     expect(';');
-    *rname = name->sval;
-    *rctype = ctype;
-}
-
-static void read_typedef(void) {
-    char *name;
-    Ctype *ctype;
-    read_extern_typedef(&name, &ctype);
-    dict_put(typedefs, name, ctype);
-}
-
-static void read_extern(void) {
-    char *name;
-    Ctype *ctype;
-    read_extern_typedef(&name, &ctype);
-    ast_gvar(ctype, name);
+    return ast_decl(var, NULL);
 }
 
 static Ast *read_if_stmt(void) {
@@ -1168,13 +1168,9 @@ static Ast *read_stmt(void) {
 
 static Ast *read_decl_or_stmt(void) {
     for (;;) {
-        Token *tok = read_token();
-        if (!tok) return NULL;
-        if (is_ident(tok, "typedef")) {
-            read_typedef();
-            continue;
-        }
-        unget_token(tok);
+        Token *tok = peek_token();
+        if (tok == NULL)
+            error("premature end of input");
         return is_type_keyword(tok) ? read_decl() : read_stmt();
     }
 }
@@ -1214,7 +1210,9 @@ static void read_func_params(Ctype **rtype, List *paramvars, Ctype *rettype) {
             return;
         } else
             unget_token(tok);
-        Ctype *basetype = read_decl_spec();
+        Ctype *basetype;
+        int sclass;
+        read_decl_spec(&basetype, &sclass);
         Ctype *ctype = read_declarator(basetype);
         Token *pname = read_token();
         if (pname->type != TTYPE_IDENT) {
@@ -1253,9 +1251,7 @@ static Ast *read_func_def(Ctype *functype, char *fname, List *params) {
 }
 
 static Ast *read_func_decl_or_def(Ctype *rettype, char *fname) {
-    expect('(');
     localenv = make_dict(globalenv);
-
     Ctype *functype;
     List *params = make_list();
     read_func_params(&functype, params, rettype);
@@ -1273,16 +1269,10 @@ List *read_toplevels(void) {
         if (!tok) return r;
         if (is_ident(tok, "static") || is_ident(tok, "const"))
             continue;
-        if (is_ident(tok, "typedef")) {
-            read_typedef();
-            continue;
-        }
-        if (is_ident(tok, "extern")) {
-            read_extern();
-            continue;
-        }
         unget_token(tok);
-        Ctype *basetype = read_decl_spec();
+        Ctype *basetype;
+        int sclass;
+        read_decl_spec(&basetype, &sclass);
         Ctype *ctype = read_declarator(basetype);
         Token *name = read_token();
         if (is_punct(name, ';'))
@@ -1290,22 +1280,38 @@ List *read_toplevels(void) {
         if (name->type != TTYPE_IDENT)
             error("Identifier expected, but got %s", t2s(name));
         ctype = read_array_dimensions(ctype);
-        tok = peek_token();
-        if (is_punct(tok, '=') || ctype->type == CTYPE_ARRAY) {
+        tok = read_token();
+        if (is_punct(tok, '=')) {
+            if (sclass == S_TYPEDEF)
+                error("= after typedef");
             Ast *var = ast_gvar(ctype, name->sval);
             list_push(r, read_decl_init(var));
             continue;
         }
         if (is_punct(tok, '(')) {
-            Ast *func = read_func_decl_or_def(ctype, name->sval);
-            if (func)
-                list_push(r, func);
+            if (sclass == S_EXTERN) {
+                read_func_params(&ctype, NULL, ctype);
+                expect(';');
+                ast_gvar(ctype, name->sval);
+            } else if (sclass == S_TYPEDEF) {
+                read_func_params(&ctype, NULL, ctype);
+                expect(';');
+                dict_put(typedefs, name->sval, ctype);
+            } else {
+                Ast *func = read_func_decl_or_def(ctype, name->sval);
+                if (func)
+                    list_push(r, func);
+            }
             continue;
         }
         if (is_punct(tok, ';')) {
-            read_token();
-            Ast *var = ast_gvar(ctype, name->sval);
-            list_push(r, ast_decl(var, NULL));
+            if (sclass == S_TYPEDEF) {
+                dict_put(typedefs, name->sval, ctype);
+            } else {
+                Ast *var = ast_gvar(ctype, name->sval);
+                if (sclass != S_EXTERN)
+                    list_push(r, ast_decl(var, NULL));
+            }
             continue;
         }
         error("Don't know how to handle %s", t2s(tok));

@@ -9,8 +9,10 @@ static char *ctype_to_string_int(Dict *dict, Ctype *ctype) {
     case CTYPE_SHORT: return "short";
     case CTYPE_INT:  return "int";
     case CTYPE_LONG: return "long";
+    case CTYPE_LLONG: return "long long";
     case CTYPE_FLOAT: return "float";
     case CTYPE_DOUBLE: return "double";
+    case CTYPE_LDOUBLE: return "long double";
     case CTYPE_PTR:
         return format("*%s", ctype_to_string_int(dict, ctype->ptr));
     case CTYPE_ARRAY:

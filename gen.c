@@ -122,7 +122,7 @@ static void emit_lload(Ctype *ctype, int off) {
         emit("lea %d(%%rbp), %%rax", off);
     } else if (ctype->type == CTYPE_FLOAT) {
         emit("cvtps2pd %d(%%rbp), %%xmm0", off);
-    } else if (ctype->type == CTYPE_DOUBLE) {
+    } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
         emit("movsd %d(%%rbp), %%xmm0", off);
     } else {
         char *reg = get_int_reg(ctype, 'a');
@@ -149,7 +149,7 @@ static void emit_lsave(Ctype *ctype, int off) {
         emit("cvtpd2ps %%xmm0, %%xmm0");
         emit("movss %%xmm0, %d(%%rbp)", off);
         pop_xmm(0);
-    } else if (ctype->type == CTYPE_DOUBLE) {
+    } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
         emit("movsd %%xmm0, %d(%%rbp)", off);
     } else {
         char *reg = get_int_reg(ctype, 'a');
@@ -324,7 +324,9 @@ static void emit_save_convert(Ctype *to, Ctype *from) {
         emit("cvtsi2ss %%eax, %%xmm0");
     else if (is_flotype(from) && to->type == CTYPE_FLOAT)
         emit("cvtpd2ps %%xmm0, %%xmm0");
-    else
+    else if (is_inttype(from) && (to->type == CTYPE_DOUBLE || to->type == CTYPE_LDOUBLE))
+        emit("cvtsi2sd %%eax, %%xmm0");
+    else if (!(is_flotype(from) && (to->type == CTYPE_DOUBLE || to->type == CTYPE_LDOUBLE)))
         emit_load_convert(to, from);
 }
 
@@ -407,6 +409,7 @@ static void emit_expr(Ast *ast) {
             break;
         case CTYPE_FLOAT:
         case CTYPE_DOUBLE:
+        case CTYPE_LDOUBLE:
             emit("movsd %s(%%rip), %%xmm0", ast->flabel);
             break;
         default:
@@ -696,7 +699,7 @@ static void emit_func_prologue(Ast *func) {
         Ast *v = iter_next(i);
         if (v->ctype->type == CTYPE_FLOAT) {
             push_xmm(xreg++);
-        } else if (v->ctype->type == CTYPE_DOUBLE) {
+        } else if (v->ctype->type == CTYPE_DOUBLE || v->ctype->type == CTYPE_LDOUBLE) {
             push_xmm(xreg++);
         } else {
             push(REGS[ireg++]);

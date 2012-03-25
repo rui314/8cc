@@ -38,16 +38,16 @@ int main() {
 
     expectf(10.5, tf1(10.5));
     expectf(10.0, tf1(10));
-    expectf(10.5, tf2(10.5));
+    expectf(10.6, tf2(10.6));
     expectf(10.0, tf2(10));
-    expectf(10.0, tf3(10.5));
+    expectf(10.0, tf3(10.7));
     expectf(10.0, tf3(10));
 
-    expectd(10.5, tf1(10.5));
+    expectd(1.0, tf1(1.0));
     expectd(10.0, tf1(10));
-    expectd(10.5, tf2(10.5));
+    expectd(2.0, tf2(2.0));
     expectd(10.0, tf2(10));
-    expectd(10.0, tf3(10.5));
+    expectd(11.0, tf3(11.5));
     expectd(10.0, tf3(10));
 
     printf("OK\n");
