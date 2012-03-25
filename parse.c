@@ -327,6 +327,11 @@ static void ensure_inttype(Ast *ast) {
         error("integer type expected, but got %s", a2s(ast));
 }
 
+static void ensure_not_void(Ctype *ctype) {
+    if (ctype->type == CTYPE_VOID)
+        error("void is not allowed");
+}
+
 static void expect(char punct) {
     Token *tok = read_token();
     if (!is_punct(tok, punct))
@@ -812,6 +817,7 @@ static Dict *read_struct_union_fields(void) {
         for (;;) {
             char *name;
             Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
+            ensure_not_void(fieldtype);
             dict_put(r, name, make_struct_field_type(fieldtype, 0));
             tok = read_token();
             if (is_punct(tok, ','))
@@ -1071,6 +1077,7 @@ static void read_decl_spec(Ctype **rtype, int *sclass) {
         return;
     }
     switch (type) {
+    case kvoid:   *rtype = ctype_void; return;
     case kchar:   *rtype = make_type(CTYPE_CHAR, sig != kunsigned); return;
     case kfloat:  *rtype = make_type(CTYPE_FLOAT, false); return;
     case kdouble: *rtype = make_type(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false); return;
@@ -1267,8 +1274,12 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
     bool typeonly = !paramvars;
     List *paramtypes = make_list();
     Token *tok = read_token();
-    if (is_punct(tok, ')'))
+    Token *tok2 = read_token();
+    if (is_ident(tok, "void") && is_punct(tok2, ')'))
         return make_func_type(rettype, paramtypes, false);
+    unget_token(tok2);
+    if (is_punct(tok, ')'))
+        return make_func_type(rettype, paramtypes, true);
     unget_token(tok);
     for (;;) {
         tok = read_token();
@@ -1282,6 +1293,7 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
         Ctype *ptype;
         char *name;
         read_func_param(&ptype, &name, typeonly);
+        ensure_not_void(ptype);
         if (ptype->type == CTYPE_ARRAY)
             ptype = make_ptr_type(ptype->ptr);
         list_push(paramtypes, ptype);
@@ -1368,6 +1380,7 @@ static void read_decl(List *block, MakeVarFn make_var) {
         if (is_punct(tok, '=')) {
             if (sclass == S_TYPEDEF)
                 error("= after typedef");
+            ensure_not_void(ctype);
             Ast *var = make_var(ctype, name);
             list_push(block, read_decl_init(var));
             tok = read_token();
