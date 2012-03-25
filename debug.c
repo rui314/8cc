@@ -148,11 +148,21 @@ static void a2s_int(String *buf, Node *node) {
                        a2s(node->els));
         break;
     case AST_FOR:
-        string_appendf(buf, "(for %s %s %s ",
+        string_appendf(buf, "(for %s %s %s %s)",
                        a2s(node->forinit),
                        a2s(node->forcond),
-                       a2s(node->forstep));
-        string_appendf(buf, "%s)", a2s(node->forbody));
+                       a2s(node->forstep),
+                       a2s(node->forbody));
+        break;
+    case AST_WHILE:
+        string_appendf(buf, "(while %s %s)",
+                       a2s(node->forcond),
+                       a2s(node->forbody));
+        break;
+    case AST_DO:
+        string_appendf(buf, "(do %s %s)",
+                       a2s(node->forcond),
+                       a2s(node->forbody));
         break;
     case AST_RETURN:
         string_appendf(buf, "(return %s)", a2s(node->retval));

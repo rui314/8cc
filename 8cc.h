@@ -67,6 +67,8 @@ enum {
     AST_IF,
     AST_TERNARY,
     AST_FOR,
+    AST_WHILE,
+    AST_DO,
     AST_RETURN,
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,

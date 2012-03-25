@@ -200,16 +200,27 @@ static Node *ast_ternary(Ctype *ctype, Node *cond, Node *then, Node *els) {
     return r;
 }
 
-static Node *ast_for(Node *init, Node *cond, Node *step, Node *body) {
+static Node *ast_for_int(int type, Node *init, Node *cond, Node *step, Node *body) {
     Node *r = malloc(sizeof(Node));
-    r->type = AST_FOR;
+    r->type = type;
     r->ctype = NULL;
     r->forinit = init;
     r->forcond = cond;
     r->forstep = step;
-    r->forstep = step;
     r->forbody = body;
     return r;
+}
+
+static Node *ast_for(Node *init, Node *cond, Node *step, Node *body) {
+    return ast_for_int(AST_FOR, init, cond, step, body);
+}
+
+static Node *ast_while(Node *cond, Node *body) {
+    return ast_for_int(AST_WHILE, NULL, cond, NULL, body);
+}
+
+static Node *ast_do(Node *cond, Node *body) {
+    return ast_for_int(AST_DO, NULL, cond, NULL, body);
 }
 
 static Node *ast_return(Ctype *rettype, Node *retval) {
@@ -1263,6 +1274,26 @@ static Node *read_for_stmt(void) {
     return ast_for(init, cond, step, body);
 }
 
+static Node *read_while_stmt(void) {
+    expect('(');
+    Node *cond = read_expr();
+    expect(')');
+    Node *body = read_stmt();
+    return ast_while(cond, body);
+}
+
+static Node *read_do_stmt(void) {
+    Node *body = read_stmt();
+    Token *tok = read_token();
+    if (!is_ident(tok, "while"))
+        error("'while' is expected, but got %s", t2s(tok));
+    expect('(');
+    Node *cond = read_expr();
+    expect(')');
+    expect(';');
+    return ast_do(cond, body);
+}
+
 static Node *read_return_stmt(void) {
     Node *retval = read_expr();
     expect(';');
@@ -1273,6 +1304,8 @@ static Node *read_stmt(void) {
     Token *tok = read_token();
     if (is_ident(tok, "if"))     return read_if_stmt();
     if (is_ident(tok, "for"))    return read_for_stmt();
+    if (is_ident(tok, "while"))  return read_while_stmt();
+    if (is_ident(tok, "do"))     return read_do_stmt();
     if (is_ident(tok, "return")) return read_return_stmt();
     if (is_punct(tok, '{'))      return read_compound_stmt();
     unget_token(tok);

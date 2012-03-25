@@ -11,7 +11,7 @@ static void emit_expr(Node *node);
 static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off);
 
 #define emit(...)        emitf(__LINE__, "\t" __VA_ARGS__)
-#define emit_label(...)  emitf(__LINE__, __VA_ARGS__)
+#define emit_noindent(...)  emitf(__LINE__, __VA_ARGS__)
 
 #define SAVE                                                    \
     int save_hook __attribute__((cleanup(pop_function)));       \
@@ -400,6 +400,19 @@ static List *get_arg_types(Node *node) {
     return r;
 }
 
+static void emit_je(char *label) {
+    emit("test %%rax, %%rax");
+    emit("je %s", label);
+}
+
+static void emit_label(char *label) {
+    emit("%s:", label);
+}
+
+static void emit_jmp(char *label) {
+    emit("jmp %s", label);
+}
+
 static void emit_expr(Node *node) {
     SAVE;
     switch (node->type) {
@@ -527,17 +540,16 @@ static void emit_expr(Node *node) {
     case AST_TERNARY: {
         emit_expr(node->cond);
         char *ne = make_label();
-        emit("test %%rax, %%rax");
-        emit("je %s", ne);
+        emit_je(ne);
         emit_expr(node->then);
         if (node->els) {
             char *end = make_label();
-            emit("jmp %s", end);
-            emit("%s:", ne);
+            emit_jmp(end);
+            emit_label(ne);
             emit_expr(node->els);
-            emit("%s:", end);
+            emit_label(end);
         } else {
-            emit("%s:", ne);
+            emit_label(ne);
         }
         break;
     }
@@ -546,17 +558,38 @@ static void emit_expr(Node *node) {
             emit_expr(node->forinit);
         char *begin = make_label();
         char *end = make_label();
-        emit("%s:", begin);
+        emit_label(begin);
         if (node->forcond) {
             emit_expr(node->forcond);
-            emit("test %%rax, %%rax");
-            emit("je %s", end);
+            emit_je(end);
         }
         emit_expr(node->forbody);
         if (node->forstep)
             emit_expr(node->forstep);
-        emit("jmp %s", begin);
-        emit("%s:", end);
+        emit_jmp(begin);
+        emit_label(end);
+        break;
+    }
+    case AST_WHILE: {
+        char *begin = make_label();
+        char *end = make_label();
+        emit_label(begin);
+        emit_expr(node->forcond);
+        emit_je(end);
+        emit_expr(node->forbody);
+        emit_jmp(begin);
+        emit_label(end);
+        break;
+    }
+    case AST_DO: {
+        char *begin = make_label();
+        char *end = make_label();
+        emit_label(begin);
+        emit_expr(node->forbody);
+        emit_expr(node->forcond);
+        emit_je(end);
+        emit_jmp(begin);
+        emit_label(end);
         break;
     }
     case AST_RETURN:
@@ -615,7 +648,7 @@ static void emit_expr(Node *node) {
         emit("mov $0, %%rax");
         emit("je %s", end);
         emit("mov $1, %%rax");
-        emit("%s:", end);
+        emit_label(end);
         break;
     }
     case OP_LOGOR: {
@@ -629,7 +662,7 @@ static void emit_expr(Node *node) {
         emit("mov $1, %%rax");
         emit("jne %s", end);
         emit("mov $0, %%rax");
-        emit("%s:", end);
+        emit_label(end);
         break;
     }
     case OP_CAST: {
@@ -655,8 +688,8 @@ static void emit_data_int(Node *data) {
 
 static void emit_data(Node *v) {
     SAVE;
-    emit_label(".global %s", v->declvar->varname);
-    emit_label("%s:", v->declvar->varname);
+    emit_noindent(".global %s", v->declvar->varname);
+    emit_noindent("%s:", v->declvar->varname);
     if (v->declinit->type == AST_INIT_LIST) {
         for (Iter *iter = list_iter(v->declinit->initlist); !iter_end(iter);) {
             emit_data_int(iter_next(iter));
@@ -685,14 +718,14 @@ void emit_data_section(void) {
     emit(".data");
     for (Iter *i = list_iter(strings); !iter_end(i);) {
         Node *v = iter_next(i);
-        emit_label("%s:", v->slabel);
+        emit_noindent("%s:", v->slabel);
         emit(".string \"%s\"", quote_cstring(v->sval));
     }
     for (Iter *i = list_iter(flonums); !iter_end(i);) {
         Node *v = iter_next(i);
         char *label = make_label();
         v->flabel = label;
-        emit_label("%s:", label);
+        emit_noindent("%s:", label);
         emit(".long %d", ((int *)&v->fval)[0]);
         emit(".long %d", ((int *)&v->fval)[1]);
     }
@@ -706,8 +739,8 @@ static int align(int n, int m) {
 static void emit_func_prologue(Node *func) {
     SAVE;
     emit(".text");
-    emit_label(".global %s", func->fname);
-    emit_label("%s:", func->fname);
+    emit_noindent(".global %s", func->fname);
+    emit_noindent("%s:", func->fname);
     push("rbp");
     emit("mov %%rsp, %%rbp");
     int off = 0;
