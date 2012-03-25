@@ -642,6 +642,12 @@ static Ast *read_unary_expr(void) {
         Ast *expr = read_expr();
         return ast_binop('-', ast_inttype(ctype_int, 0), expr);
     }
+    if (is_punct(tok, '~')) {
+        Ast *expr = read_expr();
+        if (!is_inttype(expr->ctype))
+            error("invalid use of ~: %s", a2s(expr));
+        return ast_uop('~', expr->ctype, expr);
+    }
     if (is_punct(tok, '*')) {
         Ast *operand = read_unary_expr();
         Ctype *ctype = convert_array(operand->ctype);

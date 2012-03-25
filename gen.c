@@ -593,6 +593,10 @@ static void emit_expr(Ast *ast) {
         pop("rcx");
         emit("or %%rcx, %%rax");
         break;
+    case '~':
+        emit_expr(ast->left);
+        emit("not %%rax");
+        break;
     case OP_LOGAND: {
         char *end = make_label();
         emit_expr(ast->left);
