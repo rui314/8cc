@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
     if (!wantast)
         emit_data_section();
     for (Iter *i = list_iter(toplevels); !iter_end(i);) {
-        Ast *v = iter_next(i);
+        Node *v = iter_next(i);
         if (wantast)
             printf("%s", a2s(v));
         else

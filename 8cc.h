@@ -121,7 +121,7 @@ typedef struct Ctype {
     bool hasva;
 } Ctype;
 
-typedef struct Ast {
+typedef struct Node {
     int type;
     Ctype *ctype;
     union {
@@ -145,12 +145,12 @@ typedef struct Ast {
         };
         // Binary operator
         struct {
-            struct Ast *left;
-            struct Ast *right;
+            struct Node *left;
+            struct Node *right;
         };
         // Unary operator
         struct {
-            struct Ast *operand;
+            struct Node *operand;
         };
         // Function call or function declaration
         struct {
@@ -161,12 +161,12 @@ typedef struct Ast {
             // Function declaration
             struct List *params;
             struct List *localvars;
-            struct Ast *body;
+            struct Node *body;
         };
         // Declaration
         struct {
-            struct Ast *declvar;
-            struct Ast *declinit;
+            struct Node *declvar;
+            struct Node *declinit;
         };
         // array or struct initializer
         struct {
@@ -175,29 +175,29 @@ typedef struct Ast {
         };
         // If statement or ternary operator
         struct {
-            struct Ast *cond;
-            struct Ast *then;
-            struct Ast *els;
+            struct Node *cond;
+            struct Node *then;
+            struct Node *els;
         };
         // For statement
         struct {
-            struct Ast *forinit;
-            struct Ast *forcond;
-            struct Ast *forstep;
-            struct Ast *forbody;
+            struct Node *forinit;
+            struct Node *forcond;
+            struct Node *forstep;
+            struct Node *forbody;
         };
         // Return statement
-        struct Ast *retval;
+        struct Node *retval;
         // Compound statement
         struct List *stmts;
         // Struct reference
         struct {
-            struct Ast *struc;
+            struct Node *struc;
             char *field;
             Ctype *fieldtype;
         };
     };
-} Ast;
+} Node;
 
 extern Ctype *ctype_char;
 extern Ctype *ctype_short;
@@ -226,19 +226,19 @@ extern void expect_newline(void);
 extern char *t2s(Token *tok);
 extern bool is_punct(Token *tok, int c);
 extern bool is_ident(Token *tok, char *s);
-extern char *a2s(Ast *ast);
+extern char *a2s(Node *node);
 extern char *c2s(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);
-extern Ast *read_expr(void);
-extern int eval_intexpr(Ast *ast);
+extern Node *read_expr(void);
+extern int eval_intexpr(Node *node);
 extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
 extern Ctype *result_type(char op, Ctype *a, Ctype *b);
 
 extern void emit_data_section(void);
-extern void emit_toplevel(Ast *v);
+extern void emit_toplevel(Node *v);
 
 extern List *strings;
 extern List *flonums;

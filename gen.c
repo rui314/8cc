@@ -7,7 +7,7 @@ static List *functions = &EMPTY_LIST;
 
 static int stackpos;
 
-static void emit_expr(Ast *ast);
+static void emit_expr(Node *node);
 static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off);
 
 #define emit(...)        emitf(__LINE__, "\t" __VA_ARGS__)
@@ -168,14 +168,14 @@ static void emit_assign_deref_int(Ctype *ctype, int off) {
     pop("rax");
 }
 
-static void emit_assign_deref(Ast *var) {
+static void emit_assign_deref(Node *var) {
     SAVE;
     push("rax");
     emit_expr(var->operand);
     emit_assign_deref_int(var->operand->ctype->ptr, 0);
 }
 
-static void emit_pointer_arith(char op, Ast *left, Ast *right) {
+static void emit_pointer_arith(char op, Node *left, Node *right) {
     SAVE;
     emit_expr(left);
     push("rax");
@@ -188,7 +188,7 @@ static void emit_pointer_arith(char op, Ast *left, Ast *right) {
     emit("add %%rcx, %%rax");
 }
 
-static void emit_assign_struct_ref(Ast *struc, Ctype *field, int off) {
+static void emit_assign_struct_ref(Node *struc, Ctype *field, int off) {
     SAVE;
     switch (struc->type) {
     case AST_LVAR:
@@ -210,7 +210,7 @@ static void emit_assign_struct_ref(Ast *struc, Ctype *field, int off) {
     }
 }
 
-static void emit_load_struct_ref(Ast *struc, Ctype *field, int off) {
+static void emit_load_struct_ref(Node *struc, Ctype *field, int off) {
     SAVE;
     switch (struc->type) {
     case AST_LVAR:
@@ -231,7 +231,7 @@ static void emit_load_struct_ref(Ast *struc, Ctype *field, int off) {
     }
 }
 
-static void emit_assign(Ast *var) {
+static void emit_assign(Node *var) {
     SAVE;
     switch (var->type) {
     case AST_DEREF: emit_assign_deref(var); break;
@@ -242,22 +242,22 @@ static void emit_assign(Ast *var) {
     }
 }
 
-static void emit_comp(char *inst, Ast *ast) {
+static void emit_comp(char *inst, Node *node) {
     SAVE;
-    if (is_flotype(ast->ctype)) {
-        emit_expr(ast->left);
-        emit_todouble(ast->left->ctype);
+    if (is_flotype(node->ctype)) {
+        emit_expr(node->left);
+        emit_todouble(node->left->ctype);
         push_xmm(0);
-        emit_expr(ast->right);
-        emit_todouble(ast->right->ctype);
+        emit_expr(node->right);
+        emit_todouble(node->right->ctype);
         pop_xmm(1);
         emit("ucomisd %%xmm0, %%xmm1");
     } else {
-        emit_expr(ast->left);
-        emit_toint(ast->left->ctype);
+        emit_expr(node->left);
+        emit_toint(node->left->ctype);
         push("rax");
-        emit_expr(ast->right);
-        emit_toint(ast->right->ctype);
+        emit_expr(node->right);
+        emit_toint(node->right->ctype);
         pop("rcx");
         emit("cmp %%rax, %%rcx");
     }
@@ -265,10 +265,10 @@ static void emit_comp(char *inst, Ast *ast) {
     emit("movzb %%al, %%eax");
 }
 
-static void emit_binop_int_arith(Ast *ast) {
+static void emit_binop_int_arith(Node *node) {
     SAVE;
     char *op;
-    switch (ast->type) {
+    switch (node->type) {
     case '+': op = "add"; break;
     case '-': op = "sub"; break;
     case '*': op = "imul"; break;
@@ -276,42 +276,42 @@ static void emit_binop_int_arith(Ast *ast) {
     case OP_LSH: op = "sal"; break;
     case OP_RSH: op = "sar"; break;
     case '/': case '%': break;
-    default: error("invalid operator '%d'", ast->type);
+    default: error("invalid operator '%d'", node->type);
     }
-    emit_expr(ast->left);
-    emit_toint(ast->left->ctype);
+    emit_expr(node->left);
+    emit_toint(node->left->ctype);
     push("rax");
-    emit_expr(ast->right);
-    emit_toint(ast->right->ctype);
+    emit_expr(node->right);
+    emit_toint(node->right->ctype);
     emit("mov %%rax, %%rcx");
     pop("rax");
-    if (ast->type == '/' || ast->type == '%') {
+    if (node->type == '/' || node->type == '%') {
         emit("mov $0, %%edx");
         emit("idiv %%rcx");
-        if (ast->type == '%')
+        if (node->type == '%')
             emit("mov %%edx, %%eax");
-    } else if (ast->type == OP_LSH || ast->type == OP_RSH) {
+    } else if (node->type == OP_LSH || node->type == OP_RSH) {
         emit("%s %%cl, %%rax", op);
     } else {
         emit("%s %%rcx, %%rax", op);
     }
 }
 
-static void emit_binop_float_arith(Ast *ast) {
+static void emit_binop_float_arith(Node *node) {
     SAVE;
     char *op;
-    switch (ast->type) {
+    switch (node->type) {
     case '+': op = "addsd"; break;
     case '-': op = "subsd"; break;
     case '*': op = "mulsd"; break;
     case '/': op = "divsd"; break;
-    default: error("invalid operator '%d'", ast->type);
+    default: error("invalid operator '%d'", node->type);
     }
-    emit_expr(ast->left);
-    emit_todouble(ast->left->ctype);
+    emit_expr(node->left);
+    emit_todouble(node->left->ctype);
     push_xmm(0);
-    emit_expr(ast->right);
-    emit_todouble(ast->right->ctype);
+    emit_expr(node->right);
+    emit_todouble(node->right->ctype);
     emit("movsd %%xmm0, %%xmm1");
     pop_xmm(0);
     emit("%s %%xmm1, %%xmm0", op);
@@ -337,40 +337,40 @@ static void emit_save_convert(Ctype *to, Ctype *from) {
         emit_load_convert(to, from);
 }
 
-static void emit_binop(Ast *ast) {
+static void emit_binop(Node *node) {
     SAVE;
-    if (ast->type == '=') {
-        emit_expr(ast->right);
-        emit_load_convert(ast->ctype, ast->right->ctype);
-        emit_assign(ast->left);
+    if (node->type == '=') {
+        emit_expr(node->right);
+        emit_load_convert(node->ctype, node->right->ctype);
+        emit_assign(node->left);
         return;
     }
-    if (ast->ctype->type == CTYPE_PTR) {
-        emit_pointer_arith(ast->type, ast->left, ast->right);
+    if (node->ctype->type == CTYPE_PTR) {
+        emit_pointer_arith(node->type, node->left, node->right);
         return;
     }
-    switch (ast->type) {
-    case '<': emit_comp("setl", ast); return;
-    case '>': emit_comp("setg", ast); return;
-    case OP_EQ: emit_comp("sete", ast); return;
-    case OP_GE: emit_comp("setge", ast); return;
-    case OP_LE: emit_comp("setle", ast); return;
-    case OP_NE: emit_comp("setne", ast); return;
+    switch (node->type) {
+    case '<': emit_comp("setl", node); return;
+    case '>': emit_comp("setg", node); return;
+    case OP_EQ: emit_comp("sete", node); return;
+    case OP_GE: emit_comp("setge", node); return;
+    case OP_LE: emit_comp("setle", node); return;
+    case OP_NE: emit_comp("setne", node); return;
     }
-    if (is_inttype(ast->ctype))
-        emit_binop_int_arith(ast);
-    else if (is_flotype(ast->ctype))
-        emit_binop_float_arith(ast);
+    if (is_inttype(node->ctype))
+        emit_binop_int_arith(node);
+    else if (is_flotype(node->ctype))
+        emit_binop_float_arith(node);
     else
         error("internal error");
 }
 
-static void emit_inc_dec(Ast *ast, char *op) {
+static void emit_inc_dec(Node *node, char *op) {
     SAVE;
-    emit_expr(ast->operand);
+    emit_expr(node->operand);
     push("rax");
     emit("%s $1, %%rax", op);
-    emit_assign(ast->operand);
+    emit_assign(node->operand);
     pop("rax");
 }
 
@@ -389,53 +389,53 @@ static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off) {
     emit("mov %%rcx, %%rax");
 }
 
-static List *get_arg_types(Ast *ast) {
+static List *get_arg_types(Node *node) {
     List *r = make_list();
-    for (Iter *i = list_iter(ast->args), *j = list_iter(ast->paramtypes);
+    for (Iter *i = list_iter(node->args), *j = list_iter(node->paramtypes);
          !iter_end(i);) {
-        Ast *v = iter_next(i);
+        Node *v = iter_next(i);
         Ctype *ptype = iter_next(j);
         list_push(r, ptype ? ptype : result_type('=', v->ctype, ctype_int));
     }
     return r;
 }
 
-static void emit_expr(Ast *ast) {
+static void emit_expr(Node *node) {
     SAVE;
-    switch (ast->type) {
+    switch (node->type) {
     case AST_LITERAL:
-        switch (ast->ctype->type) {
+        switch (node->ctype->type) {
         case CTYPE_CHAR:
-            emit("mov $%d, %%rax", ast->ival);
+            emit("mov $%d, %%rax", node->ival);
             break;
         case CTYPE_INT:
-            emit("mov $%d, %%eax", ast->ival);
+            emit("mov $%d, %%eax", node->ival);
             break;
         case CTYPE_LONG:
-            emit("mov $%lu, %%rax", (unsigned long)ast->ival);
+            emit("mov $%lu, %%rax", (unsigned long)node->ival);
             break;
         case CTYPE_FLOAT:
         case CTYPE_DOUBLE:
         case CTYPE_LDOUBLE:
-            emit("movsd %s(%%rip), %%xmm0", ast->flabel);
+            emit("movsd %s(%%rip), %%xmm0", node->flabel);
             break;
         default:
             error("internal error");
         }
         break;
     case AST_STRING:
-        emit("lea %s(%%rip), %%rax", ast->slabel);
+        emit("lea %s(%%rip), %%rax", node->slabel);
         break;
     case AST_LVAR:
-        emit_lload(ast->ctype, ast->loff);
+        emit_lload(node->ctype, node->loff);
         break;
     case AST_GVAR:
-        emit_gload(ast->ctype, ast->glabel, 0);
+        emit_gload(node->ctype, node->glabel, 0);
         break;
     case AST_FUNCALL: {
         int ireg = 0;
         int xreg = 0;
-        List *argtypes = get_arg_types(ast);
+        List *argtypes = get_arg_types(node);
         for (Iter *i = list_iter(argtypes); !iter_end(i);) {
             if (is_flotype(iter_next(i))) {
                 if (xreg > 0) push_xmm(xreg);
@@ -444,9 +444,9 @@ static void emit_expr(Ast *ast) {
                 push(REGS[ireg++]);
             }
         }
-        for (Iter *i = list_iter(ast->args), *j = list_iter(argtypes);
+        for (Iter *i = list_iter(node->args), *j = list_iter(argtypes);
              !iter_end(i);) {
-            Ast *v = iter_next(i);
+            Node *v = iter_next(i);
             emit_expr(v);
             Ctype *ptype = iter_next(j);
             emit_save_convert(ptype, v->ctype);
@@ -466,7 +466,7 @@ static void emit_expr(Ast *ast) {
         emit("mov $%d, %%eax", xreg);
         if (stackpos % 16)
             emit("sub $8, %%rsp");
-        emit("call %s", ast->fname);
+        emit("call %s", node->fname);
         if (stackpos % 16)
             emit("add $8, %%rsp");
         for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
@@ -477,64 +477,64 @@ static void emit_expr(Ast *ast) {
                 pop(REGS[--ireg]);
             }
         }
-        if (ast->ctype->type == CTYPE_FLOAT)
+        if (node->ctype->type == CTYPE_FLOAT)
             emit("cvtps2pd %%xmm0, %%xmm0");
         break;
     }
     case AST_DECL: {
-        if (!ast->declinit)
+        if (!node->declinit)
             return;
-        if (ast->declinit->type == AST_INIT_LIST) {
+        if (node->declinit->type == AST_INIT_LIST) {
             int off = 0;
-            for (Iter *iter = list_iter(ast->declinit->initlist); !iter_end(iter);) {
-                Ast *elem = iter_next(iter);
+            for (Iter *iter = list_iter(node->declinit->initlist); !iter_end(iter);) {
+                Node *elem = iter_next(iter);
                 emit_expr(elem);
-                emit_lsave(elem->totype, ast->declvar->loff + off);
+                emit_lsave(elem->totype, node->declvar->loff + off);
                 off += elem->totype->size;
             }
-        } else if (ast->declvar->ctype->type == CTYPE_ARRAY) {
-            assert(ast->declinit->type == AST_STRING);
+        } else if (node->declvar->ctype->type == CTYPE_ARRAY) {
+            assert(node->declinit->type == AST_STRING);
             int i = 0;
-            for (char *p = ast->declinit->sval; *p; p++, i++)
-                emit("movb $%d, %d(%%rbp)", *p, ast->declvar->loff + i);
-            emit("movb $0, %d(%%rbp)", ast->declvar->loff + i);
-        } else if (ast->declinit->type == AST_STRING) {
-            emit_gload(ast->declinit->ctype, ast->declinit->slabel, 0);
-            emit_lsave(ast->declvar->ctype, ast->declvar->loff);
+            for (char *p = node->declinit->sval; *p; p++, i++)
+                emit("movb $%d, %d(%%rbp)", *p, node->declvar->loff + i);
+            emit("movb $0, %d(%%rbp)", node->declvar->loff + i);
+        } else if (node->declinit->type == AST_STRING) {
+            emit_gload(node->declinit->ctype, node->declinit->slabel, 0);
+            emit_lsave(node->declvar->ctype, node->declvar->loff);
         } else {
-            emit_expr(ast->declinit);
-            emit_lsave(ast->declvar->ctype, ast->declvar->loff);
+            emit_expr(node->declinit);
+            emit_lsave(node->declvar->ctype, node->declvar->loff);
         }
         return;
     }
     case AST_ADDR:
-        switch (ast->operand->type) {
+        switch (node->operand->type) {
         case AST_LVAR:
-            emit("lea %d(%%rbp), %%rax", ast->operand->loff);
+            emit("lea %d(%%rbp), %%rax", node->operand->loff);
             break;
         case AST_GVAR:
-            emit("lea %s(%%rip), %%rax", ast->operand->glabel);
+            emit("lea %s(%%rip), %%rax", node->operand->glabel);
             break;
         default:
             error("internal error");
         }
         break;
     case AST_DEREF:
-        emit_expr(ast->operand);
-        emit_load_deref(ast->ctype, ast->operand->ctype, 0);
+        emit_expr(node->operand);
+        emit_load_deref(node->ctype, node->operand->ctype, 0);
         break;
     case AST_IF:
     case AST_TERNARY: {
-        emit_expr(ast->cond);
+        emit_expr(node->cond);
         char *ne = make_label();
         emit("test %%rax, %%rax");
         emit("je %s", ne);
-        emit_expr(ast->then);
-        if (ast->els) {
+        emit_expr(node->then);
+        if (node->els) {
             char *end = make_label();
             emit("jmp %s", end);
             emit("%s:", ne);
-            emit_expr(ast->els);
+            emit_expr(node->els);
             emit("%s:", end);
         } else {
             emit("%s:", ne);
@@ -542,75 +542,75 @@ static void emit_expr(Ast *ast) {
         break;
     }
     case AST_FOR: {
-        if (ast->forinit)
-            emit_expr(ast->forinit);
+        if (node->forinit)
+            emit_expr(node->forinit);
         char *begin = make_label();
         char *end = make_label();
         emit("%s:", begin);
-        if (ast->forcond) {
-            emit_expr(ast->forcond);
+        if (node->forcond) {
+            emit_expr(node->forcond);
             emit("test %%rax, %%rax");
             emit("je %s", end);
         }
-        emit_expr(ast->forbody);
-        if (ast->forstep)
-            emit_expr(ast->forstep);
+        emit_expr(node->forbody);
+        if (node->forstep)
+            emit_expr(node->forstep);
         emit("jmp %s", begin);
         emit("%s:", end);
         break;
     }
     case AST_RETURN:
-        if (ast->retval) {
-            emit_expr(ast->retval);
-            emit_save_convert(ast->ctype, ast->retval->ctype);
+        if (node->retval) {
+            emit_expr(node->retval);
+            emit_save_convert(node->ctype, node->retval->ctype);
         }
         emit("leave");
         emit("ret");
         break;
     case AST_COMPOUND_STMT:
-        for (Iter *i = list_iter(ast->stmts); !iter_end(i);)
+        for (Iter *i = list_iter(node->stmts); !iter_end(i);)
             emit_expr(iter_next(i));
         break;
     case AST_STRUCT_REF:
-        emit_load_struct_ref(ast->struc, ast->ctype, 0);
+        emit_load_struct_ref(node->struc, node->ctype, 0);
         break;
     case OP_INC:
-        emit_inc_dec(ast, "add");
+        emit_inc_dec(node, "add");
         break;
     case OP_DEC:
-        emit_inc_dec(ast, "sub");
+        emit_inc_dec(node, "sub");
         break;
     case '!':
-        emit_expr(ast->operand);
+        emit_expr(node->operand);
         emit("cmp $0, %%rax");
         emit("sete %%al");
         emit("movzb %%al, %%eax");
         break;
     case '&':
-        emit_expr(ast->left);
+        emit_expr(node->left);
         push("rax");
-        emit_expr(ast->right);
+        emit_expr(node->right);
         pop("rcx");
         emit("and %%rcx, %%rax");
         break;
     case '|':
-        emit_expr(ast->left);
+        emit_expr(node->left);
         push("rax");
-        emit_expr(ast->right);
+        emit_expr(node->right);
         pop("rcx");
         emit("or %%rcx, %%rax");
         break;
     case '~':
-        emit_expr(ast->left);
+        emit_expr(node->left);
         emit("not %%rax");
         break;
     case OP_LOGAND: {
         char *end = make_label();
-        emit_expr(ast->left);
+        emit_expr(node->left);
         emit("test %%rax, %%rax");
         emit("mov $0, %%rax");
         emit("je %s", end);
-        emit_expr(ast->right);
+        emit_expr(node->right);
         emit("test %%rax, %%rax");
         emit("mov $0, %%rax");
         emit("je %s", end);
@@ -620,11 +620,11 @@ static void emit_expr(Ast *ast) {
     }
     case OP_LOGOR: {
         char *end = make_label();
-        emit_expr(ast->left);
+        emit_expr(node->left);
         emit("test %%rax, %%rax");
         emit("mov $1, %%rax");
         emit("jne %s", end);
-        emit_expr(ast->right);
+        emit_expr(node->right);
         emit("test %%rax, %%rax");
         emit("mov $1, %%rax");
         emit("jne %s", end);
@@ -633,16 +633,16 @@ static void emit_expr(Ast *ast) {
         break;
     }
     case OP_CAST: {
-        emit_expr(ast->operand);
-        emit_load_convert(ast->ctype, ast->operand->ctype);
+        emit_expr(node->operand);
+        emit_load_convert(node->ctype, node->operand->ctype);
         break;
     }
     default:
-        emit_binop(ast);
+        emit_binop(node);
     }
 }
 
-static void emit_data_int(Ast *data) {
+static void emit_data_int(Node *data) {
     SAVE;
     assert(data->ctype->type != CTYPE_ARRAY);
     switch (data->ctype->size) {
@@ -653,7 +653,7 @@ static void emit_data_int(Ast *data) {
     }
 }
 
-static void emit_data(Ast *v) {
+static void emit_data(Node *v) {
     SAVE;
     emit_label(".global %s", v->declvar->varname);
     emit_label("%s:", v->declvar->varname);
@@ -667,12 +667,12 @@ static void emit_data(Ast *v) {
     emit_data_int(v->declinit);
 }
 
-static void emit_bss(Ast *v) {
+static void emit_bss(Node *v) {
     SAVE;
     emit(".lcomm %s, %d", v->declvar->varname, v->declvar->ctype->size);
 }
 
-static void emit_global_var(Ast *v) {
+static void emit_global_var(Node *v) {
     SAVE;
     if (v->declinit)
         emit_data(v);
@@ -684,12 +684,12 @@ void emit_data_section(void) {
     SAVE;
     emit(".data");
     for (Iter *i = list_iter(strings); !iter_end(i);) {
-        Ast *v = iter_next(i);
+        Node *v = iter_next(i);
         emit_label("%s:", v->slabel);
         emit(".string \"%s\"", quote_cstring(v->sval));
     }
     for (Iter *i = list_iter(flonums); !iter_end(i);) {
-        Ast *v = iter_next(i);
+        Node *v = iter_next(i);
         char *label = make_label();
         v->flabel = label;
         emit_label("%s:", label);
@@ -703,7 +703,7 @@ static int align(int n, int m) {
     return (rem == 0) ? n : n - rem + m;
 }
 
-static void emit_func_prologue(Ast *func) {
+static void emit_func_prologue(Node *func) {
     SAVE;
     emit(".text");
     emit_label(".global %s", func->fname);
@@ -714,7 +714,7 @@ static void emit_func_prologue(Ast *func) {
     int ireg = 0;
     int xreg = 0;
     for (Iter *i = list_iter(func->params); !iter_end(i);) {
-        Ast *v = iter_next(i);
+        Node *v = iter_next(i);
         if (v->ctype->type == CTYPE_FLOAT) {
             push_xmm(xreg++);
         } else if (v->ctype->type == CTYPE_DOUBLE || v->ctype->type == CTYPE_LDOUBLE) {
@@ -727,7 +727,7 @@ static void emit_func_prologue(Ast *func) {
     }
     int localarea = 0;
     for (Iter *i = list_iter(func->localvars); !iter_end(i);) {
-        Ast *v = iter_next(i);
+        Node *v = iter_next(i);
         off -= align(v->ctype->size, 8);
         v->loff = off;
         localarea += off;
@@ -743,7 +743,7 @@ static void emit_func_epilogue(void) {
     emit("ret");
 }
 
-void emit_toplevel(Ast *v) {
+void emit_toplevel(Node *v) {
     stackpos = 0;
     if (v->type == AST_FUNC) {
         emit_func_prologue(v);
