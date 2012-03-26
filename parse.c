@@ -3,6 +3,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include "8cc.h"
 
 #define MAX_ARGS 6
@@ -29,7 +30,10 @@ Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
 Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, true };
 Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, true };
 Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, true };
+Ctype *ctype_ldouble = &(Ctype){ CTYPE_LDOUBLE, 8, true };
 static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
+static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, true };
+static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, false };
 
 static int labelseq = 0;
 
@@ -98,10 +102,10 @@ static Node *ast_inttype(Ctype *ctype, long val) {
     return r;
 }
 
-static Node *ast_double(double val) {
+static Node *ast_floattype(Ctype *ctype, double val) {
     Node *r = malloc(sizeof(Node));
     r->type = AST_LITERAL;
-    r->ctype = ctype_double;
+    r->ctype = ctype;
     r->fval = val;
     list_push(flonums, r);
     return r;
@@ -481,46 +485,60 @@ static Node *read_ident_or_func(char *name) {
     return v;
 }
 
-static Node *read_number(char *s) {
-    assert(s[0]);
+static Node *read_int(char *s) {
     char *p = s;
     int base = 10;
-    if (*p == '0') {
+    if (strncasecmp(s, "0x", 2) == 0) {
+        base = 16;
+        p += 2;
+    } else if (s[0] == '0' && s[1] != '\0') {
+        base = 8;
         p++;
-        if (*p == 'x' || *p == 'X') {
-            base = 16;
-            p++;
-        } else if (isdigit(*p)) {
-            base = 8;
-        }
     }
-    char *start = p;
-    while (isdigit(*p) || (base == 16 && ((('a' <= *p) && ('f' <= *p)) || (('A' <= *p) && ('F' <= *p)))))
+    while (isxdigit(*p)) {
+        if (base == 10 && isalpha(*p))
+            error("invalid digit '%c' in a decimal number: %s", *p, s);
+        if (base == 8 && !('0' <= *p && *p <= '7'))
+            error("invalid digit '%c' in a octal number: %s", *p, s);
         p++;
-    if (*p == '.') {
-        if (base != 10)
-            error("malformed number: %s", s);
-        p++;
-        while (isdigit(*p))
-            p++;
-        if (*p != '\0')
-            error("malformed number: %s", s);
-        char *end = p - 1;
-        assert(start != end);
-        return ast_double(atof(start));
     }
-    if (!strcasecmp(p, "l")) {
-        return ast_inttype(ctype_long, strtol(start, NULL, base));
-    } else if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu")) {
-        return ast_inttype(ctype_ulong, strtoul(start, NULL, base));
+    if (!strcasecmp(p, "l"))
+        return ast_inttype(ctype_long, strtol(s, NULL, base));
+    if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
+        return ast_inttype(ctype_ulong, strtoul(s, NULL, base));
+    if (!strcasecmp(p, "ll"))
+        return ast_inttype(ctype_llong, strtoll(s, NULL, base));
+    if (!strcasecmp(p, "ull") || !strcasecmp(p, "llu"))
+        return ast_inttype(ctype_ullong, strtoull(s, NULL, base));
+    if (*p != '\0')
+        error("invalid suffix '%c': %s", *p, s);
+    long val = strtol(s, NULL, base);
+    return (val & ~(long)UINT_MAX)
+        ? ast_inttype(ctype_long, val)
+        : ast_inttype(ctype_int, val);
+}
+
+static Node *read_float(char *s) {
+    char *p = s;
+    char *endptr;
+    while (p[1]) p++;
+    Node *r;
+    if (*p == 'l' || *p == 'L') {
+        r = ast_floattype(ctype_ldouble, strtold(s, &endptr));
+    } else if (*p == 'f' || *p == 'F') {
+        r = ast_floattype(ctype_float, strtof(s, &endptr));
     } else {
-        if (*p != '\0')
-            error("malformed number: %s %c", s);
-        long val = strtol(start, NULL, base);
-        if (val & ~(long)UINT_MAX)
-            return ast_inttype(ctype_long, val);
-        return ast_inttype(ctype_int, val);
+        r = ast_floattype(ctype_double, strtod(s, &endptr));
+        p++;
     }
+    if (endptr != p)
+        error("malformed floating constant: %s", s);
+    return r;
+}
+
+static Node *read_number(char *s) {
+    bool isfloat = strpbrk(s, ".pe");
+    return isfloat ? read_float(s) : read_int(s);
 }
 
 static Node *read_prim(void) {

@@ -425,6 +425,7 @@ static void emit_expr(Node *node) {
             emit("mov $%d, %%eax", node->ival);
             break;
         case CTYPE_LONG:
+        case CTYPE_LLONG:
             emit("mov $%lu, %%rax", (unsigned long)node->ival);
             break;
         case CTYPE_FLOAT:
