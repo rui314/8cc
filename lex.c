@@ -294,6 +294,18 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
     return make_punct(els);
 }
 
+static Token *read_rep3(char expect1, int t1, char expect2, int t2, char expect3, int t3, char els) {
+    int c = get();
+    if (c == expect1)
+        return make_punct(t1);
+    if (c == expect2)
+        return make_punct(t2);
+    if (c == expect3)
+        return make_punct(t3);
+    unget(c);
+    return make_punct(els);
+}
+
 static Token *read_token_int(void) {
     int c = get();
     switch (c) {
@@ -316,6 +328,8 @@ static Token *read_token_int(void) {
             skip_block_comment();
             return space_token;
         }
+        if (c == '=')
+            return make_punct(OP_A_DIV);
         unget(c);
         return make_punct('/');
     }
@@ -328,8 +342,8 @@ static Token *read_token_int(void) {
         unget(c);
         return make_punct('.');
     }
-    case '*': case '(': case ')': case ',': case ';': case '[': case ']':
-    case '{': case '}': case '?': case ':': case '~': case '^': case '%':
+    case '(': case ')': case ',': case ';': case '[': case ']': case '{':
+    case '}': case '?': case ':': case '~':
         return make_punct(c);
     case '#': {
         c = get();
@@ -338,19 +352,33 @@ static Token *read_token_int(void) {
         unget(c);
         return make_punct('#');
     }
-    case '-':
-        c = get();
-        if (c == '-') return make_punct(OP_DEC);
-        if (c == '>') return make_punct(OP_ARROW);
-        unget(c);
-        return make_punct('-');
-    case '<': return read_rep2('=', OP_LE, '<', OP_LSH, '<');
-    case '>': return read_rep2('=', OP_GE, '>', OP_RSH, '>');
+    case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
+    case '-': return read_rep3('-', OP_DEC, '>', OP_ARROW, '=', OP_A_SUB, '-');
+    case '*': return read_rep('=', OP_A_MUL, '*');
+    case '%': return read_rep('=', OP_A_MOD, '%');
     case '=': return read_rep('=', OP_EQ, '=');
     case '!': return read_rep('=', OP_NE, '!');
-    case '+': return read_rep('+', OP_INC, '+');
-    case '&': return read_rep('&', OP_LOGAND, '&');
-    case '|': return read_rep('|', OP_LOGOR, '|');
+    case '&': return read_rep2('&', OP_LOGAND, '=', OP_A_AND, '&');
+    case '|': return read_rep2('|', OP_LOGOR, '=', OP_A_OR, '|');
+    case '^': return read_rep('=', OP_A_XOR, '^');
+    case '<': {
+        c = get();
+        if (c == '=')
+            return make_punct(OP_LE);
+        if (c == '<')
+            return read_rep('=', OP_A_LSH, OP_LSH);
+        unget(c);
+        return make_punct('<');
+    }
+    case '>': {
+        c = get();
+        if (c == '=')
+            return make_punct(OP_GE);
+        if (c == '>')
+            return read_rep('=', OP_A_RSH, OP_RSH);
+        unget(c);
+        return make_punct('>');
+    }
     case '"': return read_string();
     case '\'': return read_char();
     case EOF:

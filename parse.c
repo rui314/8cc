@@ -756,9 +756,34 @@ static int priority(Token *tok) {
     case OP_LOGAND: return 11;
     case OP_LOGOR:  return 12;
     case '?':       return 13;
-    case '=':       return 14;
+    case OP_A_ADD: case OP_A_SUB: case OP_A_MUL: case OP_A_DIV: case OP_A_MOD:
+    case OP_A_AND: case OP_A_OR:  case OP_A_XOR: case OP_A_LSH: case OP_A_RSH:
+    case '=':
+        return 14;
     default:        return -1;
     }
+}
+
+static int get_compound_assign_op(Token *tok) {
+    if (tok->type != TTYPE_PUNCT)
+        return 0;
+    switch (tok->punct) {
+    case OP_A_ADD: return '+';
+    case OP_A_SUB: return '-';
+    case OP_A_MUL: return '*';
+    case OP_A_DIV: return '/';
+    case OP_A_MOD: return '%';
+    case OP_A_AND: return '&';
+    case OP_A_OR:  return '|';
+    case OP_A_XOR: return '^';
+    case OP_A_LSH: return OP_LSH;
+    case OP_A_RSH: return OP_RSH;
+    default: return 0;
+    }
+}
+
+static bool is_int_op(int op) {
+    return op == '^' || op == '%' || op == OP_LSH || op == OP_RSH;
 }
 
 static Node *read_expr_int(int prec) {
@@ -802,17 +827,21 @@ static Node *read_expr_int(int prec) {
             node = ast_uop(tok->punct, node->ctype, node);
             continue;
         }
-        if (is_punct(tok, '='))
+        int cop = get_compound_assign_op(tok);
+        if (is_punct(tok, '=') || cop)
             ensure_lvalue(node);
         Node *rest = read_expr_int(prec2 + (is_right_assoc(tok) ? 1 : 0));
         if (!rest)
             error("second operand missing");
-        if (is_punct(tok, '^') || is_punct(tok, '%') ||
-            is_punct(tok, OP_LSH) || is_punct(tok, OP_RSH)) {
+        int op = cop ? cop: tok->punct;
+        if (is_int_op(op)) {
             ensure_inttype(node);
             ensure_inttype(rest);
         }
-        node = ast_binop(tok->punct, node, rest);
+        if (cop)
+            node = ast_binop('=', node, ast_binop(op, node, rest));
+        else
+            node = ast_binop(op, node, rest);
     }
 }
 
