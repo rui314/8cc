@@ -1,3 +1,20 @@
+void expect_string(char *, char *);
+
+void special() {
+    expect_string("(stdin)", __FILE__);
+    expect(5, __LINE__);
+    expect(11, strlen(__DATE__));
+    expect(8, strlen(__TIME__));
+}
+
+void predefined() {
+    expect(1, __x86_64__);
+    expect(1, __8cc__);
+    expect(1, __STDC__);
+    expect(1, __STDC_HOSTED__);
+    expect(199901, __STDC_VERSION__);
+}
+
 #define ZERO 0
 #define ONE 1
 #define TWO ONE + ONE
@@ -281,6 +298,8 @@ void empty() {
 void main() {
     printf("Testing macros ... ");
 
+    special();
+    predefined();
     simple();
     loop();
     undef();

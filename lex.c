@@ -92,6 +92,14 @@ char *input_position(void) {
     return format("%s:%d:%d", file->name, file->line, file->column);
 }
 
+char *get_current_file(void) {
+    return file->name;
+}
+
+int get_current_line(void) {
+    return file->line;
+}
+
 static void unget(int c) {
     if (c == '\n')
         file->line--;

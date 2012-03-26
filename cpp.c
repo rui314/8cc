@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "8cc.h"
 
 static Dict *macros = &EMPTY_DICT;
@@ -8,24 +9,25 @@ static List *cond_incl_stack = &EMPTY_LIST;
 static List *std_include_path;
 static Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
+static Token *cpp_token_199901L = &(Token){ .type = TTYPE_NUMBER, .sval = "199901L" };
+static struct tm *current_time;
 
+typedef void special_macro_handler(Token *tok);
 typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
-
-typedef struct {
-    CondInclCtx ctx;
-    bool wastrue;
-} CondIncl;
-
-typedef enum { MACRO_OBJ, MACRO_FUNC } MacroType;
+typedef enum { MACRO_OBJ, MACRO_FUNC, MACRO_SPECIAL } MacroType;
+typedef struct { CondInclCtx ctx; bool wastrue; } CondIncl;
 
 typedef struct {
     MacroType type;
     int nargs;
     List *body;
     bool is_varg;
+    special_macro_handler *fn;
 } Macro;
 
 static Macro *make_obj_macro(List *body);
+static Macro *make_func_macro(List *body, int nargs, bool is_varg);
+static Macro *make_special_macro(special_macro_handler *fn);
 static Token *read_token_int(bool return_at_eol);
 static Token *read_expand(void);
 
@@ -36,24 +38,6 @@ static void eval(char *buf) {
     for (Iter *i = list_iter(toplevels); !iter_end(i);)
         emit_toplevel(iter_next(i));
     set_input_file("(stdin)", stdin);
-}
-
-static __attribute__((constructor)) void init(void) {
-    std_include_path = make_list();
-    list_push(std_include_path, "/usr/local/include");
-    list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
-    list_push(std_include_path, "/usr/include/linux");
-    list_push(std_include_path, "/usr/lib/clang/2.9/include");
-    list_push(std_include_path, "/usr/include");
-    list_push(std_include_path, ".");
-
-    dict_put(macros, "__x86_64__", make_obj_macro(make_list1(cpp_token_one)));
-    dict_put(macros, "__8cc__", make_obj_macro(make_list1(cpp_token_one)));
-    dict_put(macros, "__STDC__", make_obj_macro(make_list1(cpp_token_one)));
-    eval("typedef int __builtin_va_list[1];");
-    eval("typedef int size_t;");
-    eval("typedef int wchar_t;");
-    eval("typedef int _Bool;");
 }
 
 static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
@@ -80,6 +64,13 @@ static Macro *make_func_macro(List *body, int nargs, bool is_varg) {
     return r;
 }
 
+static Macro *make_special_macro(special_macro_handler *fn) {
+    Macro *r = malloc(sizeof(Macro));
+    r->type = MACRO_SPECIAL;
+    r->fn = fn;
+    return r;
+}
+
 static Token *make_macro_token(int position) {
     Token *r = malloc(sizeof(Token));
     r->type = TTYPE_MACRO_PARAM;
@@ -101,6 +92,58 @@ static void expect(char punct) {
     if (!tok || !is_punct(tok, punct))
         error("%c expected, but got %s", t2s(tok));
 }
+
+/*----------------------------------------------------------------------
+ * Special macros
+ */
+
+static struct tm *gettime(void) {
+    if (current_time)
+        return current_time;
+    time_t timet = time(NULL);
+    current_time = malloc(sizeof(struct tm));
+    localtime_r(&timet, current_time);
+    return current_time;
+}
+
+static void handle_date_macro(Token *tmpl) {
+    Token *tok = copy_token(tmpl);
+    tok->type = TTYPE_STRING;
+    char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+    struct tm *now = gettime();
+    tok->sval = format("%s %02d %04d", month[now->tm_mon], now->tm_mday, 1900 + now->tm_year);
+    unget_token(tok);
+}
+
+static void handle_time_macro(Token *tmpl) {
+    Token *tok = copy_token(tmpl);
+    tok->type = TTYPE_STRING;
+    struct tm *now = gettime();
+    tok->sval = format("%02d:%02d:%02d", now->tm_hour, now->tm_min, now->tm_sec);
+    unget_token(tok);
+}
+
+static void handle_file_macro(Token *tmpl) {
+    Token *tok = copy_token(tmpl);
+    tok->type = TTYPE_STRING;
+    tok->sval = get_current_file();
+    unget_token(tok);
+}
+
+static void handle_line_macro(Token *tmpl) {
+    Token *tok = copy_token(tmpl);
+    tok->type = TTYPE_NUMBER;
+    tok->sval = format("%d", get_current_line());
+    unget_token(tok);
+}
+
+static void handle_pragma_macro(Token *ignore) {
+    error("No pragmas supported");
+}
+
+/*----------------------------------------------------------------------
+ * Macro expander
+ */
 
 static Token *read_ident(void) {
     Token *r = read_cpp_token();
@@ -359,6 +402,9 @@ static Token *read_expand(void) {
         unget_all(tokens);
         return read_expand();
     }
+    case MACRO_SPECIAL:
+        macro->fn(tok);
+        return read_expand();
     default:
         error("internal error");
     }
@@ -670,4 +716,43 @@ Token *read_token(void) {
     assert(r->type != TTYPE_SPACE);
     assert(r->type != TTYPE_MACRO_PARAM);
     return r;
+}
+
+/*----------------------------------------------------------------------
+ * Initializer
+ */
+
+static void define_obj_macro(char *name, Token *value) {
+    dict_put(macros, name, make_obj_macro(make_list1(value)));
+}
+
+static void def_special_macro(char *name, special_macro_handler *fn) {
+    dict_put(macros, name, make_special_macro(fn));
+}
+
+static __attribute__((constructor)) void init(void) {
+    std_include_path = make_list();
+    list_push(std_include_path, "/usr/local/include");
+    list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
+    list_push(std_include_path, "/usr/include/linux");
+    list_push(std_include_path, "/usr/lib/clang/2.9/include");
+    list_push(std_include_path, "/usr/include");
+    list_push(std_include_path, ".");
+
+    define_obj_macro("__x86_64__", cpp_token_one);
+    define_obj_macro("__8cc__", cpp_token_one);
+    define_obj_macro("__STDC__", cpp_token_one);
+    define_obj_macro("__STDC_HOSTED__", cpp_token_one);
+    define_obj_macro("__STDC_VERSION__", cpp_token_199901L);
+
+    def_special_macro("__DATE__", handle_date_macro);
+    def_special_macro("__TIME__", handle_time_macro);
+    def_special_macro("__FILE__", handle_file_macro);
+    def_special_macro("__LINE__", handle_line_macro);
+    def_special_macro("_Pragma", handle_pragma_macro);
+
+    eval("typedef int __builtin_va_list[1];"
+         "typedef int size_t;"
+         "typedef int wchar_t;"
+         "typedef int _Bool;");
 }

@@ -229,6 +229,8 @@ extern bool read_header_file_name(char **name, bool *std);
 extern void push_input_file(char *filename, FILE *input);
 extern void set_input_file(char *filename, FILE *input);
 extern char *input_position(void);
+extern char *get_current_file(void);
+extern int get_current_line(void);
 
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
