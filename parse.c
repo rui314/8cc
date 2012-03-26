@@ -12,6 +12,8 @@
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define SWAP(a, b)                              \
+    { typeof(a) tmp = b; b = a; a = tmp; }
 
 List *strings = &EMPTY_LIST;
 List *flonums = &EMPTY_LIST;
@@ -48,12 +50,11 @@ static Ctype *convert_array(Ctype *ctype);
 static Node *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Node *read_unary_expr(void);
-static Ctype *read_func_param_list(List *rparams, Ctype *rettype);
-static Node *read_decl_init_val(Ctype *ctype);
 static void read_func_param(Ctype **rtype, char **name, bool optional);
 static void read_decl(List *toplevel, MakeVarFn make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
+static Node *read_struct_field(Node *struc);
 
 enum {
     S_TYPEDEF = 1,
@@ -69,6 +70,10 @@ enum {
     DECL_PARAM_TYPEONLY,
     DECL_CAST,
 };
+
+/*----------------------------------------------------------------------
+ * Constructors
+ */
 
 static Node *ast_uop(int type, Ctype *ctype, Node *operand) {
     Node *r = malloc(sizeof(Node));
@@ -322,6 +327,14 @@ static Ctype *make_stub_type(void) {
     return r;
 }
 
+/*----------------------------------------------------------------------
+ * Predicates and type checking routines
+ */
+
+bool is_ident(Token *tok, char *s) {
+    return tok->type == TTYPE_IDENT && !strcmp(tok->sval, s);
+}
+
 bool is_inttype(Ctype *ctype) {
     return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_SHORT ||
         ctype->type == CTYPE_INT || ctype->type == CTYPE_LONG || ctype->type == CTYPE_LLONG;
@@ -357,13 +370,104 @@ static void expect(char punct) {
         error("'%c' expected, but got %s", punct, t2s(tok));
 }
 
-bool is_ident(Token *tok, char *s) {
-    return tok->type == TTYPE_IDENT && !strcmp(tok->sval, s);
-}
-
 static bool is_right_assoc(Token *tok) {
     return tok->punct == '=';
 }
+
+static bool is_type_keyword(Token *tok) {
+    if (tok->type != TTYPE_IDENT)
+        return false;
+    char *keyword[] = {
+        "char", "short", "int", "long", "float", "double", "struct",
+        "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
+        "static", "auto", "register", "const", "volatile", "inline",
+        "restrict", "__signed__",
+    };
+    for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
+        if (!strcmp(keyword[i], tok->sval))
+            return true;
+    return dict_get(typedefs, tok->sval);
+}
+
+/*----------------------------------------------------------------------
+ * Type conversion
+ */
+
+static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
+    if (a->type > b->type)
+        SWAP(a, b);
+    if (b->type == CTYPE_PTR) {
+        if (op == '=')
+            return a;
+        if (op != '+' && op != '-')
+            goto err;
+        if (!is_inttype(a))
+            goto err;
+        return b;
+    }
+    switch (a->type) {
+    case CTYPE_VOID:
+        goto err;
+    case CTYPE_CHAR:
+    case CTYPE_SHORT:
+    case CTYPE_INT:
+        switch (b->type) {
+        case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
+            return ctype_int;
+        case CTYPE_LONG: case CTYPE_LLONG:
+            return ctype_long;
+        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
+            return ctype_double;
+        case CTYPE_ARRAY: case CTYPE_PTR:
+            return b;
+        }
+        error("internal error");
+    case CTYPE_LONG: case CTYPE_LLONG:
+        switch (b->type) {
+        case CTYPE_LONG: case CTYPE_LLONG:
+            return ctype_long;
+        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
+            return ctype_double;
+        case CTYPE_ARRAY: case CTYPE_PTR:
+            return b;
+        }
+        error("internal error");
+    case CTYPE_FLOAT:
+        if (b->type == CTYPE_FLOAT || b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
+            return ctype_double;
+        goto err;
+    case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
+        if (b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
+            return ctype_double;
+        goto err;
+    case CTYPE_ARRAY:
+        if (b->type != CTYPE_ARRAY)
+            goto err;
+        return result_type_int(jmpbuf, op, a->ptr, b->ptr);
+    default:
+        error("internal error: %s %s", c2s(a), c2s(b));
+    }
+ err:
+    longjmp(*jmpbuf, 1);
+}
+
+Ctype *result_type(char op, Ctype *a, Ctype *b) {
+    jmp_buf jmpbuf;
+    if (setjmp(jmpbuf) == 0)
+        return result_type_int(&jmpbuf, op, convert_array(a), convert_array(b));
+    error("incompatible operands: %c: <%s> and <%s>",
+          op, c2s(a), c2s(b));
+}
+
+static Ctype *convert_array(Ctype *ctype) {
+    if (ctype->type != CTYPE_ARRAY)
+        return ctype;
+    return make_ptr_type(ctype->ptr);
+}
+
+/*----------------------------------------------------------------------
+ * Integer constant expression
+ */
 
 int eval_intexpr(Node *node) {
     switch (node->type) {
@@ -402,88 +506,9 @@ int eval_intexpr(Node *node) {
     }
 }
 
-static int priority(Token *tok) {
-    switch (tok->punct) {
-    case '[': case '.': case OP_ARROW:
-        return 1;
-    case OP_INC: case OP_DEC:
-        return 2;
-    case '*': case '/': case '%':
-        return 3;
-    case '+': case '-':
-        return 4;
-    case OP_LSH: case OP_RSH:
-        return 5;
-    case '<': case '>': case OP_LE: case OP_GE: case OP_NE:
-        return 6;
-    case OP_EQ:     return 7;
-    case '&':       return 8;
-    case '^':       return 9;
-    case '|':       return 10;
-    case OP_LOGAND: return 11;
-    case OP_LOGOR:  return 12;
-    case '?':       return 13;
-    case '=':       return 14;
-    default:        return -1;
-    }
-}
-
-static List *param_types(List *params) {
-    List *r = make_list();
-    for (Iter *i = list_iter(params); !iter_end(i);)
-        list_push(r, ((Node *)iter_next(i))->ctype);
-    return r;
-}
-
-static void function_type_check(char *fname, List *params, List *args) {
-    if (list_len(args) < list_len(params))
-        error("Too few arguments: %s", fname);
-    for (Iter *i = list_iter(params), *j = list_iter(args); !iter_end(j);) {
-        Ctype *param = iter_next(i);
-        Ctype *arg = iter_next(j);
-        if (param)
-            result_type('=', param, arg);
-        else
-            result_type('=', arg, ctype_int);
-    }
-}
-
-static Node *read_func_args(char *fname) {
-    List *args = make_list();
-    for (;;) {
-        Token *tok = read_token();
-        if (is_punct(tok, ')')) break;
-        unget_token(tok);
-        list_push(args, read_expr());
-        tok = read_token();
-        if (is_punct(tok, ')')) break;
-        if (!is_punct(tok, ','))
-            error("Unexpected token: '%s'", t2s(tok));
-    }
-    if (MAX_ARGS < list_len(args))
-        error("Too many arguments: %s", fname);
-    Node *func = dict_get(localenv, fname);
-    if (func) {
-        Ctype *t = func->ctype;
-        if (t->type != CTYPE_FUNC)
-            error("%s is not a function, but %s", fname, c2s(t));
-        assert(t->params);
-        function_type_check(fname, t->params, param_types(args));
-        return ast_funcall(t->rettype, fname, args, t->params);
-    }
-    return ast_funcall(ctype_int, fname, args, make_list());
-}
-
-static Node *read_ident_or_func(char *name) {
-    Token *tok = read_token();
-    if (is_punct(tok, '('))
-        return read_func_args(name);
-    unget_token(tok);
-    Node *v = dict_get(localenv, name);
-    if (!v)
-        error("Undefined varaible: %s", name);
-    return v;
-}
+/*----------------------------------------------------------------------
+ * Numeric literal
+ */
 
 static Node *read_int(char *s) {
     char *p = s;
@@ -541,110 +566,9 @@ static Node *read_number(char *s) {
     return isfloat ? read_float(s) : read_int(s);
 }
 
-static Node *read_prim(void) {
-    Token *tok = read_token();
-    if (!tok) return NULL;
-    switch (tok->type) {
-    case TTYPE_IDENT:
-        return read_ident_or_func(tok->sval);
-    case TTYPE_NUMBER:
-        return read_number(tok->sval);
-    case TTYPE_CHAR:
-        return ast_inttype(ctype_char, tok->c);
-    case TTYPE_STRING: {
-        Node *r = ast_string(tok->sval);
-        list_push(strings, r);
-        return r;
-    }
-    case TTYPE_PUNCT:
-        unget_token(tok);
-        return NULL;
-    default:
-        error("internal error: unknown token type: %d", tok->type);
-    }
-}
-
-#define swap(a, b)                              \
-    { typeof(a) tmp = b; b = a; a = tmp; }
-
-static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
-    if (a->type > b->type)
-        swap(a, b);
-    if (b->type == CTYPE_PTR) {
-        if (op == '=')
-            return a;
-        if (op != '+' && op != '-')
-            goto err;
-        if (!is_inttype(a))
-            goto err;
-        return b;
-    }
-    switch (a->type) {
-    case CTYPE_VOID:
-        goto err;
-    case CTYPE_CHAR:
-    case CTYPE_SHORT:
-    case CTYPE_INT:
-        switch (b->type) {
-        case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
-            return ctype_int;
-        case CTYPE_LONG: case CTYPE_LLONG:
-            return ctype_long;
-        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
-            return ctype_double;
-        case CTYPE_ARRAY: case CTYPE_PTR:
-            return b;
-        }
-        error("internal error");
-    case CTYPE_LONG: case CTYPE_LLONG:
-        switch (b->type) {
-        case CTYPE_LONG: case CTYPE_LLONG:
-            return ctype_long;
-        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
-            return ctype_double;
-        case CTYPE_ARRAY: case CTYPE_PTR:
-            return b;
-        }
-        error("internal error");
-    case CTYPE_FLOAT:
-        if (b->type == CTYPE_FLOAT || b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
-            return ctype_double;
-        goto err;
-    case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
-        if (b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
-            return ctype_double;
-        goto err;
-    case CTYPE_ARRAY:
-        if (b->type != CTYPE_ARRAY)
-            goto err;
-        return result_type_int(jmpbuf, op, a->ptr, b->ptr);
-    default:
-        error("internal error: %s %s", c2s(a), c2s(b));
-    }
- err:
-    longjmp(*jmpbuf, 1);
-}
-
-static Node *read_subscript_expr(Node *node) {
-    Node *sub = read_expr();
-    expect(']');
-    Node *t = ast_binop('+', node, sub);
-    return ast_uop(AST_DEREF, t->ctype->ptr, t);
-}
-
-static Ctype *convert_array(Ctype *ctype) {
-    if (ctype->type != CTYPE_ARRAY)
-        return ctype;
-    return make_ptr_type(ctype->ptr);
-}
-
-Ctype *result_type(char op, Ctype *a, Ctype *b) {
-    jmp_buf jmpbuf;
-    if (setjmp(jmpbuf) == 0)
-        return result_type_int(&jmpbuf, op, convert_array(a), convert_array(b));
-    error("incompatible operands: %c: <%s> and <%s>",
-          op, c2s(a), c2s(b));
-}
+/*----------------------------------------------------------------------
+ * Sizeof operator
+ */
 
 static Node *get_sizeof_size(bool allow_typename) {
     Token *tok = read_token();
@@ -664,6 +588,94 @@ static Node *get_sizeof_size(bool allow_typename) {
     if (expr->ctype->size == 0)
         error("invalid operand for sizeof(): %s type=%s size=%d", a2s(expr), c2s(expr->ctype), expr->ctype->size);
     return ast_inttype(ctype_long, expr->ctype->size);
+}
+
+/*----------------------------------------------------------------------
+ * Function arguments
+ */
+
+static void function_type_check(char *fname, List *params, List *args) {
+    if (list_len(args) < list_len(params))
+        error("Too few arguments: %s", fname);
+    for (Iter *i = list_iter(params), *j = list_iter(args); !iter_end(j);) {
+        Ctype *param = iter_next(i);
+        Ctype *arg = ((Node *)iter_next(j))->ctype;
+        if (param)
+            result_type('=', param, arg);
+        else
+            result_type('=', arg, ctype_int);
+    }
+}
+
+static Node *read_func_args(char *fname) {
+    List *args = make_list();
+    for (;;) {
+        Token *tok = read_token();
+        if (is_punct(tok, ')')) break;
+        unget_token(tok);
+        list_push(args, read_expr());
+        tok = read_token();
+        if (is_punct(tok, ')')) break;
+        if (!is_punct(tok, ','))
+            error("Unexpected token: '%s'", t2s(tok));
+    }
+    if (MAX_ARGS < list_len(args))
+        error("Too many arguments: %s", fname);
+    Node *func = dict_get(localenv, fname);
+    if (func) {
+        Ctype *t = func->ctype;
+        if (t->type != CTYPE_FUNC)
+            error("%s is not a function, but %s", fname, c2s(t));
+        assert(t->params);
+        function_type_check(fname, t->params, args);
+        return ast_funcall(t->rettype, fname, args, t->params);
+    }
+    return ast_funcall(ctype_int, fname, args, make_list());
+}
+
+/*----------------------------------------------------------------------
+ * Expression
+ */
+
+static Node *read_var_or_func(char *name) {
+    Token *tok = read_token();
+    if (is_punct(tok, '('))
+        return read_func_args(name);
+    unget_token(tok);
+    Node *v = dict_get(localenv, name);
+    if (!v)
+        error("Undefined varaible: %s", name);
+    return v;
+}
+
+static Node *read_prim(void) {
+    Token *tok = read_token();
+    if (!tok) return NULL;
+    switch (tok->type) {
+    case TTYPE_IDENT:
+        return read_var_or_func(tok->sval);
+    case TTYPE_NUMBER:
+        return read_number(tok->sval);
+    case TTYPE_CHAR:
+        return ast_inttype(ctype_char, tok->c);
+    case TTYPE_STRING: {
+        Node *r = ast_string(tok->sval);
+        list_push(strings, r);
+        return r;
+    }
+    case TTYPE_PUNCT:
+        unget_token(tok);
+        return NULL;
+    default:
+        error("internal error: unknown token type: %d", tok->type);
+    }
+}
+
+static Node *read_subscript_expr(Node *node) {
+    Node *sub = read_expr();
+    expect(']');
+    Node *t = ast_binop('+', node, sub);
+    return ast_uop(AST_DEREF, t->ctype->ptr, t);
 }
 
 static Node *read_cast(void) {
@@ -723,14 +735,30 @@ static Node *read_cond_expr(Node *cond) {
     return ast_ternary(then->ctype, cond, then, els);
 }
 
-static Node *read_struct_field(Node *struc) {
-    if (struc->ctype->type != CTYPE_STRUCT)
-        error("struct expected, but got %s", a2s(struc));
-    Token *name = read_token();
-    if (name->type != TTYPE_IDENT)
-        error("field name expected, but got %s", t2s(name));
-    Ctype *field = dict_get(struc->ctype->fields, name->sval);
-    return ast_struct_ref(field, struc, name->sval);
+static int priority(Token *tok) {
+    switch (tok->punct) {
+    case '[': case '.': case OP_ARROW:
+        return 1;
+    case OP_INC: case OP_DEC:
+        return 2;
+    case '*': case '/': case '%':
+        return 3;
+    case '+': case '-':
+        return 4;
+    case OP_LSH: case OP_RSH:
+        return 5;
+    case '<': case '>': case OP_LE: case OP_GE: case OP_NE:
+        return 6;
+    case OP_EQ:     return 7;
+    case '&':       return 8;
+    case '^':       return 9;
+    case '|':       return 10;
+    case OP_LOGAND: return 11;
+    case OP_LOGOR:  return 12;
+    case '?':       return 13;
+    case '=':       return 14;
+    default:        return -1;
+    }
 }
 
 static Node *read_expr_int(int prec) {
@@ -792,58 +820,18 @@ Node *read_expr(void) {
     return read_expr_int(MAX_OP_PRIO);
 }
 
-static bool is_type_keyword(Token *tok) {
-    if (tok->type != TTYPE_IDENT)
-        return false;
-    char *keyword[] = {
-        "char", "short", "int", "long", "float", "double", "struct",
-        "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
-        "static", "auto", "register", "const", "volatile", "inline",
-        "restrict", "__signed__",
-    };
-    for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
-        if (!strcmp(keyword[i], tok->sval))
-            return true;
-    return dict_get(typedefs, tok->sval);
-}
+/*----------------------------------------------------------------------
+ * Struct or union
+ */
 
-static void read_decl_init_elem(List *initlist, Ctype *ctype) {
-    Token *tok = peek_token();
-    Node *init = read_expr();
-    if (!init)
-        error("expression expected, but got %s", t2s(tok));
-    result_type('=', init->ctype, ctype);
-    init->totype = ctype;
-    tok = read_token();
-    if (!is_punct(tok, ','))
-        unget_token(tok);
-    list_push(initlist, init);
-}
-
-static void read_decl_array_init_int(List *initlist, Ctype *ctype) {
-    Token *tok = read_token();
-    assert(ctype->type == CTYPE_ARRAY);
-    if (ctype->ptr->type == CTYPE_CHAR && tok->type == TTYPE_STRING) {
-        for (char *p = tok->sval; *p; p++) {
-            Node *c = ast_inttype(ctype_char, *p);
-            c->totype = ctype_char;
-            list_push(initlist, c);
-        }
-        Node *c = ast_inttype(ctype_char, '\0');
-        c->totype = ctype_char;
-        list_push(initlist, c);
-        return;
-    }
-    if (!is_punct(tok, '{'))
-        error("Expected an initializer list for %s, but got %s",
-              c2s(ctype), t2s(tok));
-    for (;;) {
-        Token *tok = read_token();
-        if (is_punct(tok, '}'))
-            break;
-        unget_token(tok);
-        read_decl_init_elem(initlist, ctype->ptr);
-    }
+static Node *read_struct_field(Node *struc) {
+    if (struc->ctype->type != CTYPE_STRUCT)
+        error("struct expected, but got %s", a2s(struc));
+    Token *name = read_token();
+    if (name->type != TTYPE_IDENT)
+        error("field name expected, but got %s", t2s(name));
+    Ctype *field = dict_get(struc->ctype->fields, name->sval);
+    return ast_struct_ref(field, struc, name->sval);
 }
 
 static char *read_struct_union_tag(void) {
@@ -943,6 +931,10 @@ static Ctype *read_union_def(void) {
     return read_struct_union_def(union_defs, false);
 }
 
+/*----------------------------------------------------------------------
+ * Enum
+ */
+
 static Ctype *read_enum_def(void) {
     Token *tok = read_token();
     if (tok->type == TTYPE_IDENT)
@@ -976,6 +968,146 @@ static Ctype *read_enum_def(void) {
         error("',' or '}' expected, but got %s", t2s(tok));
     }
     return ctype_int;
+}
+
+/*----------------------------------------------------------------------
+ * Initializer
+ */
+
+static void read_decl_init_elem(List *initlist, Ctype *ctype) {
+    Token *tok = peek_token();
+    Node *init = read_expr();
+    if (!init)
+        error("expression expected, but got %s", t2s(tok));
+    result_type('=', init->ctype, ctype);
+    init->totype = ctype;
+    tok = read_token();
+    if (!is_punct(tok, ','))
+        unget_token(tok);
+    list_push(initlist, init);
+}
+
+static void read_decl_array_init_int(List *initlist, Ctype *ctype) {
+    Token *tok = read_token();
+    assert(ctype->type == CTYPE_ARRAY);
+    if (ctype->ptr->type == CTYPE_CHAR && tok->type == TTYPE_STRING) {
+        for (char *p = tok->sval; *p; p++) {
+            Node *c = ast_inttype(ctype_char, *p);
+            c->totype = ctype_char;
+            list_push(initlist, c);
+        }
+        Node *c = ast_inttype(ctype_char, '\0');
+        c->totype = ctype_char;
+        list_push(initlist, c);
+        return;
+    }
+    if (!is_punct(tok, '{'))
+        error("Expected an initializer list for %s, but got %s",
+              c2s(ctype), t2s(tok));
+    for (;;) {
+        Token *tok = read_token();
+        if (is_punct(tok, '}'))
+            break;
+        unget_token(tok);
+        read_decl_init_elem(initlist, ctype->ptr);
+    }
+}
+
+static Node *read_decl_array_init_val(Ctype *ctype) {
+    List *initlist = make_list();
+    read_decl_array_init_int(initlist, ctype);
+    Node *init = ast_init_list(initlist);
+
+    int len = (init->type == AST_STRING)
+        ? strlen(init->sval) + 1
+        : list_len(init->initlist);
+    if (ctype->len == -1) {
+        ctype->len = len;
+        ctype->size = len * ctype->ptr->size;
+    } else if (ctype->len != len) {
+        error("Invalid array initializer: expected %d items but got %d",
+              ctype->len, len);
+    }
+    return init;
+}
+
+static Node *read_decl_struct_init_val(Ctype *ctype) {
+    expect('{');
+    List *initlist = make_list();
+    for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
+        Ctype *fieldtype = iter_next(i);
+        Token *tok = read_token();
+        if (is_punct(tok, '}'))
+            return ast_init_list(initlist);
+        if (is_punct(tok, '{')) {
+            if (fieldtype->type != CTYPE_ARRAY)
+                error("array expected, but got %s", c2s(fieldtype));
+            unget_token(tok);
+            read_decl_array_init_int(initlist, fieldtype);
+            continue;
+        }
+        unget_token(tok);
+        read_decl_init_elem(initlist, fieldtype);
+    }
+    expect('}');
+    return ast_init_list(initlist);
+}
+
+static Node *read_decl_init(Node *var) {
+    Ctype *ctype = var->ctype;
+    Node *init = (ctype->type == CTYPE_ARRAY) ? read_decl_array_init_val(ctype)
+        : (ctype->type == CTYPE_STRUCT) ? read_decl_struct_init_val(ctype)
+        : read_expr();
+    if (var->type == AST_GVAR && is_inttype(var->ctype))
+        init = ast_inttype(ctype_int, eval_intexpr(init));
+    return ast_decl(var, init);
+}
+
+/*----------------------------------------------------------------------
+ * Declarator
+ */
+
+static void read_func_param(Ctype **rtype, char **name, bool optional) {
+    int sclass;
+    Ctype *basetype = read_decl_spec(&sclass);
+    *rtype = read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
+}
+
+static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
+    bool typeonly = !paramvars;
+    List *paramtypes = make_list();
+    Token *tok = read_token();
+    Token *tok2 = read_token();
+    if (is_ident(tok, "void") && is_punct(tok2, ')'))
+        return make_func_type(rettype, paramtypes, false);
+    unget_token(tok2);
+    if (is_punct(tok, ')'))
+        return make_func_type(rettype, paramtypes, true);
+    unget_token(tok);
+    for (;;) {
+        tok = read_token();
+        if (is_ident(tok, "...")) {
+            if (list_len(paramtypes) == 0)
+                error("at least one parameter is required");
+            expect(')');
+            return make_func_type(rettype, paramtypes, true);
+        } else
+            unget_token(tok);
+        Ctype *ptype;
+        char *name;
+        read_func_param(&ptype, &name, typeonly);
+        ensure_not_void(ptype);
+        if (ptype->type == CTYPE_ARRAY)
+            ptype = make_ptr_type(ptype->ptr);
+        list_push(paramtypes, ptype);
+        if (!typeonly)
+            list_push(paramvars, ast_lvar(ptype, name));
+        Token *tok = read_token();
+        if (is_punct(tok, ')'))
+            return make_func_type(rettype, paramtypes, false);
+        if (!is_punct(tok, ','))
+            error("comma expected, but got %s", t2s(tok));
+    }
 }
 
 static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
@@ -1064,6 +1196,10 @@ static Ctype *read_declarator(char **rname, Ctype *basetype, List *params, int c
     fix_array_size(t);
     return t;
 }
+
+/*----------------------------------------------------------------------
+ * Declaration specifier
+ */
 
 static Ctype *read_decl_spec(int *rsclass) {
     int sclass = 0;
@@ -1159,239 +1295,47 @@ static Ctype *read_decl_spec(int *rsclass) {
     error("type mismatch: %s", t2s(tok));
 }
 
-static Node *read_decl_array_init_val(Ctype *ctype) {
-    List *initlist = make_list();
-    read_decl_array_init_int(initlist, ctype);
-    Node *init = ast_init_list(initlist);
+/*----------------------------------------------------------------------
+ * Declaration
+ */
 
-    int len = (init->type == AST_STRING)
-        ? strlen(init->sval) + 1
-        : list_len(init->initlist);
-    if (ctype->len == -1) {
-        ctype->len = len;
-        ctype->size = len * ctype->ptr->size;
-    } else if (ctype->len != len) {
-        error("Invalid array initializer: expected %d items but got %d",
-              ctype->len, len);
-    }
-    return init;
-}
-
-static Node *read_decl_struct_init_val(Ctype *ctype) {
-    expect('{');
-    List *initlist = make_list();
-    for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
-        Ctype *fieldtype = iter_next(i);
-        Token *tok = read_token();
-        if (is_punct(tok, '}'))
-            return ast_init_list(initlist);
-        if (is_punct(tok, '{')) {
-            if (fieldtype->type != CTYPE_ARRAY)
-                error("array expected, but got %s", c2s(fieldtype));
-            unget_token(tok);
-            read_decl_array_init_int(initlist, fieldtype);
-            continue;
-        }
-        unget_token(tok);
-        read_decl_init_elem(initlist, fieldtype);
-    }
-    expect('}');
-    return ast_init_list(initlist);
-}
-
-static Node *read_decl_init_val(Ctype *ctype) {
-    return (ctype->type == CTYPE_ARRAY) ? read_decl_array_init_val(ctype)
-        : (ctype->type == CTYPE_STRUCT) ? read_decl_struct_init_val(ctype)
-        : read_expr();
-}
-
-static Ctype *read_array_dimensions_int(Ctype *basetype) {
-    Token *tok = read_token();
-    if (!is_punct(tok, '[')) {
-        unget_token(tok);
-        return NULL;
-    }
-    int dim = -1;
-    if (!is_punct(peek_token(), ']')) {
-        Node *size = read_expr();
-        dim = eval_intexpr(size);
-    }
-    expect(']');
-    Ctype *sub = read_array_dimensions_int(basetype);
-    if (sub) {
-        if (sub->len == -1 && dim == -1)
-            error("Array size is not specified");
-        return make_array_type(sub, dim);
-    }
-    return make_array_type(basetype, dim);
-}
-
-static Ctype *read_array_dimensions(Ctype *basetype) {
-    Ctype *ctype = read_array_dimensions_int(basetype);
-    return ctype ? ctype : basetype;
-}
-
-static Node *read_decl_init(Node *var) {
-    Node *init = read_decl_init_val(var->ctype);
-    if (var->type == AST_GVAR && is_inttype(var->ctype))
-        init = ast_inttype(ctype_int, eval_intexpr(init));
-    return ast_decl(var, init);
-}
-
-static void read_func_param(Ctype **rtype, char **name, bool optional) {
+static void read_decl(List *block, MakeVarFn make_var) {
     int sclass;
     Ctype *basetype = read_decl_spec(&sclass);
-    basetype = read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
-    *rtype = read_array_dimensions(basetype);
-}
-
-static Node *read_if_stmt(void) {
-    expect('(');
-    Node *cond = read_expr();
-    expect(')');
-    Node *then = read_stmt();
-    Token *tok = read_token();
-    if (!tok || tok->type != TTYPE_IDENT || strcmp(tok->sval, "else")) {
-        unget_token(tok);
-        return ast_if(cond, then, NULL);
-    }
-    Node *els = read_stmt();
-    return ast_if(cond, then, els);
-}
-
-static Node *read_opt_decl_or_stmt(void) {
     Token *tok = read_token();
     if (is_punct(tok, ';'))
-        return NULL;
-    unget_token(tok);
-    List *list = make_list();
-    read_decl_or_stmt(list);
-    return list_shift(list);
-}
-
-static Node *read_opt_expr(void) {
-    Token *tok = read_token();
-    if (is_punct(tok, ';'))
-        return NULL;
-    unget_token(tok);
-    Node *r = read_expr();
-    expect(';');
-    return r;
-}
-
-static Node *read_for_stmt(void) {
-    expect('(');
-    localenv = make_dict(localenv);
-    Node *init = read_opt_decl_or_stmt();
-    Node *cond = read_opt_expr();
-    Node *step = is_punct(peek_token(), ')')
-        ? NULL : read_expr();
-    expect(')');
-    Node *body = read_stmt();
-    localenv = dict_parent(localenv);
-    return ast_for(init, cond, step, body);
-}
-
-static Node *read_while_stmt(void) {
-    expect('(');
-    Node *cond = read_expr();
-    expect(')');
-    Node *body = read_stmt();
-    return ast_while(cond, body);
-}
-
-static Node *read_do_stmt(void) {
-    Node *body = read_stmt();
-    Token *tok = read_token();
-    if (!is_ident(tok, "while"))
-        error("'while' is expected, but got %s", t2s(tok));
-    expect('(');
-    Node *cond = read_expr();
-    expect(')');
-    expect(';');
-    return ast_do(cond, body);
-}
-
-static Node *read_return_stmt(void) {
-    Node *retval = read_expr();
-    expect(';');
-    return ast_return(current_func_type->rettype, retval);
-}
-
-static Node *read_stmt(void) {
-    Token *tok = read_token();
-    if (is_ident(tok, "if"))     return read_if_stmt();
-    if (is_ident(tok, "for"))    return read_for_stmt();
-    if (is_ident(tok, "while"))  return read_while_stmt();
-    if (is_ident(tok, "do"))     return read_do_stmt();
-    if (is_ident(tok, "return")) return read_return_stmt();
-    if (is_punct(tok, '{'))      return read_compound_stmt();
-    unget_token(tok);
-    Node *r = read_expr();
-    expect(';');
-    return r;
-}
-
-static void read_decl_or_stmt(List *list) {
-    Token *tok = peek_token();
-    if (tok == NULL)
-        error("premature end of input");
-    if (is_type_keyword(tok))
-        read_decl(list, ast_lvar);
-    else
-        list_push(list, read_stmt());
-}
-
-static Node *read_compound_stmt(void) {
-    localenv = make_dict(localenv);
-    List *list = make_list();
-    for (;;) {
-        read_decl_or_stmt(list);
-        Token *tok = read_token();
-        if (is_punct(tok, '}'))
-            break;
-        unget_token(tok);
-    }
-    localenv = dict_parent(localenv);
-    return ast_compound_stmt(list);
-}
-
-static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
-    bool typeonly = !paramvars;
-    List *paramtypes = make_list();
-    Token *tok = read_token();
-    Token *tok2 = read_token();
-    if (is_ident(tok, "void") && is_punct(tok2, ')'))
-        return make_func_type(rettype, paramtypes, false);
-    unget_token(tok2);
-    if (is_punct(tok, ')'))
-        return make_func_type(rettype, paramtypes, true);
+        return;
     unget_token(tok);
     for (;;) {
+        char *name = NULL;
+        Ctype *ctype = read_declarator(&name, basetype, NULL, DECL_BODY);
         tok = read_token();
-        if (is_ident(tok, "...")) {
-            if (list_len(paramtypes) == 0)
-                error("at least one parameter is required");
-            expect(')');
-            return make_func_type(rettype, paramtypes, true);
-        } else
-            unget_token(tok);
-        Ctype *ptype;
-        char *name;
-        read_func_param(&ptype, &name, typeonly);
-        ensure_not_void(ptype);
-        if (ptype->type == CTYPE_ARRAY)
-            ptype = make_ptr_type(ptype->ptr);
-        list_push(paramtypes, ptype);
-        if (!typeonly)
-            list_push(paramvars, ast_lvar(ptype, name));
-        Token *tok = read_token();
-        if (is_punct(tok, ')'))
-            return make_func_type(rettype, paramtypes, false);
+        if (is_punct(tok, '=')) {
+            if (sclass == S_TYPEDEF)
+                error("= after typedef");
+            ensure_not_void(ctype);
+            Node *var = make_var(ctype, name);
+            list_push(block, read_decl_init(var));
+            tok = read_token();
+        } else if (sclass == S_TYPEDEF) {
+            dict_put(typedefs, name, ctype);
+        } else if (ctype->type == CTYPE_FUNC) {
+            make_var(ctype, name);
+        } else {
+            Node *var = make_var(ctype, name);
+            if (sclass != S_EXTERN)
+                list_push(block, ast_decl(var, NULL));
+        }
+        if (is_punct(tok, ';'))
+            return;
         if (!is_punct(tok, ','))
-            error("comma expected, but got %s", t2s(tok));
+            error("; or , are expected, but got %s", t2s(tok));
     }
 }
+
+/*----------------------------------------------------------------------
+ * Function definition
+ */
 
 static Node *read_func_body(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
@@ -1449,39 +1393,144 @@ static Node *read_funcdef(void) {
     return r;
 }
 
-static void read_decl(List *block, MakeVarFn make_var) {
-    int sclass;
-    Ctype *basetype = read_decl_spec(&sclass);
+/*----------------------------------------------------------------------
+ * If
+ */
+
+static Node *read_if_stmt(void) {
+    expect('(');
+    Node *cond = read_expr();
+    expect(')');
+    Node *then = read_stmt();
+    Token *tok = read_token();
+    if (!tok || tok->type != TTYPE_IDENT || strcmp(tok->sval, "else")) {
+        unget_token(tok);
+        return ast_if(cond, then, NULL);
+    }
+    Node *els = read_stmt();
+    return ast_if(cond, then, els);
+}
+
+/*----------------------------------------------------------------------
+ * For
+ */
+
+static Node *read_opt_decl_or_stmt(void) {
     Token *tok = read_token();
     if (is_punct(tok, ';'))
-        return;
+        return NULL;
     unget_token(tok);
-    for (;;) {
-        char *name = NULL;
-        Ctype *ctype = read_declarator(&name, basetype, NULL, DECL_BODY);
-        tok = read_token();
-        if (is_punct(tok, '=')) {
-            if (sclass == S_TYPEDEF)
-                error("= after typedef");
-            ensure_not_void(ctype);
-            Node *var = make_var(ctype, name);
-            list_push(block, read_decl_init(var));
-            tok = read_token();
-        } else if (sclass == S_TYPEDEF) {
-            dict_put(typedefs, name, ctype);
-        } else if (ctype->type == CTYPE_FUNC) {
-            make_var(ctype, name);
-        } else {
-            Node *var = make_var(ctype, name);
-            if (sclass != S_EXTERN)
-                list_push(block, ast_decl(var, NULL));
-        }
-        if (is_punct(tok, ';'))
-            return;
-        if (!is_punct(tok, ','))
-            error("; or , are expected, but got %s", t2s(tok));
-    }
+    List *list = make_list();
+    read_decl_or_stmt(list);
+    return list_shift(list);
 }
+
+static Node *read_opt_expr(void) {
+    Token *tok = read_token();
+    if (is_punct(tok, ';'))
+        return NULL;
+    unget_token(tok);
+    Node *r = read_expr();
+    expect(';');
+    return r;
+}
+
+static Node *read_for_stmt(void) {
+    expect('(');
+    localenv = make_dict(localenv);
+    Node *init = read_opt_decl_or_stmt();
+    Node *cond = read_opt_expr();
+    Node *step = is_punct(peek_token(), ')')
+        ? NULL : read_expr();
+    expect(')');
+    Node *body = read_stmt();
+    localenv = dict_parent(localenv);
+    return ast_for(init, cond, step, body);
+}
+
+/*----------------------------------------------------------------------
+ * While
+ */
+
+static Node *read_while_stmt(void) {
+    expect('(');
+    Node *cond = read_expr();
+    expect(')');
+    Node *body = read_stmt();
+    return ast_while(cond, body);
+}
+
+/*----------------------------------------------------------------------
+ * Do
+ */
+
+static Node *read_do_stmt(void) {
+    Node *body = read_stmt();
+    Token *tok = read_token();
+    if (!is_ident(tok, "while"))
+        error("'while' is expected, but got %s", t2s(tok));
+    expect('(');
+    Node *cond = read_expr();
+    expect(')');
+    expect(';');
+    return ast_do(cond, body);
+}
+
+/*----------------------------------------------------------------------
+ * Return
+ */
+
+static Node *read_return_stmt(void) {
+    Node *retval = read_expr();
+    expect(';');
+    return ast_return(current_func_type->rettype, retval);
+}
+
+/*----------------------------------------------------------------------
+ * Statement
+ */
+
+static Node *read_stmt(void) {
+    Token *tok = read_token();
+    if (is_ident(tok, "if"))     return read_if_stmt();
+    if (is_ident(tok, "for"))    return read_for_stmt();
+    if (is_ident(tok, "while"))  return read_while_stmt();
+    if (is_ident(tok, "do"))     return read_do_stmt();
+    if (is_ident(tok, "return")) return read_return_stmt();
+    if (is_punct(tok, '{'))      return read_compound_stmt();
+    unget_token(tok);
+    Node *r = read_expr();
+    expect(';');
+    return r;
+}
+
+static Node *read_compound_stmt(void) {
+    localenv = make_dict(localenv);
+    List *list = make_list();
+    for (;;) {
+        read_decl_or_stmt(list);
+        Token *tok = read_token();
+        if (is_punct(tok, '}'))
+            break;
+        unget_token(tok);
+    }
+    localenv = dict_parent(localenv);
+    return ast_compound_stmt(list);
+}
+
+static void read_decl_or_stmt(List *list) {
+    Token *tok = peek_token();
+    if (tok == NULL)
+        error("premature end of input");
+    if (is_type_keyword(tok))
+        read_decl(list, ast_lvar);
+    else
+        list_push(list, read_stmt());
+}
+
+/*----------------------------------------------------------------------
+ * Compilation unit
+ */
 
 List *read_toplevels(void) {
     List *r = make_list();
