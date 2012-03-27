@@ -631,10 +631,13 @@ static void emit_expr(Node *node) {
     case AST_CASE: {
         if (!lswitch)
             error("stray case label");
+        char *skip = make_label();
+        emit_jmp(skip);
         emit_label(lswitch);
         emit("cmp $%d, %%eax", node->caseval);
         lswitch = make_label();
         emit("jne %s", lswitch);
+        emit_label(skip);
         break;
     }
     case AST_DEFAULT:
