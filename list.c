@@ -127,4 +127,3 @@ void *iter_next(Iter *iter) {
 bool iter_end(Iter *iter) {
     return !iter->ptr;
 }
-

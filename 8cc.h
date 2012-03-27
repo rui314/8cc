@@ -77,6 +77,8 @@ enum {
     AST_CONTINUE,
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
+    AST_GOTO,
+    AST_LABEL,
     OP_EQ,
     OP_NE,
     OP_LE,
@@ -210,6 +212,11 @@ typedef struct Node {
         };
         // Switch-case label
         int caseval;
+        // Goto and label
+        struct {
+            char *label;
+            char *newlabel;
+        };
         // Return statement
         struct Node *retval;
         // Compound statement

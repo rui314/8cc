@@ -643,6 +643,14 @@ static void emit_expr(Node *node) {
         emit_label(lswitch);
         lswitch = make_label();
         break;
+    case AST_GOTO:
+        assert(node->newlabel);
+        emit_jmp(node->newlabel);
+        break;
+    case AST_LABEL:
+        if (node->newlabel)
+            emit_label(node->newlabel);
+        break;
     case AST_RETURN:
         if (node->retval) {
             emit_expr(node->retval);

@@ -128,6 +128,24 @@ void test_switch() {
     expect(a, 5);
 }
 
+void test_goto() {
+    int acc = 0;
+    goto x;
+    acc = 5;
+ x: expect(0, acc);
+
+    int i = 0;
+    acc = 0;
+ y: if (i > 10) goto z;
+    acc += i++;
+    goto y;
+ z: if (i > 11) goto a;
+    expect(55, acc);
+    i++;
+    goto y;
+ a:
+}
+
 int main() {
     printf("Testing control flow ... ");
 
@@ -136,6 +154,7 @@ int main() {
     test_while();
     test_do();
     test_switch();
+    test_goto();
 
     printf("OK\n");
     return 0;

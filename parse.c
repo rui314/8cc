@@ -18,12 +18,14 @@
 List *strings = &EMPTY_LIST;
 List *flonums = &EMPTY_LIST;
 static Dict *globalenv = &EMPTY_DICT;
-static Dict *localenv = NULL;
+static Dict *localenv;
 static Dict *struct_defs = &EMPTY_DICT;
 static Dict *union_defs = &EMPTY_DICT;
 static Dict *typedefs = &EMPTY_DICT;
-static List *localvars = NULL;
-static Ctype *current_func_type = NULL;
+static List *gotos;
+static Dict *labels;
+static List *localvars;
+static Ctype *current_func_type;
 
 Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
@@ -277,6 +279,23 @@ static Node *ast_struct_ref(Ctype *ctype, Node *struc, char *name) {
     r->field = name;
     return r;
 }
+
+static Node *ast_goto(char *label) {
+    Node *r = malloc(sizeof(Node));
+    r->type = AST_GOTO;
+    r->label = label;
+    r->newlabel = NULL;
+    return r;
+}
+
+static Node *ast_label(char *label) {
+    Node *r = malloc(sizeof(Node));
+    r->type = AST_LABEL;
+    r->label = label;
+    r->newlabel = NULL;
+    return r;
+}
+
 
 static Ctype *copy_type(Ctype *ctype) {
     Ctype *r = malloc(sizeof(Ctype));
@@ -1431,14 +1450,31 @@ static bool is_funcdef(void) {
     return r;
 }
 
+static void backfill_labels(void) {
+    for (Iter *i = list_iter(gotos); !iter_end(i);) {
+        Node *src = iter_next(i);
+        char *label = src->label;
+        Node *dst = dict_get(labels, label);
+        if (!dst)
+            error("stray goto: %s", label);
+        if (dst->newlabel)
+            src->newlabel = dst->newlabel;
+        else
+            src->newlabel = dst->newlabel = make_label();
+    }
+}
+
 static Node *read_funcdef(void) {
     Ctype *basetype = read_decl_spec(NULL);
     localenv = make_dict(globalenv);
+    gotos = make_list();
+    labels = make_dict(NULL);
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
     expect('{');
     Node *r = read_func_body(functype, name, params);
+    backfill_labels();
     localenv = NULL;
     return r;
 }
@@ -1570,23 +1606,46 @@ static Node *read_return_stmt(void) {
     return ast_return(current_func_type->rettype, retval);
 }
 
+static Node *read_goto_stmt(void) {
+    Token *tok = read_token();
+    if (!tok || tok->type != TTYPE_IDENT)
+        error("identifier expected, but got %s", t2s(tok));
+    expect(';');
+    Node *r = ast_goto(tok->sval);
+    list_push(gotos, r);
+    return r;
+}
+
+static Node *read_label(Token *tok) {
+    expect(':');
+    char *label = tok->sval;
+    Node *r = ast_label(label);
+    if (dict_get(labels, label))
+        error("duplicate label: %s", t2s(tok));
+    dict_put(labels, label, r);
+    return r;
+}
+
 /*----------------------------------------------------------------------
  * Statement
  */
 
 static Node *read_stmt(void) {
     Token *tok = read_token();
-    if (is_punct(tok, '{'))      return read_compound_stmt();
-    if (is_ident(tok, "if"))     return read_if_stmt();
-    if (is_ident(tok, "for"))    return read_for_stmt();
-    if (is_ident(tok, "while"))  return read_while_stmt();
-    if (is_ident(tok, "do"))     return read_do_stmt();
-    if (is_ident(tok, "return")) return read_return_stmt();
-    if (is_ident(tok, "switch")) return read_switch_stmt();
-    if (is_ident(tok, "case"))   return read_case_label();
-    if (is_ident(tok, "default")) return read_default_label();
-    if (is_ident(tok, "break"))  return read_break_stmt();
+    if (is_punct(tok, '{'))        return read_compound_stmt();
+    if (is_ident(tok, "if"))       return read_if_stmt();
+    if (is_ident(tok, "for"))      return read_for_stmt();
+    if (is_ident(tok, "while"))    return read_while_stmt();
+    if (is_ident(tok, "do"))       return read_do_stmt();
+    if (is_ident(tok, "return"))   return read_return_stmt();
+    if (is_ident(tok, "switch"))   return read_switch_stmt();
+    if (is_ident(tok, "case"))     return read_case_label();
+    if (is_ident(tok, "default"))  return read_default_label();
+    if (is_ident(tok, "break"))    return read_break_stmt();
     if (is_ident(tok, "continue")) return read_continue_stmt();
+    if (is_ident(tok, "goto"))     return read_goto_stmt();
+    if (tok->type == TTYPE_IDENT && is_punct(peek_token(), ':'))
+        return read_label(tok);
     unget_token(tok);
     Node *r = read_expr();
     expect(';');
