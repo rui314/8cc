@@ -25,15 +25,23 @@ void test_if() {
 void test_for() {
     int i;
     int acc = 0;
-    for (i = 0; i < 5; i = i + 1) {
+    for (i = 0; i < 5; i++) {
         acc = acc + i;
     }
     expect(10, acc);
 
     acc = 0;
-    for (i = 0; i < 5; i = i + 1)
+    for (i = 0; i < 5; i++)
         acc = acc + i;
     expect(10, acc);
+
+    acc = 0;
+    for (i = 0; i < 100; i++) {
+        if (i < 5) continue;
+        if (i == 9) break;
+        acc += i;
+    }
+    expect(5 + 6 + 7 + 8, acc);
 }
 
 void test_while() {
@@ -49,6 +57,15 @@ void test_while() {
         acc = acc + i++;
     }
     expect(5051, acc);
+
+    acc = 0;
+    i = 0;
+    while (i < 10) {
+        if (i++ < 5) continue;
+        acc += i;
+        if (i == 9) break;
+    }
+    expect(6 + 7 + 8 + 9, acc);
 }
 
 void test_do() {
@@ -62,6 +79,15 @@ void test_do() {
     i = 0;
     do { i = 37; } while (0);
     expect(37, i);
+
+    acc = 0;
+    i = 0;
+    do {
+        if (i++ < 5) continue;
+        acc += i;
+        if (i == 9) break;
+    } while (i < 10);
+    expect(6 + 7 + 8 + 9, acc);
 }
 
 int main() {

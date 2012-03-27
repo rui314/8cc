@@ -232,6 +232,12 @@ static Node *ast_do(Node *cond, Node *body) {
     return ast_for_int(AST_DO, NULL, cond, NULL, body);
 }
 
+static Node *ast_jump(int type) {
+    Node *r = malloc(sizeof(Node));
+    r->type = type;
+    return r;
+}
+
 static Node *ast_return(Ctype *rettype, Node *retval) {
     Node *r = malloc(sizeof(Node));
     r->type = AST_RETURN;
@@ -1506,8 +1512,18 @@ static Node *read_do_stmt(void) {
 }
 
 /*----------------------------------------------------------------------
- * Return
+ * Jump statements
  */
+
+static Node *read_break_stmt(void) {
+    expect(';');
+    return ast_jump(AST_BREAK);
+}
+
+static Node *read_continue_stmt(void) {
+    expect(';');
+    return ast_jump(AST_CONTINUE);
+}
 
 static Node *read_return_stmt(void) {
     Node *retval = read_expr();
@@ -1521,12 +1537,14 @@ static Node *read_return_stmt(void) {
 
 static Node *read_stmt(void) {
     Token *tok = read_token();
+    if (is_punct(tok, '{'))      return read_compound_stmt();
     if (is_ident(tok, "if"))     return read_if_stmt();
     if (is_ident(tok, "for"))    return read_for_stmt();
     if (is_ident(tok, "while"))  return read_while_stmt();
     if (is_ident(tok, "do"))     return read_do_stmt();
     if (is_ident(tok, "return")) return read_return_stmt();
-    if (is_punct(tok, '{'))      return read_compound_stmt();
+    if (is_ident(tok, "break"))  return read_break_stmt();
+    if (is_ident(tok, "continue")) return read_continue_stmt();
     unget_token(tok);
     Node *r = read_expr();
     expect(';');

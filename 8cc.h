@@ -70,6 +70,8 @@ enum {
     AST_WHILE,
     AST_DO,
     AST_RETURN,
+    AST_BREAK,
+    AST_CONTINUE,
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
     OP_EQ,

@@ -4,7 +4,8 @@
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static int TAB = 8;
 static List *functions = &EMPTY_LIST;
-
+static char *lbreak;
+static char *lcontinue;
 static int stackpos;
 
 static void emit_expr(Node *node);
@@ -555,43 +556,63 @@ static void emit_expr(Node *node) {
         break;
     }
     case AST_FOR: {
+
+#define SET_JUMP_LABELS(brk, cont)              \
+        char *obreak = lbreak;                  \
+        char *ocontinue = lcontinue;            \
+        lbreak = brk;                           \
+        lcontinue = cont
+#define RESTORE_JUMP_LABELS()                   \
+        lbreak = obreak;                        \
+        lcontinue = ocontinue;
+
         if (node->forinit)
             emit_expr(node->forinit);
         char *begin = make_label();
+        char *step = make_label();
         char *end = make_label();
+        SET_JUMP_LABELS(end, step);
         emit_label(begin);
         if (node->forcond) {
             emit_expr(node->forcond);
             emit_je(end);
         }
         emit_expr(node->forbody);
+        emit_label(step);
         if (node->forstep)
             emit_expr(node->forstep);
         emit_jmp(begin);
         emit_label(end);
+        RESTORE_JUMP_LABELS();
         break;
     }
     case AST_WHILE: {
         char *begin = make_label();
         char *end = make_label();
+        SET_JUMP_LABELS(end, begin);
         emit_label(begin);
         emit_expr(node->forcond);
         emit_je(end);
         emit_expr(node->forbody);
         emit_jmp(begin);
         emit_label(end);
+        RESTORE_JUMP_LABELS();
         break;
     }
     case AST_DO: {
         char *begin = make_label();
         char *end = make_label();
+        SET_JUMP_LABELS(end, begin);
         emit_label(begin);
         emit_expr(node->forbody);
         emit_expr(node->forcond);
         emit_je(end);
         emit_jmp(begin);
         emit_label(end);
+        RESTORE_JUMP_LABELS();
         break;
+#undef SET_JUMP_LABELS
+#undef RESTORE_JUMP_LABELS
     }
     case AST_RETURN:
         if (node->retval) {
@@ -600,6 +621,16 @@ static void emit_expr(Node *node) {
         }
         emit("leave");
         emit("ret");
+        break;
+    case AST_BREAK:
+        if (!lbreak)
+            error("stray break statement");
+        emit_jmp(lbreak);
+        break;
+    case AST_CONTINUE:
+        if (!lcontinue)
+            error("stray continue statement");
+        emit_jmp(lcontinue);
         break;
     case AST_COMPOUND_STMT:
         for (Iter *i = list_iter(node->stmts); !iter_end(i);)
