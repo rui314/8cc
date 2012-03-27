@@ -5,6 +5,11 @@
 int externvar1 = 98;
 int externvar2 = 99;
 
+void fail(char *msg) {
+    printf("Failed: %s\n", msg);
+    exit(1);
+}
+
 void expect(int a, int b) {
     if (!(a == b)) {
         printf("Failed\n");

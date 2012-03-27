@@ -6,6 +6,7 @@ static int TAB = 8;
 static List *functions = &EMPTY_LIST;
 static char *lbreak;
 static char *lcontinue;
+static char *lswitch;
 static int stackpos;
 
 static void emit_expr(Node *node);
@@ -614,6 +615,34 @@ static void emit_expr(Node *node) {
 #undef SET_JUMP_LABELS
 #undef RESTORE_JUMP_LABELS
     }
+    case AST_SWITCH: {
+        char *oswitch = lswitch, *obreak = lbreak;
+        emit_expr(node->switchexpr);
+        lswitch = make_label();
+        lbreak = make_label();
+        emit_jmp(lswitch);
+        emit_expr(node->switchbody);
+        emit_label(lswitch);
+        emit_label(lbreak);
+        lswitch = oswitch;
+        lbreak = obreak;
+        break;
+    }
+    case AST_CASE: {
+        if (!lswitch)
+            error("stray case label");
+        emit_label(lswitch);
+        emit("cmp $%d, %%eax", node->caseval);
+        lswitch = make_label();
+        emit("jne %s", lswitch);
+        break;
+    }
+    case AST_DEFAULT:
+        if (!lswitch)
+            error("stray case label");
+        emit_label(lswitch);
+        lswitch = make_label();
+        break;
     case AST_RETURN:
         if (node->retval) {
             emit_expr(node->retval);

@@ -232,7 +232,22 @@ static Node *ast_do(Node *cond, Node *body) {
     return ast_for_int(AST_DO, NULL, cond, NULL, body);
 }
 
-static Node *ast_jump(int type) {
+static Node *ast_switch(Node *expr, Node *body) {
+    Node *r = malloc(sizeof(Node));
+    r->type = AST_SWITCH;
+    r->switchexpr = expr;
+    r->switchbody = body;
+    return r;
+}
+
+static Node *ast_case(int val) {
+    Node *r = malloc(sizeof(Node));
+    r->type = AST_CASE;
+    r->caseval = val;
+    return r;
+}
+
+static Node *make_ast(int type) {
     Node *r = malloc(sizeof(Node));
     r->type = type;
     return r;
@@ -1512,17 +1527,41 @@ static Node *read_do_stmt(void) {
 }
 
 /*----------------------------------------------------------------------
+ * Switch
+ */
+
+static Node *read_switch_stmt(void) {
+    expect('(');
+    Node *expr = read_expr();
+    ensure_inttype(expr);
+    expect(')');
+    Node *body = read_stmt();
+    return ast_switch(expr, body);
+}
+
+static Node *read_case_label(void) {
+    int val = eval_intexpr(read_expr());
+    expect(':');
+    return ast_case(val);
+}
+
+static Node *read_default_label(void) {
+    expect(':');
+    return make_ast(AST_DEFAULT);
+}
+
+/*----------------------------------------------------------------------
  * Jump statements
  */
 
 static Node *read_break_stmt(void) {
     expect(';');
-    return ast_jump(AST_BREAK);
+    return make_ast(AST_BREAK);
 }
 
 static Node *read_continue_stmt(void) {
     expect(';');
-    return ast_jump(AST_CONTINUE);
+    return make_ast(AST_CONTINUE);
 }
 
 static Node *read_return_stmt(void) {
@@ -1543,6 +1582,9 @@ static Node *read_stmt(void) {
     if (is_ident(tok, "while"))  return read_while_stmt();
     if (is_ident(tok, "do"))     return read_do_stmt();
     if (is_ident(tok, "return")) return read_return_stmt();
+    if (is_ident(tok, "switch")) return read_switch_stmt();
+    if (is_ident(tok, "case"))   return read_case_label();
+    if (is_ident(tok, "default")) return read_default_label();
     if (is_ident(tok, "break"))  return read_break_stmt();
     if (is_ident(tok, "continue")) return read_continue_stmt();
     unget_token(tok);

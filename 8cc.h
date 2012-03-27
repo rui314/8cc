@@ -69,6 +69,9 @@ enum {
     AST_FOR,
     AST_WHILE,
     AST_DO,
+    AST_SWITCH,
+    AST_CASE,
+    AST_DEFAULT,
     AST_RETURN,
     AST_BREAK,
     AST_CONTINUE,
@@ -200,6 +203,13 @@ typedef struct Node {
             struct Node *forstep;
             struct Node *forbody;
         };
+        // Switch statement
+        struct {
+            struct Node *switchexpr;
+            struct Node *switchbody;
+        };
+        // Switch-case label
+        int caseval;
         // Return statement
         struct Node *retval;
         // Compound statement
