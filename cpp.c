@@ -700,9 +700,8 @@ static __attribute__((constructor)) void init(void) {
     list_push(std_include_path, "/usr/local/include");
     list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
     list_push(std_include_path, "/usr/include/linux");
-    list_push(std_include_path, "/usr/lib/clang/2.9/include");
     list_push(std_include_path, "/usr/include");
-    list_push(std_include_path, ".");
+    list_push(std_include_path, "./include");
 
     define_obj_macro("__x86_64__", cpp_token_one);
     define_obj_macro("__8cc__", cpp_token_one);
@@ -716,8 +715,7 @@ static __attribute__((constructor)) void init(void) {
     def_special_macro("__LINE__", handle_line_macro);
     def_special_macro("_Pragma", handle_pragma_macro);
 
-    eval("typedef int __builtin_va_list[1];"
-         "typedef int size_t;"
+    eval("typedef int size_t;"
          "typedef int wchar_t;"
          "typedef int _Bool;");
 }
