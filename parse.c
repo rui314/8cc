@@ -26,6 +26,7 @@ static List *gotos;
 static Dict *labels;
 static List *localvars;
 static Ctype *current_func_type;
+static bool use_varargs;
 
 Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
@@ -57,6 +58,7 @@ static void read_decl(List *toplevel, MakeVarFn make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
+static Ctype *read_cast_type(void);
 
 enum {
     S_TYPEDEF = 1,
@@ -163,7 +165,8 @@ static Node *ast_funcall(Ctype *ctype, char *fname, List *args, List *paramtypes
     return r;
 }
 
-static Node *ast_func(Ctype *ctype, char *fname, List *params, Node *body, List *localvars) {
+static Node *ast_func(Ctype *ctype, char *fname, List *params,
+                      Node *body, List *localvars, bool use_varargs) {
     Node *r = malloc(sizeof(Node));
     r->type = AST_FUNC;
     r->ctype = ctype;
@@ -171,6 +174,7 @@ static Node *ast_func(Ctype *ctype, char *fname, List *params, Node *body, List 
     r->params = params;
     r->localvars = localvars;
     r->body = body;
+    r->use_varargs = use_varargs;
     return r;
 }
 
@@ -296,6 +300,22 @@ static Node *ast_label(char *label) {
     return r;
 }
 
+
+static Node *ast_va_start(Node *ap) {
+    Node *r = malloc(sizeof(Node));
+    r->type = AST_VA_START;
+    r->ctype = ctype_void;
+    r->ap = ap;
+    return r;
+}
+
+static Node *ast_va_arg(Ctype *ctype, Node *ap) {
+    Node *r = malloc(sizeof(Node));
+    r->type = AST_VA_ARG;
+    r->ctype = ctype;
+    r->ap = ap;
+    return r;
+}
 
 static Ctype *copy_type(Ctype *ctype) {
     Ctype *r = malloc(sizeof(Ctype));
@@ -674,13 +694,41 @@ static Node *read_func_args(char *fname) {
 }
 
 /*----------------------------------------------------------------------
+ * Builtin functions for varargs
+ */
+
+static Node *read_va_start(void) {
+    // void __builtin_va_start(va_list ap)
+    Node *ap = read_expr();
+    expect(')');
+    use_varargs = true;
+    return ast_va_start(ap);
+}
+
+static Node *read_va_arg(void) {
+    // <type> __builtin_va_arg(va_list ap, <type>)
+    Node *ap = read_expr();
+    expect(',');
+    Ctype *ctype = read_cast_type();
+    expect(')');
+    use_varargs = true;
+    return ast_va_arg(ctype, ap);
+}
+
+
+/*----------------------------------------------------------------------
  * Expression
  */
 
 static Node *read_var_or_func(char *name) {
     Token *tok = read_token();
-    if (is_punct(tok, '('))
+    if (is_punct(tok, '(')) {
+        if (strcmp(name, "__builtin_va_start") == 0)
+            return read_va_start();
+        if (strcmp(name, "__builtin_va_arg") == 0)
+            return read_va_arg();
         return read_func_args(name);
+    }
     unget_token(tok);
     Node *v = dict_get(localenv, name);
     if (!v)
@@ -718,9 +766,13 @@ static Node *read_subscript_expr(Node *node) {
     return ast_uop(AST_DEREF, t->ctype->ptr, t);
 }
 
-static Node *read_cast(void) {
+static Ctype *read_cast_type(void) {
     Ctype *basetype = read_decl_spec(NULL);
-    Ctype *ctype = read_declarator(NULL, basetype, NULL, DECL_CAST);
+    return read_declarator(NULL, basetype, NULL, DECL_CAST);
+}
+
+static Node *read_cast(void) {
+    Ctype *ctype = read_cast_type();
     expect(')');
     Node *expr = read_expr();
     return ast_uop(OP_CAST, ctype, expr);
@@ -1410,8 +1462,9 @@ static Node *read_func_body(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
     localvars = make_list();
     current_func_type = functype;
+    use_varargs = false;
     Node *body = read_compound_stmt();
-    Node *r = ast_func(functype, fname, params, body, localvars);
+    Node *r = ast_func(functype, fname, params, body, localvars, use_varargs);
     dict_put(globalenv, fname, r);
     current_func_type = NULL;
     localenv = NULL;

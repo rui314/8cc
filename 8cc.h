@@ -79,6 +79,8 @@ enum {
     AST_STRUCT_REF,
     AST_GOTO,
     AST_LABEL,
+    AST_VA_START,
+    AST_VA_ARG,
     OP_EQ,
     OP_NE,
     OP_LE,
@@ -181,6 +183,7 @@ typedef struct Node {
             struct List *params;
             struct List *localvars;
             struct Node *body;
+            bool use_varargs;
         };
         // Declaration
         struct {
@@ -227,6 +230,8 @@ typedef struct Node {
             char *field;
             Ctype *fieldtype;
         };
+        // Builtin functions for varargs
+        struct Node *ap;
     };
 } Node;
 

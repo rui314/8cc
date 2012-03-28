@@ -8,9 +8,13 @@ static char *lbreak;
 static char *lcontinue;
 static char *lswitch;
 static int stackpos;
+static int numgp;
+static int numfp;
 
 static void emit_expr(Node *node);
 static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off);
+
+#define REGAREA_SIZE 304
 
 #define emit(...)        emitf(__LINE__, "\t" __VA_ARGS__)
 #define emit_noindent(...)  emitf(__LINE__, __VA_ARGS__)
@@ -402,6 +406,17 @@ static List *get_arg_types(Node *node) {
     return r;
 }
 
+static void set_reg_nums(List *args) {
+    numgp = numfp = 0;
+    for (Iter *i = list_iter(args); !iter_end(i);) {
+        Node *arg = iter_next(i);
+        if (is_flotype(arg->ctype))
+            numfp++;
+        else
+            numgp++;
+    }
+}
+
 static void emit_je(char *label) {
     emit("test %%rax, %%rax");
     emit("je %s", label);
@@ -679,6 +694,37 @@ static void emit_expr(Node *node) {
     case AST_STRUCT_REF:
         emit_load_struct_ref(node->struc, node->ctype, 0);
         break;
+    case AST_VA_START:
+        emit_expr(node->ap);
+        push("rcx");
+        emit("movl $%d, (%%rax)", numgp * 8);
+        emit("movl $%d, 4(%%rax)", 48 + numfp * 16);
+        emit("lea %d(%%rbp), %%rcx", -REGAREA_SIZE);
+        emit("mov %%rcx, 32(%%rax)");
+        pop("rcx");
+        break;
+    case AST_VA_ARG:
+        emit_expr(node->ap);
+        emit("nop");
+        push("rcx");
+        push("rbx");
+        emit("mov 32(%%rax), %%rcx");
+        if (is_flotype(node->ctype)) {
+            emit("mov 4(%%rax), %%ebx");
+            emit("add %%rbx, %%rcx");
+            emit("add $16, %%ebx");
+            emit("mov %%ebx, 4(%%rax)");
+            emit("movsd (%%rcx), %%xmm0");
+        } else {
+            emit("mov (%%rax), %%ebx");
+            emit("add %%rbx, %%rcx");
+            emit("add $8, %%ebx");
+            emit("mov %%rbx, (%%rax)");
+            emit("mov (%%rcx), %%rax");
+        }
+        pop("rbx");
+        pop("rcx");
+        break;
     case OP_INC:
         emit_inc_dec(node, "add");
         break;
@@ -808,6 +854,26 @@ static int align(int n, int m) {
     return (rem == 0) ? n : n - rem + m;
 }
 
+static int emit_regsave_area(void) {
+    int pos = -REGAREA_SIZE;
+    emit("mov %%rdi, %d(%%rsp)", pos);
+    emit("mov %%rsi, %d(%%rsp)", (pos += 8));
+    emit("mov %%rdx, %d(%%rsp)", (pos += 8));
+    emit("mov %%rcx, %d(%%rsp)", (pos += 8));
+    emit("mov %%r8, %d(%%rsp)", (pos += 8));
+    emit("mov %%r9, %d(%%rsp)", pos + 8);
+    char *end = make_label();
+    for (int i = 0; i < 16; i++) {
+        emit("test %%al, %%al");
+        emit("jz %s", end);
+        emit("movsd %%xmm%d, %d(%%rsp)", i, (pos += 16));
+        emit("sub $1, %%al");
+    }
+    emit_label(end);
+    emit("sub $%d, %%rsp", REGAREA_SIZE);
+    return REGAREA_SIZE;
+}
+
 static void emit_func_prologue(Node *func) {
     SAVE;
     emit(".text");
@@ -818,6 +884,10 @@ static void emit_func_prologue(Node *func) {
     int off = 0;
     int ireg = 0;
     int xreg = 0;
+    if (func->use_varargs) {
+        set_reg_nums(func->params);
+        off -= emit_regsave_area();
+    }
     for (Iter *i = list_iter(func->params); !iter_end(i);) {
         Node *v = iter_next(i);
         if (v->ctype->type == CTYPE_FLOAT) {
