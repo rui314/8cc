@@ -155,13 +155,13 @@ static Node *ast_string(char *str) {
     return r;
 }
 
-static Node *ast_funcall(Ctype *ctype, char *fname, List *args, List *paramtypes) {
+static Node *ast_funcall(Ctype *ftype, char *fname, List *args) {
     Node *r = malloc(sizeof(Node));
     r->type = AST_FUNCALL;
-    r->ctype = ctype;
+    r->ctype = ftype->rettype;
     r->fname = fname;
     r->args = args;
-    r->paramtypes = paramtypes;
+    r->ftype = ftype;
     return r;
 }
 
@@ -688,9 +688,10 @@ static Node *read_func_args(char *fname) {
             error("%s is not a function, but %s", fname, c2s(t));
         assert(t->params);
         function_type_check(fname, t->params, args);
-        return ast_funcall(t->rettype, fname, args, t->params);
+        return ast_funcall(t, fname, args);
     }
-    return ast_funcall(ctype_int, fname, args, make_list());
+    warn("assume returning int: %s()", fname);
+    return ast_funcall(make_func_type(ctype_int, make_list(), true), fname, args);
 }
 
 /*----------------------------------------------------------------------

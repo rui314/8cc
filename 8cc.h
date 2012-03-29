@@ -13,6 +13,8 @@ typedef struct {
     int len;
 } String;
 
+extern bool suppress_warning;
+
 extern String *make_string(void);
 extern char *format(char *fmt, ...);
 extern char *get_cstring(String *s);
@@ -178,7 +180,7 @@ typedef struct Node {
             char *fname;
             // Function call
             struct List *args;
-            struct List *paramtypes;
+            struct Ctype *ftype;
             // Function declaration
             struct List *params;
             struct List *localvars;

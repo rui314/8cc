@@ -1,3 +1,8 @@
+int printf();
+void exit(int);
+int strlen(char *);
+int vsprintf(char *fmt, ...);
+
 extern int externvar1;
 extern int externvar2;
 

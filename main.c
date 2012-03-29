@@ -4,6 +4,8 @@
 
 int main(int argc, char **argv) {
     int wantast = (argc > 1 && !strcmp(argv[1], "-a"));
+    if (wantast)
+        suppress_warning = true;
     List *toplevels = read_toplevels();
     if (!wantast)
         emit_data_section();

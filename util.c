@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "8cc.h"
 
+bool suppress_warning = false;
+
 void errorf(char *file, int line, char *fmt, ...) {
     fprintf(stderr, "%s:%d: ", file, line);
     fprintf(stderr, "%s: ", input_position());
@@ -14,6 +16,8 @@ void errorf(char *file, int line, char *fmt, ...) {
 }
 
 void warn(char *fmt, ...) {
+    if (suppress_warning)
+        return;
     fprintf(stderr, "warning: ");
     va_list args;
     va_start(args, fmt);

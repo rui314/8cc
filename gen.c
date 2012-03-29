@@ -343,6 +343,11 @@ static void emit_save_convert(Ctype *to, Ctype *from) {
         emit_load_convert(to, from);
 }
 
+static void emit_ret(void) {
+    emit("leave");
+    emit("ret");
+}
+
 static void emit_binop(Node *node) {
     SAVE;
     if (node->type == '=') {
@@ -397,7 +402,7 @@ static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off) {
 
 static List *get_arg_types(Node *node) {
     List *r = make_list();
-    for (Iter *i = list_iter(node->args), *j = list_iter(node->paramtypes);
+    for (Iter *i = list_iter(node->args), *j = list_iter(node->ftype->params);
          !iter_end(i);) {
         Node *v = iter_next(i);
         Ctype *ptype = iter_next(j);
@@ -674,8 +679,7 @@ static void emit_expr(Node *node) {
             emit_expr(node->retval);
             emit_save_convert(node->ctype, node->retval->ctype);
         }
-        emit("leave");
-        emit("ret");
+        emit_ret();
         break;
     case AST_BREAK:
         if (!lbreak)
@@ -912,18 +916,12 @@ static void emit_func_prologue(Node *func) {
     stackpos += -(off - 8);
 }
 
-static void emit_func_epilogue(void) {
-    SAVE;
-    emit("leave");
-    emit("ret");
-}
-
 void emit_toplevel(Node *v) {
     stackpos = 0;
     if (v->type == AST_FUNC) {
         emit_func_prologue(v);
         emit_expr(v->body);
-        emit_func_epilogue();
+        emit_ret();
     } else if (v->type == AST_DECL) {
         emit_global_var(v);
     } else {
