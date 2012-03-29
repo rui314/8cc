@@ -1,4 +1,4 @@
-void expect_string(char *, char *);
+#include "test/test.h"
 
 void special() {
     expect_string("(stdin)", __FILE__);

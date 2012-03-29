@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void t1() {
     struct { int a; } x;
     x.a = 61;

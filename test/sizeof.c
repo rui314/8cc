@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 int main() {
     expect(1, sizeof(char));
     expect(2, sizeof(short));

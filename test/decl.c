@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void t1() {
     int a = 1;
     expect(3, a + 2);

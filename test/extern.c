@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 extern int expect(int, int);
 extern int externvar1;
 int extern externvar2;

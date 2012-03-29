@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void t1() {
     int a = 61;
     int *b = &a;

@@ -1,5 +1,4 @@
-void expectf(float a, float b);
-void expectd(double a, double b);
+#include "test/test.h"
 
 int main() {
     printf("Testing numeric constants ... ");

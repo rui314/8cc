@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void t1() {
     union { int a; int b; } x;
     x.a = 90;

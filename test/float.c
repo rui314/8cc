@@ -1,5 +1,4 @@
-void expectf(float a, float b);
-void expectd(double a, double b);
+#include "test/test.h"
 
 float tf1(float a)  { return a; }
 float tf2(double a) { return a; }

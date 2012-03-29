@@ -1,8 +1,5 @@
 #include <stdarg.h>
-
-void expect_string(char *a, char *b);
-void expectf(float a, float b);
-void expectd(double a, double b);
+#include "test/test.h"
 
 void test_int(int a, ...) {
     va_list ap;
@@ -24,8 +21,6 @@ void test_float(float a, ...) {
     expectf(8.0, va_arg(ap, float));
     va_end(ap);
 }
-
-#include <stdio.h>
 
 void test_mix(char *p, ...) {
     va_list ap;

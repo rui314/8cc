@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 int main() {
     printf("Testing character literal ... ");
 

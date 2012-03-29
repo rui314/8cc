@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void expects(short a, short b) {
     if (!(a == b)) {
         printf("Failed\n");

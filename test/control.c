@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 int test_if1() { if (1) { return 'a';} return 0; }
 int test_if2() { if (0) { return 0;} return 'b'; }
 int test_if3() { if (1) { return 'c';} else { return 0; } return 0; }

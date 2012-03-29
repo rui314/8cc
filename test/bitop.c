@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void test_or() {
     expect(3, 1 | 2);
     expect(7, 2 | 5);

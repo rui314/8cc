@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 int val = 21;
 int a1[3];
 int a2[3] = { 24, 25, 26 };

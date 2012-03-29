@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 int t1() {
     return 77;
 }

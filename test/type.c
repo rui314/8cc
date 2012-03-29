@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void test_type() {
     char a;
     short b;

@@ -1,3 +1,5 @@
+#include "test/test.h"
+
 void t1() {
     int a[2][3];
     int *p = a;
