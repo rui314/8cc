@@ -700,7 +700,7 @@ static void emit_expr(Node *node) {
         emit("movl $%d, (%%rax)", numgp * 8);
         emit("movl $%d, 4(%%rax)", 48 + numfp * 16);
         emit("lea %d(%%rbp), %%rcx", -REGAREA_SIZE);
-        emit("mov %%rcx, 32(%%rax)");
+        emit("mov %%rcx, 16(%%rax)");
         pop("rcx");
         break;
     case AST_VA_ARG:
@@ -708,7 +708,7 @@ static void emit_expr(Node *node) {
         emit("nop");
         push("rcx");
         push("rbx");
-        emit("mov 32(%%rax), %%rcx");
+        emit("mov 16(%%rax), %%rcx");
         if (is_flotype(node->ctype)) {
             emit("mov 4(%%rax), %%ebx");
             emit("add %%rbx, %%rcx");
