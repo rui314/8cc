@@ -216,20 +216,69 @@ static Token *read_number(char c) {
     }
 }
 
-static Token *read_char(void) {
-    char c = get();
-    if (c == EOF) goto err;
-    if (c == '\\') {
+static int read_octal_char(int c) {
+    int r = c - '0';
+    c = get();
+    if ('0' <= c && c <= '7') {
+        r = (r << 3) | (c - '0');
         c = get();
-        if (c == EOF) goto err;
+        if ('0' <= c && c <= '7')
+            r = (r << 3) | (c - '0');
+        else
+            unget(c);
+    } else {
+        unget(c);
     }
-    char c2 = get();
-    if (c2 == EOF) goto err;
+    return r;
+}
+
+static int read_hex_char(void) {
+    int c = get();
+    int r = 0;
+    if (!isxdigit(c))
+        error("\\x is not followed by a hexadecimal character: %c", c);
+    for (;; c = get()) {
+        switch (c) {
+        case '0' ... '9': r = (r << 4) | (c - '0'); continue;
+        case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
+        case 'A' ... 'F': r = (r << 4) | (c - 'f' + 10); continue;
+        default: unget(c); return r;
+        }
+    }
+}
+
+static int read_escaped_char(void) {
+    int c = get();
+    switch (c) {
+    case '\'': case '"': case '?': case '\\':
+        return c;
+    case 'a': return '\a';
+    case 'b': return '\b';
+    case 'f': return '\f';
+    case 'n': return '\n';
+    case 'r': return '\r';
+    case 't': return '\t';
+    case 'v': return '\v';
+    case 'e': return '\033'; // '\e' is GNU extension
+    case '0' ... '7':
+        return read_octal_char(c);
+    case 'x':
+        return read_hex_char();
+    case EOF:
+        error("premature end of input");
+    default:
+        warn("unknown escape character: \\%c", c);
+        return c;
+    }
+}
+
+static Token *read_char(void) {
+    int c = get();
+    char r = (c == '\\') ? read_escaped_char() : c;
+    int c2 = get();
     if (c2 != '\'')
-        error("Malformed char literal");
-    return make_char(c);
- err:
-    error("Unterminated char");
+        error("unterminated string: %c", c2);
+    return make_char(r);
 }
 
 static Token *read_string(void) {
