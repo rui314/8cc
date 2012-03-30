@@ -124,7 +124,7 @@ static void a2s_int(String *buf, Node *node) {
         else
             string_appendf(buf, ")");
         break;
-    case AST_INIT_LIST:
+    case AST_ARRAY_INIT:
         string_appendf(buf, "{");
         for (Iter *i = list_iter(node->initlist); !iter_end(i);) {
             a2s_int(buf, iter_next(i));

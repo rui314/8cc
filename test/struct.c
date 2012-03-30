@@ -138,6 +138,19 @@ void unnamed() {
     expect(7, v.c[4]);
 }
 
+void designated_initializer() {
+    struct { int x; int y; } v1 = { .y = 1, .x = 5 };
+    expect(5, v1.x);
+    expect(1, v1.y);
+
+    struct { int x; int y; } v2 = { .y = 7 };
+    expect(7, v2.y);
+
+    struct { int x; int y; int z; } v3 = { .y = 12, 17 };
+    expect(12, v3.y);
+    expect(17, v3.z);
+}
+
 void testmain() {
     print("struct");
     t1();
@@ -155,4 +168,5 @@ void testmain() {
     t13();
     t14();
     unnamed();
+    designated_initializer();
 }

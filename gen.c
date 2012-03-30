@@ -377,6 +377,17 @@ static void emit_binop(Node *node) {
         error("internal error");
 }
 
+static int emit_array_init(List *initlist, Ctype *fieldtype, int off) {
+    int loff = 0;
+    for (Iter *iter = list_iter(initlist); !iter_end(iter);) {
+        Node *elem = iter_next(iter);
+        emit_expr(elem);
+        emit_lsave(fieldtype, loff + off);
+        loff += fieldtype->size;
+    }
+    return loff;
+}
+
 static void emit_inc_dec(Node *node, char *op) {
     SAVE;
     emit_expr(node->operand);
@@ -506,13 +517,28 @@ static void emit_expr(Node *node) {
     case AST_DECL: {
         if (!node->declinit)
             return;
-        if (node->declinit->type == AST_INIT_LIST) {
-            int off = 0;
-            for (Iter *iter = list_iter(node->declinit->initlist); !iter_end(iter);) {
-                Node *elem = iter_next(iter);
-                emit_expr(elem);
-                emit_lsave(elem->totype, node->declvar->loff + off);
-                off += elem->totype->size;
+        if (node->declinit->type == AST_ARRAY_INIT) {
+            Node *first = list_get(node->declinit->initlist, 0);
+            emit_array_init(node->declinit->initlist,
+                            first->totype,
+                            node->declvar->loff);
+        } else if (node->declinit->type == AST_STRUCT_INIT) {
+            int off = node->declvar->loff;
+            Dict *fields = node->declinit->inittype->fields;
+            Dict *vals = node->declinit->initdict;
+            for (Iter *iter = list_iter(dict_keys(fields)); !iter_end(iter);) {
+                char *name = iter_next(iter);
+                Ctype *ctype = dict_get(fields, name);
+                Node *val = dict_get(vals, name);
+                if (val) {
+                    if (ctype->type == CTYPE_ARRAY) {
+                        off += emit_array_init(val->initlist, ctype->ptr, off);
+                    } else {
+                        emit_expr(val);
+                        emit_lsave(ctype, off);
+                    }
+                }
+                off += ctype->size;
             }
         } else if (node->declvar->ctype->type == CTYPE_ARRAY) {
             assert(node->declinit->type == AST_STRING);
@@ -780,6 +806,8 @@ static void emit_expr(Node *node) {
         emit_load_convert(node->ctype, node->operand->ctype);
         break;
     }
+    case AST_STRUCT_INIT:
+        error("internal error");
     default:
         emit_binop(node);
     }
@@ -800,11 +828,23 @@ static void emit_data(Node *v) {
     SAVE;
     emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
-    if (v->declinit->type == AST_INIT_LIST) {
-        for (Iter *iter = list_iter(v->declinit->initlist); !iter_end(iter);) {
+    if (v->declinit->type == AST_ARRAY_INIT) {
+        for (Iter *iter = list_iter(v->declinit->initlist); !iter_end(iter);)
             emit_data_int(iter_next(iter));
-        }
         return;
+    }
+    if (v->declinit->type == AST_STRUCT_INIT) {
+        Dict *fields = v->declinit->inittype->fields;
+        Dict *vals = v->declinit->initdict;
+        for (Iter *iter = list_iter(dict_keys(fields)); !iter_end(iter);) {
+            char *name = iter_next(iter);
+            Ctype *type = dict_get(fields, name);
+            Node *val = dict_get(vals, name);
+            if (val)
+                emit_data_int(val);
+            else
+                emit(".zero %d", type->size);
+        }
     }
     assert(v->declinit->type == AST_LITERAL && is_inttype(v->declinit->ctype));
     emit_data_int(v->declinit);
