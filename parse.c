@@ -511,7 +511,13 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
     longjmp(*jmpbuf, 1);
 }
 
-Ctype *result_type(char op, Ctype *a, Ctype *b) {
+Ctype *result_type(int op, Ctype *a, Ctype *b) {
+    switch (op) {
+    case '!': case '~': case '<': case '>': case '&': case '%':
+    case OP_EQ: case OP_GE: case OP_LE: case OP_NE: case OP_LSH:
+    case OP_RSH: case OP_LOGAND: case OP_LOGOR: case AST_TERNARY:
+        return ctype_int;
+    }
     jmp_buf jmpbuf;
     if (setjmp(jmpbuf) == 0)
         return result_type_int(&jmpbuf, op, convert_array(a), convert_array(b));
@@ -1526,6 +1532,7 @@ static Node *read_funcdef(void) {
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
+    ast_gvar(functype, name);
     expect('{');
     Node *r = read_func_body(functype, name, params);
     backfill_labels();

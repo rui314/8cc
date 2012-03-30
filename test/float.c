@@ -8,6 +8,11 @@ double td1(float a)  { return a; }
 double td2(double a) { return a; }
 double td3(int a)    { return a; }
 
+double recursive(double a) {
+    if (a < 10) return a;
+    return recursive(3.33);
+}
+
 void testmain() {
     print("float");
 
@@ -35,4 +40,6 @@ void testmain() {
     expectd(10.0, tf2(10));
     expectd(11.0, tf3(11.5));
     expectd(10.0, tf3(10));
+
+    expectd(3.33, recursive(100));
 }

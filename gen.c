@@ -344,6 +344,7 @@ static void emit_save_convert(Ctype *to, Ctype *from) {
 }
 
 static void emit_ret(void) {
+    SAVE;
     emit("leave");
     emit("ret");
 }
