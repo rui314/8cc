@@ -130,10 +130,11 @@ static void emit_lload(Ctype *ctype, char *base, int off) {
     } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
         emit("movsd %d(%%%s), %%xmm0", off, base);
     } else {
-        char *reg = get_int_reg(ctype, 'a');
+        char *reg = get_int_reg(ctype, 'c');
         if (ctype->size < 4)
-            emit("mov $0, %%eax");
+            emit("mov $0, %%ecx");
         emit("mov %d(%%%s), %%%s", off, base, reg);
+        emit("mov %%rcx, %rax");
     }
 }
 
