@@ -959,6 +959,8 @@ static Node *read_struct_field(Node *struc) {
     if (name->type != TTYPE_IDENT)
         error("field name expected, but got %s", t2s(name));
     Ctype *field = dict_get(struc->ctype->fields, name->sval);
+    if (!field)
+        error("struct has no such field: %s", t2s(name));
     return ast_struct_ref(field, struc, name->sval);
 }
 
@@ -1033,21 +1035,27 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
 
 static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
     char *tag = read_struct_union_tag();
-    Ctype *prev = tag ? dict_get(env, tag) : NULL;
+    Ctype *r;
+    if (tag) {
+        r = dict_get(env, tag);
+        if (!r) {
+            r = make_struct_type(NULL, 0);
+            dict_put(env, tag, r);
+        }
+    } else {
+        r = make_struct_type(NULL, 0);
+        if (tag)
+            dict_put(env, tag, r);
+    }
     int size;
     Dict *fields = read_struct_union_fields(&size, is_struct);
-    if (prev && !fields)
-        return prev;
-    if (prev && fields) {
-        prev->fields = fields;
-        prev->size = size;
-        return prev;
+    if (r && !fields)
+        return r;
+    if (r && fields) {
+        r->fields = fields;
+        r->size = size;
+        return r;
     }
-    Ctype *r = fields
-        ? make_struct_type(fields, size)
-        : make_struct_type(NULL, 0);
-    if (tag)
-        dict_put(env, tag, r);
     return r;
 }
 

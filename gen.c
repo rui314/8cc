@@ -12,7 +12,6 @@ static int numgp;
 static int numfp;
 
 static void emit_expr(Node *node);
-static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off);
 
 #define REGAREA_SIZE 304
 
@@ -122,19 +121,19 @@ static void emit_todouble(Ctype *ctype) {
     emit("cvtsi2sd %%eax, %%xmm0");
 }
 
-static void emit_lload(Ctype *ctype, int off) {
+static void emit_lload(Ctype *ctype, char *base, int off) {
     SAVE;
     if (ctype->type == CTYPE_ARRAY) {
-        emit("lea %d(%%rbp), %%rax", off);
+        emit("lea %d(%%%s), %%rax", off, base);
     } else if (ctype->type == CTYPE_FLOAT) {
-        emit("cvtps2pd %d(%%rbp), %%xmm0", off);
+        emit("cvtps2pd %d(%%%s), %%xmm0", off, base);
     } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
-        emit("movsd %d(%%rbp), %%xmm0", off);
+        emit("movsd %d(%%%s), %%xmm0", off, base);
     } else {
         char *reg = get_int_reg(ctype, 'a');
         if (ctype->size < 4)
             emit("mov $0, %%eax");
-        emit("mov %d(%%rbp), %%%s", off, reg);
+        emit("mov %d(%%%s), %%%s", off, base, reg);
     }
 }
 
@@ -220,7 +219,7 @@ static void emit_load_struct_ref(Node *struc, Ctype *field, int off) {
     SAVE;
     switch (struc->type) {
     case AST_LVAR:
-        emit_lload(field, struc->loff + field->offset + off);
+        emit_lload(field, "rbp", struc->loff + field->offset + off);
         break;
     case AST_GVAR:
         emit_gload(field, struc->varname, field->offset + off);
@@ -230,7 +229,7 @@ static void emit_load_struct_ref(Node *struc, Ctype *field, int off) {
         break;
     case AST_DEREF:
         emit_expr(struc->operand);
-        emit_load_deref(field, field, field->offset + off);
+        emit_lload(field, "rax", field->offset + off);
         break;
     default:
         error("internal error: %s", a2s(struc));
@@ -386,21 +385,6 @@ static void emit_inc_dec(Node *node, char *op) {
     pop("rax");
 }
 
-static void emit_load_deref(Ctype *result_type, Ctype *operand_type, int off) {
-    SAVE;
-    if (operand_type->type == CTYPE_PTR &&
-        operand_type->ptr->type == CTYPE_ARRAY)
-        return;
-    char *reg = get_int_reg(result_type, 'c');
-    if (result_type->size < 4)
-        emit("mov $0, %%ecx");
-    if (off)
-        emit("mov %d(%%rax), %%%s", off, reg);
-    else
-        emit("mov (%%rax), %%%s", reg);
-    emit("mov %%rcx, %%rax");
-}
-
 static List *get_arg_types(Node *node) {
     List *r = make_list();
     for (Iter *i = list_iter(node->args), *j = list_iter(node->ftype->params);
@@ -464,7 +448,7 @@ static void emit_expr(Node *node) {
         emit("lea %s(%%rip), %%rax", node->slabel);
         break;
     case AST_LVAR:
-        emit_lload(node->ctype, node->loff);
+        emit_lload(node->ctype, "rbp", node->loff);
         break;
     case AST_GVAR:
         emit_gload(node->ctype, node->glabel, 0);
@@ -556,10 +540,12 @@ static void emit_expr(Node *node) {
             error("internal error");
         }
         break;
-    case AST_DEREF:
+    case AST_DEREF: {
         emit_expr(node->operand);
-        emit_load_deref(node->ctype, node->operand->ctype, 0);
+        emit_lload(node->operand->ctype->ptr, "rax", 0);
+        emit_load_convert(node->ctype, node->operand->ctype->ptr);
         break;
+    }
     case AST_IF:
     case AST_TERNARY: {
         emit_expr(node->cond);
