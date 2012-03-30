@@ -1,7 +1,7 @@
 #include "test/test.h"
 
-int main() {
-    printf("Testing compound assignment ... ");
+void testmain() {
+    print("compound assignment");
 
     int a = 0;
     a += 5;
@@ -26,7 +26,4 @@ int main() {
     expect(52, a);
     a >>= 2;
     expect(13, a);
-
-    printf("OK\n");
-    return 0;
 }

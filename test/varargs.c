@@ -49,14 +49,10 @@ void test_va_list(void) {
     expect_string("3,1.0,6,2.0,abc", format("%d,%.1f,%d,%.1f,%s", 3, 1.0, 6, 2.0, "abc"));
 }
 
-int main() {
-    printf("Testing varargs ... ");
-
+void testmain() {
+    print("varargs");
     test_int(1, 2, 3, 5, 8);
     test_float(1.0, 2.0, 4.0, 8.0);
     test_mix("abc", 2.0, 4, "d", 5);
     test_va_list();
-
-    printf("OK\n");
-    return 0;
 }

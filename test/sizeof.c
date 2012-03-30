@@ -1,6 +1,8 @@
 #include "test/test.h"
 
-int main() {
+void testmain() {
+    print("sizeof");
+
     expect(1, sizeof(char));
     expect(2, sizeof(short));
     expect(4, sizeof(int));

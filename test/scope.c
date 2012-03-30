@@ -1,7 +1,7 @@
 #include "test/test.h"
 
-int main() {
-    printf("Testing scope ... ");
+void testmain() {
+    print("scope");
 
     int a = 31;
     { int a = 64; }
@@ -10,7 +10,4 @@ int main() {
         int a = 64;
         expect(64, a);
     }
-
-    printf("OK\n");
-    return 0;
 }

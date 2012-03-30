@@ -2,8 +2,8 @@
 
 enum { g1, g2, g3 } global1;
 
-int main() {
-    printf("Testing enum ... ");
+void testmain() {
+    print("enum");
 
     expect(0, g1);
     expect(2, g3);
@@ -16,7 +16,4 @@ int main() {
 
     enum tag { z };
     expect(0, z);
-
-    printf("OK\n");
-    return 0;
 }

@@ -295,8 +295,8 @@ void empty() {
     expect(2, 2 EMPTY2(((()))));
 }
 
-void main() {
-    printf("Testing macros ... ");
+void testmain() {
+    print("macros");
 
     special();
     predefined();
@@ -309,7 +309,4 @@ void main() {
     ifdef();
     funclike();
     empty();
-
-    printf("OK\n");
-    return 0;
 }

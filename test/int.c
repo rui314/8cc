@@ -16,8 +16,8 @@ void expectl(long a, long b) {
     }
 }
 
-int main() {
-    printf("Testing long ... ");
+void testmain() {
+    print("long");
 
     short a = 10;
     short int b = 15;
@@ -31,7 +31,4 @@ int main() {
     expectl(10L, 10L);
     expectl(1152921504606846976, 1152921504606846976);
     expectl(1152921504606846977, 1152921504606846976 + 1);
-
-    printf("OK\n");
-    return 0;
 }

@@ -1,7 +1,7 @@
 #include "test/test.h"
 
-int main() {
-    printf("Testing numeric constants ... ");
+void testmain() {
+    print("numeric constants");
 
     expect(1, 0x1);
     expect(17, 0x11);
@@ -23,7 +23,4 @@ int main() {
     expect(8, sizeof(5L));
     expect(4, sizeof(3.0f));
     expect(8, sizeof(3.0));
-
-    printf("OK\n");
-    return 0;
 }

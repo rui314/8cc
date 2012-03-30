@@ -20,13 +20,9 @@ void t3() {
     expect(256, x.b);
 }
 
-int main() {
-    printf("Testing union ... ");
-
+void testmain() {
+    print("union");
     t1();
     t2();
     t3();
-
-    printf("OK\n");
-    return 0;
 }

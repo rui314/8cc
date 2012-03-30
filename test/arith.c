@@ -38,14 +38,10 @@ void test_ternary() {
     expect(17, (1 - 0) ? 51 / 3 : 52);
 }
 
-int main() {
-    printf("Testing basic arithmetic ... ");
-
+void testmain() {
+    print("basic arithmetic");
     test_basic();
     test_inc_dec();
     test_bool();
     test_ternary();
-
-    printf("OK\n");
-    return 0;
 }

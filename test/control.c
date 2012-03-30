@@ -163,16 +163,12 @@ void test_goto() {
  a:
 }
 
-int main() {
-    printf("Testing control flow ... ");
-
+void testmain() {
+    print("control flow");
     test_if();
     test_for();
     test_while();
     test_do();
     test_switch();
     test_goto();
-
-    printf("OK\n");
-    return 0;
 }

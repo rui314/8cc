@@ -1,7 +1,7 @@
 #include "test/test.h"
 
-int main() {
-    printf("Testing character literal ... ");
+void testmain() {
+    print("character literal");
 
     expect(65, 'A');
     expect(97, 'a');
@@ -22,7 +22,4 @@ int main() {
     expect(0, '\x0');
     expect(-1, '\xff');
     expect(18, '\x012');
-
-    printf("OK\n");
-    return 0;
 }

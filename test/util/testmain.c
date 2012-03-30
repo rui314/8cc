@@ -2,8 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+void testmain(void);
+
 int externvar1 = 98;
 int externvar2 = 99;
+
+void print(char *s) {
+    printf("Testing %s ... ", s);
+    fflush(stdout);
+}
 
 void fail(char *msg) {
     printf("Failed: %s\n", msg);
@@ -40,4 +47,9 @@ void expectd(double a, double b) {
         printf("  %lf expected, but got %lf\n", a, b);
         exit(1);
     }
+}
+
+int main() {
+    testmain();
+    printf("OK\n");
 }

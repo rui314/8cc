@@ -35,16 +35,12 @@ void t6() {
     expect(20, *a);
 }
 
-int main() {
-    printf("Testing declaration ... ");
-
+void testmain() {
+    print("declaration");
     t1();
     t2();
     t3();
     t4();
     t5();
     t6();
-
-    printf("OK\n");
-    return 0;
 }

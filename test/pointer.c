@@ -28,15 +28,11 @@ void t5() {
     expect(65, *s);
 }
 
-int main() {
-    printf("Testing pointer ... ");
-
+void testmain() {
+    print("pointer");
     t1();
     t2();
     t3();
     t4();
     t5();
-
-    printf("OK\n");
-    return 0;
 }

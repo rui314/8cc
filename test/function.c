@@ -66,8 +66,8 @@ void t9() {
     return;
 }
 
-int main() {
-    printf("Testing function ... ");
+void testmain() {
+    print("function");
 
     expect(77, t1());
     t2(79);
@@ -78,7 +78,4 @@ int main() {
     expect(12, t7(3, 4));
     t8(23);
     t9();
-
-    printf("OK\n");
-    return 0;
 }

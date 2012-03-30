@@ -74,9 +74,8 @@ void test_typedef() {
     expect(5, c.x);
 }
 
-int main() {
-    printf("Testing type system ... ");
-
+void testmain() {
+    print("type system");
     test_type();
     test_signed();
     test_unsigned();
@@ -84,7 +83,4 @@ int main() {
     test_pointer();
     test_unusual_order();
     test_typedef();
-
-    printf("OK\n");
-    return 0;
 }

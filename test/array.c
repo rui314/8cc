@@ -56,16 +56,12 @@ void t7() {
     expect(68, a[8]);
 }
 
-int main() {
-    printf("Testing array ... ");
-
+void testmain() {
+    print("array");
     t1();
     t2();
     t3();
     t4();
     t5();
     t6();
-
-    printf("OK\n");
-    return 0;
 }

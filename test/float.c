@@ -8,8 +8,8 @@ double td1(float a)  { return a; }
 double td2(double a) { return a; }
 double td3(int a)    { return a; }
 
-int main() {
-    printf("Testing float ... ");
+void testmain() {
+    print("float");
 
     expectf(1.0, 1.0);
     expectf(1.5, 1.0 + 0.5);
@@ -35,7 +35,4 @@ int main() {
     expectd(10.0, tf2(10));
     expectd(11.0, tf3(11.5));
     expectd(10.0, tf3(10));
-
-    printf("OK\n");
-    return 0;
 }

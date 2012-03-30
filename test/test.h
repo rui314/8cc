@@ -1,11 +1,12 @@
-int printf();
+#include <stdio.h>
+
 void exit(int);
 int strlen(char *);
-int vsprintf(char *fmt, ...);
 
 extern int externvar1;
 extern int externvar2;
 
+void print(char *s);
 void fail(char *msg);
 void expect(int a, int b);
 void expect_string(char *a, char *b);

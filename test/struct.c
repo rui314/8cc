@@ -138,9 +138,8 @@ void unnamed() {
     expect(7, v.c[4]);
 }
 
-int main() {
-    printf("Testing struct ... ");
-
+void testmain() {
+    print("struct");
     t1();
     t2();
     t3();
@@ -156,7 +155,4 @@ int main() {
     t13();
     t14();
     unnamed();
-
-    printf("OK\n");
-    return 0;
 }

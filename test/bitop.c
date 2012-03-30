@@ -29,15 +29,11 @@ void test_shift() {
     expect(2, 8 >> 2);
 }
 
-int main() {
-    printf("Testing bitwise operators ... ");
-
+void testmain() {
+    print("bitwise operators");
     test_or();
     test_and();
     test_not();
     test_xor();
     test_shift();
-
-    printf("OK\n");
-    return 0;
 }

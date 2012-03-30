@@ -7,8 +7,8 @@ int x1, x2;
 int x3, x4 = 4;
 int x5 = 5, x6;
 
-int main() {
-    printf("Testing global variable ... ");
+void testmain() {
+    print("global variable");
 
     expect(21, val);
     val = 22;
@@ -28,7 +28,4 @@ int main() {
     expect(5, x5);
     x6 = 6;
     expect(6, x6);
-
-    printf("OK\n");
-    return 0;
 }
