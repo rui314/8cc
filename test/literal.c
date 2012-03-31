@@ -1,7 +1,7 @@
 #include "test/test.h"
 
 void testmain() {
-    print("character literal");
+    print("literal");
 
     expect(65, 'A');
     expect(97, 'a');
@@ -22,4 +22,17 @@ void testmain() {
     expect(0, '\x0');
     expect(-1, '\xff');
     expect(18, '\x012');
+
+    expect_string("abc", "abc");
+    expect_string('a', "abc"[0]);
+    expect_string(0, "abc"[4]);
+
+    expect_string("c", L'c');
+    expect_string("asdf", L"asdf");
+
+    // make sure we can handle an identifier starting with "L"
+    int L = 7;
+    expect(7, L);
+    int L123 = 123;
+    expect(123, L123);
 }

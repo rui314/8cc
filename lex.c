@@ -371,9 +371,15 @@ static Token *read_token_int(void) {
         return space_token;
     case '\n':
         return newline_token;
+    case 'L':
+        c = get();
+        if (c == '"')  return read_string();
+        if (c == '\'') return read_char();
+        unget(c);
+        return read_ident('L');
     case '0' ... '9':
         return read_number(c);
-    case 'a' ... 'z': case 'A' ... 'Z': case '_':
+    case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_':
         return read_ident(c);
     case '/': {
         c = get();
