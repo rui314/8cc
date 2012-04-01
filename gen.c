@@ -351,12 +351,6 @@ static void emit_ret(void) {
 
 static void emit_binop(Node *node) {
     SAVE;
-    if (node->type == '=') {
-        emit_expr(node->right);
-        emit_load_convert(node->ctype, node->right->ctype);
-        emit_assign(node->left);
-        return;
-    }
     if (node->ctype->type == CTYPE_PTR) {
         emit_pointer_arith(node->type, node->left, node->right);
         return;
@@ -805,6 +799,11 @@ static void emit_expr(Node *node) {
         emit_load_convert(node->ctype, node->operand->ctype);
         break;
     }
+    case '=':
+        emit_expr(node->right);
+        emit_load_convert(node->ctype, node->right->ctype);
+        emit_assign(node->left);
+        break;
     case AST_STRUCT_INIT:
         error("internal error");
     default:
