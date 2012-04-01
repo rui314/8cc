@@ -56,28 +56,23 @@ static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
     return r;
 }
 
-static Macro *make_obj_macro(List *body) {
+static Macro *make_macro(Macro *tmpl) {
     Macro *r = malloc(sizeof(Macro));
-    r->type = MACRO_OBJ;
-    r->body = body;
-    r->is_varg = false;
+    *r = *tmpl;
     return r;
+}
+
+static Macro *make_obj_macro(List *body) {
+    return make_macro(&(Macro){ MACRO_OBJ, .body = body });
 }
 
 static Macro *make_func_macro(List *body, int nargs, bool is_varg) {
-    Macro *r = malloc(sizeof(Macro));
-    r->type = MACRO_FUNC;
-    r->nargs = nargs;
-    r->body = body;
-    r->is_varg = is_varg;
-    return r;
+    return make_macro(&(Macro){
+            MACRO_FUNC, .nargs = nargs, .body = body, .is_varg = is_varg });
 }
 
 static Macro *make_special_macro(special_macro_handler *fn) {
-    Macro *r = malloc(sizeof(Macro));
-    r->type = MACRO_SPECIAL;
-    r->fn = fn;
-    return r;
+    return make_macro(&(Macro){ MACRO_SPECIAL, .fn = fn });
 }
 
 static Token *make_macro_token(int position) {

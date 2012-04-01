@@ -35,12 +35,10 @@ static __attribute__((constructor)) void init(void) {
     file = make_file("(stdin)", stdin);
 }
 
-static Token *make_token(int type) {
+static Token *make_token(Token *tmpl) {
     Token *r = malloc(sizeof(Token));
-    r->type = type;
+    *r = *tmpl;
     r->hideset = make_dict(NULL);
-    r->space = false;
-    r->bol = false;
     r->file = file->name;
     r->line = file->line;
     r->column = file->column;
@@ -48,33 +46,23 @@ static Token *make_token(int type) {
 }
 
 static Token *make_ident(char *p) {
-    Token *r = make_token(TTYPE_IDENT);
-    r->sval = p;
-    return r;
+    return make_token(&(Token){ TTYPE_IDENT, .sval = p });
 }
 
 static Token *make_strtok(char *s) {
-    Token *r = make_token(TTYPE_STRING);
-    r->sval = s;
-    return r;
+    return make_token(&(Token){ TTYPE_STRING, .sval = s });
 }
 
 static Token *make_punct(int punct) {
-    Token *r = make_token(TTYPE_PUNCT);
-    r->punct = punct;
-    return r;
+    return make_token(&(Token){ TTYPE_PUNCT, .punct = punct });
 }
 
 static Token *make_number(char *s) {
-    Token *r = make_token(TTYPE_NUMBER);
-    r->sval = s;
-    return r;
+    return make_token(&(Token){ TTYPE_NUMBER, .sval = s });
 }
 
 static Token *make_char(char c) {
-    Token *r = make_token(TTYPE_CHAR);
-    r->c = c;
-    return r;
+    return make_token(&(Token){ TTYPE_CHAR, .c = c });
 }
 
 void push_input_file(char *filename, FILE *fp) {

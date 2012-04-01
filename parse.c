@@ -79,18 +79,22 @@ enum {
  * Constructors
  */
 
-static Node *ast_uop(int type, Ctype *ctype, Node *operand) {
+char *make_label(void) {
+    return format(".L%d", labelseq++);
+}
+
+static Node *make_ast(Node *tmpl) {
     Node *r = malloc(sizeof(Node));
-    r->type = type;
-    r->ctype = ctype;
-    r->operand = operand;
+    *r = *tmpl;
     return r;
 }
 
+static Node *ast_uop(int type, Ctype *ctype, Node *operand) {
+    return make_ast(&(Node){ type, ctype, .operand = operand });
+}
+
 static Node *ast_binop(int type, Node *left, Node *right) {
-    Node *r = malloc(sizeof(Node));
-    r->type = type;
-    r->ctype = result_type(type, left->ctype, right->ctype);
+    Node *r = make_ast(&(Node){ type, result_type(type, left->ctype, right->ctype) });
     if (type != '=' &&
         convert_array(left->ctype)->type != CTYPE_PTR &&
         convert_array(right->ctype)->type == CTYPE_PTR) {
@@ -104,31 +108,17 @@ static Node *ast_binop(int type, Node *left, Node *right) {
 }
 
 static Node *ast_inttype(Ctype *ctype, long val) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_LITERAL;
-    r->ctype = ctype;
-    r->ival = val;
-    return r;
+    return make_ast(&(Node){ AST_LITERAL, ctype, .ival = val });
 }
 
 static Node *ast_floattype(Ctype *ctype, double val) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_LITERAL;
-    r->ctype = ctype;
-    r->fval = val;
+    Node *r = make_ast(&(Node){ AST_LITERAL, ctype, .fval = val });
     list_push(flonums, r);
     return r;
 }
 
-char *make_label(void) {
-    return format(".L%d", labelseq++);
-}
-
 static Node *ast_lvar(Ctype *ctype, char *name) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_LVAR;
-    r->ctype = ctype;
-    r->varname = name;
+    Node *r = make_ast(&(Node){ AST_LVAR, ctype, .varname = name });
     if (localenv)
         dict_put(localenv, name, r);
     if (localvars)
@@ -137,193 +127,112 @@ static Node *ast_lvar(Ctype *ctype, char *name) {
 }
 
 static Node *ast_gvar(Ctype *ctype, char *name) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_GVAR;
-    r->ctype = ctype;
-    r->varname = name;
-    r->glabel = name;
+    Node *r = make_ast(&(Node){ AST_GVAR, ctype, .varname = name, .glabel = name });
     dict_put(globalenv, name, r);
     return r;
 }
 
 static Node *ast_string(char *str) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_STRING;
-    r->ctype = make_array_type(ctype_char, strlen(str) + 1);
-    r->sval = str;
-    r->slabel = make_label();
-    return r;
+    return make_ast(&(Node){
+        .type = AST_STRING,
+        .ctype = make_array_type(ctype_char, strlen(str) + 1),
+        .sval = str,
+        .slabel = make_label() });
 }
 
 static Node *ast_funcall(Ctype *ftype, char *fname, List *args) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_FUNCALL;
-    r->ctype = ftype->rettype;
-    r->fname = fname;
-    r->args = args;
-    r->ftype = ftype;
-    return r;
+    return make_ast(&(Node){
+        .type = AST_FUNCALL,
+        .ctype = ftype->rettype,
+        .fname = fname,
+        .args = args,
+        .ftype = ftype });
 }
 
 static Node *ast_func(Ctype *ctype, char *fname, List *params,
                       Node *body, List *localvars, bool use_varargs) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_FUNC;
-    r->ctype = ctype;
-    r->fname = fname;
-    r->params = params;
-    r->localvars = localvars;
-    r->body = body;
-    r->use_varargs = use_varargs;
-    return r;
+    return make_ast(&(Node){
+        .type = AST_FUNC,
+        .ctype = ctype,
+        .fname = fname,
+        .params = params,
+        .localvars = localvars,
+        .body = body,
+        .use_varargs = use_varargs});
 }
 
 static Node *ast_decl(Node *var, Node *init) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_DECL;
-    r->ctype = NULL;
-    r->declvar = var;
-    r->declinit = init;
-    return r;
+    return make_ast(&(Node){ AST_DECL, .declvar = var, .declinit = init });
 }
 
 static Node *ast_array_init(List *initlist, Ctype *totype) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_ARRAY_INIT;
-    r->ctype = NULL;
-    r->totype = totype;
-    r->initlist = initlist;
-    return r;
+    return make_ast(&(Node){ AST_ARRAY_INIT, .totype = totype, .initlist = initlist });
 }
 
 static Node *ast_struct_init(Ctype *inittype, Dict *initdict) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_STRUCT_INIT;
-    r->ctype = NULL;
-    r->initdict = initdict;
-    r->inittype = inittype;
-    return r;
+    return make_ast(&(Node){ AST_STRUCT_INIT, .initdict = initdict, .inittype = inittype });
 }
 
 static Node *ast_if(Node *cond, Node *then, Node *els) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_IF;
-    r->ctype = NULL;
-    r->cond = cond;
-    r->then = then;
-    r->els = els;
-    return r;
+    return make_ast(&(Node){ AST_IF, .cond = cond, .then = then, .els = els });
 }
 
 static Node *ast_ternary(Ctype *ctype, Node *cond, Node *then, Node *els) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_TERNARY;
-    r->ctype = ctype;
-    r->cond = cond;
-    r->then = then;
-    r->els = els;
-    return r;
-}
-
-static Node *ast_for_int(int type, Node *init, Node *cond, Node *step, Node *body) {
-    Node *r = malloc(sizeof(Node));
-    r->type = type;
-    r->ctype = NULL;
-    r->forinit = init;
-    r->forcond = cond;
-    r->forstep = step;
-    r->forbody = body;
-    return r;
+    return make_ast(&(Node){ AST_TERNARY, ctype, .cond = cond, .then = then, .els = els });
 }
 
 static Node *ast_for(Node *init, Node *cond, Node *step, Node *body) {
-    return ast_for_int(AST_FOR, init, cond, step, body);
+    return make_ast(&(Node){
+            AST_FOR, .forinit = init, .forcond = cond, .forstep = step, .forbody = body });
 }
 
 static Node *ast_while(Node *cond, Node *body) {
-    return ast_for_int(AST_WHILE, NULL, cond, NULL, body);
+    return make_ast(&(Node){ AST_WHILE, .forcond = cond, .forbody = body });
 }
 
 static Node *ast_do(Node *cond, Node *body) {
-    return ast_for_int(AST_DO, NULL, cond, NULL, body);
+    return make_ast(&(Node){ AST_DO, .forcond = cond, .forbody = body });
 }
 
 static Node *ast_switch(Node *expr, Node *body) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_SWITCH;
-    r->switchexpr = expr;
-    r->switchbody = body;
-    return r;
+    return make_ast(&(Node){ AST_SWITCH, .switchexpr = expr, .switchbody = body });
 }
 
 static Node *ast_case(int val) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_CASE;
-    r->caseval = val;
-    return r;
-}
-
-static Node *make_ast(int type) {
-    Node *r = malloc(sizeof(Node));
-    r->type = type;
-    return r;
+    return make_ast(&(Node){ AST_CASE, .caseval = val });
 }
 
 static Node *ast_return(Ctype *rettype, Node *retval) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_RETURN;
-    r->ctype = rettype;
-    r->retval = retval;
-    return r;
+    return make_ast(&(Node){ AST_RETURN, rettype, .retval = retval });
 }
 
 static Node *ast_compound_stmt(List *stmts) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_COMPOUND_STMT;
-    r->ctype = NULL;
-    r->stmts = stmts;
-    return r;
+    return make_ast(&(Node){ AST_COMPOUND_STMT, .stmts = stmts });
 }
 
 static Node *ast_struct_ref(Ctype *ctype, Node *struc, char *name) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_STRUCT_REF;
-    r->ctype = ctype;
-    r->struc = struc;
-    r->field = name;
-    return r;
+    return make_ast(&(Node){ AST_STRUCT_REF, ctype, .struc = struc, .field = name });
 }
 
 static Node *ast_goto(char *label) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_GOTO;
-    r->label = label;
-    r->newlabel = NULL;
-    return r;
+    return make_ast(&(Node){ AST_GOTO, .label = label });
 }
 
 static Node *ast_label(char *label) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_LABEL;
-    r->label = label;
-    r->newlabel = NULL;
-    return r;
+    return make_ast(&(Node){ AST_LABEL, .label = label });
 }
 
-
 static Node *ast_va_start(Node *ap) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_VA_START;
-    r->ctype = ctype_void;
-    r->ap = ap;
-    return r;
+    return make_ast(&(Node){ AST_VA_START, ctype_void, .ap = ap });
 }
 
 static Node *ast_va_arg(Ctype *ctype, Node *ap) {
-    Node *r = malloc(sizeof(Node));
-    r->type = AST_VA_ARG;
-    r->ctype = ctype;
-    r->ap = ap;
+    return make_ast(&(Node){ AST_VA_ARG, ctype, .ap = ap });
+}
+
+static Ctype *make_type(Ctype *tmpl) {
+    Ctype *r = malloc(sizeof(Ctype));
+    *r = *tmpl;
     return r;
 }
 
@@ -333,7 +242,7 @@ static Ctype *copy_type(Ctype *ctype) {
     return r;
 }
 
-static Ctype *make_type(int type, bool sig) {
+static Ctype *make_numtype(int type, bool sig) {
     Ctype *r = malloc(sizeof(Ctype));
     r->type = type;
     r->sig = sig;
@@ -351,20 +260,15 @@ static Ctype *make_type(int type, bool sig) {
 }
 
 static Ctype* make_ptr_type(Ctype *ctype) {
-    Ctype *r = malloc(sizeof(Ctype));
-    r->type = CTYPE_PTR;
-    r->ptr = ctype;
-    r->size = 8;
-    return r;
+    return make_type(&(Ctype){ CTYPE_PTR, .ptr = ctype, .size = 8 });
 }
 
 static Ctype* make_array_type(Ctype *ctype, int len) {
-    Ctype *r = malloc(sizeof(Ctype));
-    r->type = CTYPE_ARRAY;
-    r->ptr = ctype;
-    r->size = (len < 0) ? -1 : ctype->size * len;
-    r->len = len;
-    return r;
+    return make_type(&(Ctype){
+        CTYPE_ARRAY,
+        .ptr = ctype,
+        .size = (len < 0) ? -1 : ctype->size * len,
+        .len = len });
 }
 
 static Ctype* make_struct_field_type(Ctype *ctype, int offset) {
@@ -374,27 +278,19 @@ static Ctype* make_struct_field_type(Ctype *ctype, int offset) {
 }
 
 static Ctype* make_struct_type(Dict *fields, int size) {
-    Ctype *r = malloc(sizeof(Ctype));
-    r->type = CTYPE_STRUCT;
-    r->fields = fields;
-    r->size = size;
-    return r;
+    return make_type(&(Ctype){ CTYPE_STRUCT, .fields = fields, size = size });
 }
 
 static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs) {
-    Ctype *r = malloc(sizeof(Ctype));
-    r->type = CTYPE_FUNC;
-    r->rettype = rettype;
-    r->params = paramtypes;
-    r->hasva = has_varargs;
-    return r;
+    return make_type(&(Ctype){
+        CTYPE_FUNC,
+        .rettype = rettype,
+        .params = paramtypes,
+        .hasva = has_varargs });
 }
 
 static Ctype *make_stub_type(void) {
-    Ctype *r = malloc(sizeof(Ctype));
-    r->type = CTYPE_STUB;
-    r->size = 0;
-    return r;
+    return make_type(&(Ctype){ CTYPE_STUB });
 }
 
 /*----------------------------------------------------------------------
@@ -1448,16 +1344,16 @@ static Ctype *read_decl_spec(int *rsclass) {
         return usertype;
     switch (type) {
     case kvoid:   return ctype_void;
-    case kchar:   return make_type(CTYPE_CHAR, sig != kunsigned);
-    case kfloat:  return make_type(CTYPE_FLOAT, false);
-    case kdouble: return make_type(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false);
+    case kchar:   return make_numtype(CTYPE_CHAR, sig != kunsigned);
+    case kfloat:  return make_numtype(CTYPE_FLOAT, false);
+    case kdouble: return make_numtype(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false);
     default: break;
     }
     switch (size) {
-    case kshort: return make_type(CTYPE_SHORT, sig != kunsigned);
-    case klong:  return make_type(CTYPE_LONG, sig != kunsigned);
-    case kllong: return make_type(CTYPE_LLONG, sig != kunsigned);
-    default:     return make_type(CTYPE_INT, sig != kunsigned);
+    case kshort: return make_numtype(CTYPE_SHORT, sig != kunsigned);
+    case klong:  return make_numtype(CTYPE_LONG, sig != kunsigned);
+    case kllong: return make_numtype(CTYPE_LLONG, sig != kunsigned);
+    default:     return make_numtype(CTYPE_INT, sig != kunsigned);
     }
     error("internal error: type: %d, size: %d", type, size);
  err:
@@ -1685,7 +1581,7 @@ static Node *read_case_label(void) {
 
 static Node *read_default_label(void) {
     expect(':');
-    return make_ast(AST_DEFAULT);
+    return make_ast(&(Node){ AST_DEFAULT });
 }
 
 /*----------------------------------------------------------------------
@@ -1694,12 +1590,12 @@ static Node *read_default_label(void) {
 
 static Node *read_break_stmt(void) {
     expect(';');
-    return make_ast(AST_BREAK);
+    return make_ast(&(Node){ AST_BREAK });
 }
 
 static Node *read_continue_stmt(void) {
     expect(';');
-    return make_ast(AST_CONTINUE);
+    return make_ast(&(Node){ AST_CONTINUE });
 }
 
 static Node *read_return_stmt(void) {
