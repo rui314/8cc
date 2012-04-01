@@ -27,6 +27,9 @@ void testmain() {
     expect_string('a', "abc"[0]);
     expect_string(0, "abc"[4]);
 
+    char expected[] = { 65, 97, 7, 8, 12, 10, 13, 9, 11, 27, 7, 15, -99, -1, 18, 0 };
+    expect_string(expected, "Aa\a\b\f\n\r\t\v\e\7\17\235\xff\x012");
+
     expect_string("c", L'c');
     expect_string("asdf", L"asdf");
 

@@ -518,9 +518,8 @@ static void emit_expr(Node *node) {
         if (!node->declinit)
             return;
         if (node->declinit->type == AST_ARRAY_INIT) {
-            Node *first = list_get(node->declinit->initlist, 0);
             emit_array_init(node->declinit->initlist,
-                            first->totype,
+                            node->declinit->totype,
                             node->declvar->loff);
         } else if (node->declinit->type == AST_STRUCT_INIT) {
             int off = node->declvar->loff;

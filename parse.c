@@ -187,10 +187,11 @@ static Node *ast_decl(Node *var, Node *init) {
     return r;
 }
 
-static Node *ast_array_init(List *initlist) {
+static Node *ast_array_init(List *initlist, Ctype *totype) {
     Node *r = malloc(sizeof(Node));
     r->type = AST_ARRAY_INIT;
     r->ctype = NULL;
+    r->totype = totype;
     r->initlist = initlist;
     return r;
 }
@@ -1125,7 +1126,6 @@ static Node *read_decl_init_elem(Ctype *ctype) {
     if (!r)
         error("expression expected, but got %s", t2s(tok));
     result_type('=', r->ctype, ctype);
-    r->totype = ctype;
     tok = read_token();
     if (!is_punct(tok, ','))
         unget_token(tok);
@@ -1137,14 +1137,9 @@ static List *read_decl_array_init_int(Ctype *ctype) {
     Token *tok = read_token();
     assert(ctype->type == CTYPE_ARRAY);
     if (ctype->ptr->type == CTYPE_CHAR && tok->type == TTYPE_STRING) {
-        for (char *p = tok->sval; *p; p++) {
-            Node *c = ast_inttype(ctype_char, *p);
-            c->totype = ctype_char;
-            list_push(r, c);
-        }
-        Node *c = ast_inttype(ctype_char, '\0');
-        c->totype = ctype_char;
-        list_push(r, c);
+        for (char *p = tok->sval; *p; p++)
+            list_push(r, ast_inttype(ctype_char, *p));
+        list_push(r, ast_inttype(ctype_char, '\0'));
         return r;
     }
     if (!is_punct(tok, '{'))
@@ -1162,7 +1157,7 @@ static List *read_decl_array_init_int(Ctype *ctype) {
 
 static Node *read_decl_array_init_val(Ctype *ctype) {
     List *initlist = read_decl_array_init_int(ctype);
-    Node *init = ast_array_init(initlist);
+    Node *init = ast_array_init(initlist, ctype->ptr);
 
     int len = (init->type == AST_STRING)
         ? strlen(init->sval) + 1
@@ -1216,8 +1211,8 @@ static Node *read_decl_struct_init_val(Ctype *ctype) {
             if (fieldtype->type != CTYPE_ARRAY)
                 error("array expected, but got %s", c2s(fieldtype));
             unget_token(tok);
-            set_struct_field(dict, fieldname,
-                             ast_array_init(read_decl_array_init_int(fieldtype)));
+            Node *initlist = ast_array_init(read_decl_array_init_int(fieldtype), fieldtype);
+            set_struct_field(dict, fieldname, initlist);
             continue;
         }
         unget_token(tok);

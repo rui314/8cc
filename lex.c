@@ -289,16 +289,8 @@ static Token *read_string(void) {
             error("Unterminated string");
         if (c == '"')
             break;
-        if (c == '\\') {
-            c = get();
-            switch (c) {
-            case EOF: error("Unterminated \\");
-            case '\"': break;
-            case '\\': c = '\\'; break;
-            case 'n': c = '\n'; break;
-            default: error("Unknown quote: %c", c);
-            }
-        }
+        if (c == '\\')
+            c = read_escaped_char();
         string_append(s, c);
     }
     return make_strtok(get_cstring(s));
