@@ -127,12 +127,6 @@ static Node *ast_lvar(Ctype *ctype, char *name) {
     return r;
 }
 
-static Node *ast_lvarinit(Ctype *ctype, char *name, List *init) {
-    Node *r = ast_lvar(ctype, name);
-    r->lvarinit = init;
-    return r;
-}
-
 static Node *ast_gvar(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_GVAR, ctype, .varname = name, .glabel = name });
     dict_put(globalenv, name, r);
@@ -704,7 +698,9 @@ static Node *read_compound_literal(Ctype *ctype) {
     char *name = make_label();
     List *init = read_decl_init(ctype);
     expect('}');
-    return ast_lvarinit(ctype, name, init);
+    Node *r = ast_lvar(ctype, name);
+    r->lvarinit = init;
+    return r;
 }
 
 static Node *read_cast(void) {

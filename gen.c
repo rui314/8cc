@@ -817,44 +817,79 @@ static void emit_expr(Node *node) {
     }
 }
 
+static void emit_data_init_int(Dict *labels, char *data, Dict *complit, List *inits, int off) {
+    for (Iter *i = list_iter(inits); !iter_end(i);) {
+        Node *node = iter_next(i);
+        off += node->initoff;
+        if (node->initval->type == AST_ADDR &&
+            node->initval->operand->type == AST_LVAR &&
+            node->initval->operand->lvarinit) {
+            char *label = make_label();
+            dict_put(complit, label, node->initval->operand);
+            dict_put(labels, format("%d", off), label);
+            continue;
+        }
+        if (node->initval->type == AST_LVAR && node->initval->lvarinit) {
+            emit_data_init_int(labels, data, complit, node->initval->lvarinit, off);
+            continue;
+        }
+        assert(node->initval->type == AST_LITERAL);
+        if (node->totype->type == CTYPE_FLOAT)
+            *(float *)(data + off) = node->initval->fval;
+        else if (node->totype->type == CTYPE_FLOAT)
+            *(double *)(data + off) = node->initval->fval;
+        else if (node->totype->type == CTYPE_CHAR)
+            *(data + off) = node->initval->ival;
+        else if (node->totype->type == CTYPE_SHORT)
+            *(short *)(data + off) = node->initval->ival;
+        else if (node->totype->type == CTYPE_INT)
+            *(int *)(data + off) = node->initval->ival;
+        else if (node->totype->type == CTYPE_LONG || node->totype->type == CTYPE_LLONG)
+            *(long *)(data + off) = node->initval->ival;
+    }
+}
+
+static void emit_data_init(Dict *complit, List *inits, int datasize) {
+    char *data = malloc(datasize);
+    memset(data, 0, datasize);
+    Dict *labels = make_dict(NULL);
+    emit_data_init_int(labels, data, complit, inits, 0);
+    int i = 0;
+    for (; i <= datasize - 4; i += 4) {
+        char *label = dict_get(labels, format("%d", i));
+        if (label)
+            emit(".quad %s", label);
+        else
+            emit(".long %d", data[i]);
+    }
+    for (; i < datasize; i++)
+        emit(".byte %d", data[i]);
+    emit(".align 8");
+}
+
+static void emit_data_complit(char *label, Node *node) {
+    Dict *complit = make_dict(NULL);
+    emit_noindent("%s:", label);
+    emit_data_init(complit, node->lvarinit, node->ctype->size);
+    for (Iter *i = list_iter(dict_keys(complit)); !iter_end(i);) {
+        char *label = iter_next(i);
+        Node *node2 = dict_get(complit, label);
+        emit_data_complit(label, node2);
+    }
+}
+
 static void emit_data(Node *v) {
     SAVE;
+    Dict *complit = make_dict(NULL);
     if (!v->declvar->ctype->isstatic)
         emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
-    int datasize = v->declvar->ctype->size;
-    char *data = malloc(datasize);
-    memset(data, 0, v->declvar->ctype->size);
-    char *p = data;
-    for (Iter *i = list_iter(v->declinit); !iter_end(i);) {
-        Node *node = iter_next(i);
-        assert(node->initoff < datasize);
-        assert(node->initval->type == AST_LITERAL);
-        if (node->totype->type == CTYPE_FLOAT) {
-            *(float *)p = node->initval->fval;
-            p += sizeof(float);
-        } else if (node->totype->type == CTYPE_FLOAT) {
-            *(double *)p = node->initval->fval;
-            p += sizeof(double);
-        } else if (node->totype->type == CTYPE_CHAR) {
-            *p = node->initval->ival;
-            p++;
-        } else if (node->totype->type == CTYPE_SHORT) {
-            *(short *)p = node->initval->ival;
-            p += sizeof(short);
-        } else if (node->totype->type == CTYPE_INT) {
-            *(int *)p = node->initval->ival;
-            p += sizeof(int);
-        } else if (node->totype->type == CTYPE_LONG || node->totype->type == CTYPE_LLONG) {
-            *(long *)p = node->initval->ival;
-            p += sizeof(long);
-        }
+    emit_data_init(complit, v->declinit, v->declvar->ctype->size);
+    for (Iter *i = list_iter(dict_keys(complit)); !iter_end(i);) {
+        char *label = iter_next(i);
+        Node *node = dict_get(complit, label);
+        emit_data_complit(label, node);
     }
-    int i = 0;
-    for (; i < datasize - 8; i += 8)
-        emit(".quad %ld", ((long *)data)[i]);
-    for (; i < datasize; i++)
-        emit(".byte %d", data[i]);
 }
 
 static void emit_bss(Node *v) {

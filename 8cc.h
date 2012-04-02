@@ -165,9 +165,11 @@ typedef struct Node {
         // Local/global variable
         struct {
             char *varname;
+            // local
             int loff;
-            char *glabel;
             List *lvarinit;
+            // global
+            char *glabel;
         };
         // Binary operator
         struct {

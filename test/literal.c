@@ -40,11 +40,23 @@ static void test_string(void) {
     expect(123, L123);
 }
 
+int g1 = (int){ 80 };
+int *g2 = &(int){ 81 };
+struct g3 { int x; } *g3 = &(struct g3){ 82 };
+struct g4 { char x; struct g4a { int y[2]; } *z; } *g4 = &(struct g4){ 83, &(struct g4a){ 84, 85 } };
+
 static void test_compound(void) {
     expect(1, (int){ 1 });
     expect(3, (int[]){ 1, 2, 3 }[2]);
     expect(12, sizeof((int[]){ 1, 2, 3 }));
     expect(6, (struct { int x[3]; }){ 5, 6, 7 }.x[1]);
+
+    expect(80, g1);
+    expect(81, *g2);
+    expect(82, g3->x);
+    expect(83, g4->x);
+    expect(84, g4->z->y[0]);
+    expect(85, g4->z->y[1]);
 }
 
 void testmain() {
