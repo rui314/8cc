@@ -819,7 +819,8 @@ static void emit_expr(Node *node) {
 
 static void emit_data(Node *v) {
     SAVE;
-    emit_noindent(".global %s", v->declvar->varname);
+    if (!v->declvar->ctype->isstatic)
+        emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
     int datasize = v->declvar->ctype->size;
     char *data = malloc(datasize);

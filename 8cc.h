@@ -131,6 +131,7 @@ typedef struct Ctype {
     int size;
     // true if signed
     bool sig;
+    bool isstatic;
     // pointer or array
     struct Ctype *ptr;
     // array length
