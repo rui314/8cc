@@ -123,32 +123,14 @@ void t14() {
 void unnamed() {
     struct {
         union {
-            struct {
-                int x;
-                int y;
-            };
-            struct {
-                char c[8];
-            };
+            struct { int x; int y; };
+            struct { char c[8]; };
         };
     } v;
     v.x = 1;
     v.y = 7;
     expect(1, v.c[0]);
     expect(7, v.c[4]);
-}
-
-void designated_initializer() {
-    struct { int x; int y; } v1 = { .y = 1, .x = 5 };
-    expect(5, v1.x);
-    expect(1, v1.y);
-
-    struct { int x; int y; } v2 = { .y = 7 };
-    expect(7, v2.y);
-
-    struct { int x; int y; int z; } v3 = { .y = 12, 17 };
-    expect(12, v3.y);
-    expect(17, v3.z);
 }
 
 void testmain() {
@@ -168,5 +150,4 @@ void testmain() {
     t13();
     t14();
     unnamed();
-    designated_initializer();
 }

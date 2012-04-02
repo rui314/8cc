@@ -18,6 +18,7 @@ void errorf(char *file, int line, char *fmt, ...) {
 void warn(char *fmt, ...) {
     if (suppress_warning)
         return;
+    fprintf(stderr, "%s: ", input_position());
     fprintf(stderr, "warning: ");
     va_list args;
     va_start(args, fmt);

@@ -1,4 +1,6 @@
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 #include "8cc.h"
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
@@ -371,15 +373,41 @@ static void emit_binop(Node *node) {
         error("internal error");
 }
 
-static int emit_array_init(List *initlist, Ctype *fieldtype, int off) {
-    int loff = 0;
-    for (Iter *iter = list_iter(initlist); !iter_end(iter);) {
-        Node *elem = iter_next(iter);
-        emit_expr(elem);
-        emit_lsave(fieldtype, loff + off);
-        loff += fieldtype->size;
+static void emit_save_literal(Node *node, Ctype *totype, int off) {
+    switch (totype->type) {
+    case CTYPE_CHAR:  emit("movb $%d, %d(%%rbp)", node->ival, off); break;
+    case CTYPE_SHORT: emit("movw $%d, %d(%%rbp)", node->ival, off); break;
+    case CTYPE_INT:   emit("movl $%d, %d(%%rbp)", node->ival, off); break;
+    case CTYPE_LONG:
+    case CTYPE_LLONG:
+        push("rax");
+        emit("movq $%lu, %%rax", (unsigned long)node->ival);
+        emit("movq %%rax, %d(%%rbp)", off);
+        pop("rax");
+        break;
+    case CTYPE_FLOAT:
+    case CTYPE_DOUBLE:
+        push("rax");
+        emit("movq $%uld, %%rax", *(long *)&node->fval);
+        emit("movq %%rax, %d(%%rbp)", off);
+        pop("rax");
+        break;
+    default:
+        error("internal error");
     }
-    return loff;
+}
+
+static void emit_decl_init(List *inits, int off) {
+    for (Iter *iter = list_iter(inits); !iter_end(iter);) {
+        Node *node = iter_next(iter);
+        assert(node->type == AST_INIT);
+        if (node->initval->type == AST_LITERAL) {
+            emit_save_literal(node->initval, node->totype, node->initoff + off);
+        } else {
+            emit_expr(node->initval);
+            emit_lsave(node->totype, node->initoff + off);
+        }
+    }
 }
 
 static void emit_inc_dec(Node *node, char *op) {
@@ -509,44 +537,9 @@ static void emit_expr(Node *node) {
         break;
     }
     case AST_DECL: {
-        if (!node->declinit)
-            return;
-        if (node->declinit->type == AST_ARRAY_INIT) {
-            emit_array_init(node->declinit->initlist,
-                            node->declinit->totype,
-                            node->declvar->loff);
-        } else if (node->declinit->type == AST_STRUCT_INIT) {
-            int off = node->declvar->loff;
-            Dict *fields = node->declinit->inittype->fields;
-            Dict *vals = node->declinit->initdict;
-            for (Iter *iter = list_iter(dict_keys(fields)); !iter_end(iter);) {
-                char *name = iter_next(iter);
-                Ctype *ctype = dict_get(fields, name);
-                Node *val = dict_get(vals, name);
-                if (val) {
-                    if (ctype->type == CTYPE_ARRAY) {
-                        off += emit_array_init(val->initlist, ctype->ptr, off);
-                    } else {
-                        emit_expr(val);
-                        emit_lsave(ctype, off);
-                    }
-                }
-                off += ctype->size;
-            }
-        } else if (node->declvar->ctype->type == CTYPE_ARRAY) {
-            assert(node->declinit->type == AST_STRING);
-            int i = 0;
-            for (char *p = node->declinit->sval; *p; p++, i++)
-                emit("movb $%d, %d(%%rbp)", *p, node->declvar->loff + i);
-            emit("movb $0, %d(%%rbp)", node->declvar->loff + i);
-        } else if (node->declinit->type == AST_STRING) {
-            emit_gload(node->declinit->ctype, node->declinit->slabel, 0);
-            emit_lsave(node->declvar->ctype, node->declvar->loff);
-        } else {
-            emit_expr(node->declinit);
-            emit_lsave(node->declvar->ctype, node->declvar->loff);
-        }
-        return;
+        if (node->declinit)
+            emit_decl_init(node->declinit, node->declvar->loff);
+        break;
     }
     case AST_ADDR:
         switch (node->operand->type) {
@@ -804,21 +797,8 @@ static void emit_expr(Node *node) {
         emit_load_convert(node->ctype, node->right->ctype);
         emit_assign(node->left);
         break;
-    case AST_STRUCT_INIT:
-        error("internal error");
     default:
         emit_binop(node);
-    }
-}
-
-static void emit_data_int(Node *data) {
-    SAVE;
-    assert(data->ctype->type != CTYPE_ARRAY);
-    switch (data->ctype->size) {
-    case 1: emit(".byte %d", data->ival); break;
-    case 4: emit(".long %d", data->ival); break;
-    case 8: emit(".quad %d", data->ival); break;
-    default: error("internal error");
     }
 }
 
@@ -826,26 +806,39 @@ static void emit_data(Node *v) {
     SAVE;
     emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
-    if (v->declinit->type == AST_ARRAY_INIT) {
-        for (Iter *iter = list_iter(v->declinit->initlist); !iter_end(iter);)
-            emit_data_int(iter_next(iter));
-        return;
-    }
-    if (v->declinit->type == AST_STRUCT_INIT) {
-        Dict *fields = v->declinit->inittype->fields;
-        Dict *vals = v->declinit->initdict;
-        for (Iter *iter = list_iter(dict_keys(fields)); !iter_end(iter);) {
-            char *name = iter_next(iter);
-            Ctype *type = dict_get(fields, name);
-            Node *val = dict_get(vals, name);
-            if (val)
-                emit_data_int(val);
-            else
-                emit(".zero %d", type->size);
+    int datasize = v->declvar->ctype->size;
+    char *data = malloc(datasize);
+    memset(data, 0, v->declvar->ctype->size);
+    char *p = data;
+    for (Iter *i = list_iter(v->declinit); !iter_end(i);) {
+        Node *node = iter_next(i);
+        assert(node->initoff < datasize);
+        assert(node->initval->type == AST_LITERAL);
+        if (node->totype->type == CTYPE_FLOAT) {
+            *(float *)p = node->initval->fval;
+            p += sizeof(float);
+        } else if (node->totype->type == CTYPE_FLOAT) {
+            *(double *)p = node->initval->fval;
+            p += sizeof(double);
+        } else if (node->totype->type == CTYPE_CHAR) {
+            *p = node->initval->ival;
+            p++;
+        } else if (node->totype->type == CTYPE_SHORT) {
+            *(short *)p = node->initval->ival;
+            p += sizeof(short);
+        } else if (node->totype->type == CTYPE_INT) {
+            *(int *)p = node->initval->ival;
+            p += sizeof(int);
+        } else if (node->totype->type == CTYPE_LONG || node->totype->type == CTYPE_LLONG) {
+            *(long *)p = node->initval->ival;
+            p += sizeof(long);
         }
     }
-    assert(v->declinit->type == AST_LITERAL && is_inttype(v->declinit->ctype));
-    emit_data_int(v->declinit);
+    int i = 0;
+    for (; i < datasize - 8; i += 8)
+        emit(".quad %ld", ((long *)data)[i]);
+    for (; i < datasize; i++)
+        emit(".byte %d", data[i]);
 }
 
 static void emit_bss(Node *v) {

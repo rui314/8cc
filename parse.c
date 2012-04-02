@@ -161,16 +161,12 @@ static Node *ast_func(Ctype *ctype, char *fname, List *params,
         .use_varargs = use_varargs});
 }
 
-static Node *ast_decl(Node *var, Node *init) {
+static Node *ast_decl(Node *var, List *init) {
     return make_ast(&(Node){ AST_DECL, .declvar = var, .declinit = init });
 }
 
-static Node *ast_array_init(List *initlist, Ctype *totype) {
-    return make_ast(&(Node){ AST_ARRAY_INIT, .totype = totype, .initlist = initlist });
-}
-
-static Node *ast_struct_init(Ctype *inittype, Dict *initdict) {
-    return make_ast(&(Node){ AST_STRUCT_INIT, .initdict = initdict, .inittype = inittype });
+static Node *ast_init(Node *val, Ctype *totype, int off) {
+    return make_ast(&(Node){ AST_INIT, .initval = val, .initoff = off, .totype = totype });
 }
 
 static Node *ast_if(Node *cond, Node *then, Node *els) {
@@ -277,8 +273,9 @@ static Ctype* make_struct_field_type(Ctype *ctype, int offset) {
     return r;
 }
 
-static Ctype* make_struct_type(Dict *fields, int size) {
-    return make_type(&(Ctype){ CTYPE_STRUCT, .fields = fields, size = size });
+static Ctype* make_struct_type(Dict *fields, int size, bool is_struct) {
+    return make_type(&(Ctype){
+            CTYPE_STRUCT, .fields = fields, size = size, is_struct = is_struct });
 }
 
 static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs) {
@@ -338,6 +335,11 @@ static void expect(char punct) {
 
 static bool is_right_assoc(Token *tok) {
     return tok->punct == '=';
+}
+
+static Ctype *copy_incomplete_type(Ctype *ctype) {
+    if (!ctype) return NULL;
+    return (ctype->len == -1) ? copy_type(ctype) : ctype;
 }
 
 static bool is_type_keyword(Token *tok) {
@@ -411,7 +413,7 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
             goto err;
         return result_type_int(jmpbuf, op, a->ptr, b->ptr);
     default:
-        error("internal error: %s %s", c2s(a), c2s(b));
+        error("internal error: <%s>, <%s>", c2s(a), c2s(b));
     }
  err:
     longjmp(*jmpbuf, 1);
@@ -945,11 +947,11 @@ static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
     if (tag) {
         r = dict_get(env, tag);
         if (!r) {
-            r = make_struct_type(NULL, 0);
+            r = make_struct_type(NULL, 0, is_struct);
             dict_put(env, tag, r);
         }
     } else {
-        r = make_struct_type(NULL, 0);
+        r = make_struct_type(NULL, 0, is_struct);
         if (tag)
             dict_put(env, tag, r);
     }
@@ -1016,116 +1018,202 @@ static Ctype *read_enum_def(void) {
  * Initializer
  */
 
-static Node *read_decl_init_elem(Ctype *ctype) {
-    Token *tok = peek_token();
-    Node *r = read_expr();
-    if (!r)
-        error("expression expected, but got %s", t2s(tok));
-    result_type('=', r->ctype, ctype);
-    tok = read_token();
+static void assign_string(List *inits, Ctype *ctype, char *p, int off) {
+    if (ctype->len == -1)
+        ctype->len = ctype->size = strlen(p) + 1;
+    int i = 0;
+    for (; i < ctype->len && *p; i++)
+        list_push(inits, ast_init(ast_inttype(ctype_char, *p++), ctype_char, off + i));
+    for (; i < ctype->len; i++)
+        list_push(inits, ast_init(ast_inttype(ctype_char, 0), ctype_char, off + i));
+}
+
+static bool maybe_read_brace(void) {
+    Token *tok = read_token();
+    if (is_punct(tok, '{'))
+        return true;
+    unget_token(tok);
+    return false;
+}
+
+static void maybe_skip_comma(void) {
+    Token *tok = read_token();
     if (!is_punct(tok, ','))
         unget_token(tok);
-    return r;
 }
 
-static List *read_decl_array_init_int(Ctype *ctype) {
-    List *r = make_list();
-    Token *tok = read_token();
-    assert(ctype->type == CTYPE_ARRAY);
-    if (ctype->ptr->type == CTYPE_CHAR && tok->type == TTYPE_STRING) {
-        for (char *p = tok->sval; *p; p++)
-            list_push(r, ast_inttype(ctype_char, *p));
-        list_push(r, ast_inttype(ctype_char, '\0'));
-        return r;
-    }
-    if (!is_punct(tok, '{'))
-        error("Expected an initializer list for %s, but got %s",
-              c2s(ctype), t2s(tok));
+static void skip_to_brace(void) {
     for (;;) {
         Token *tok = read_token();
         if (is_punct(tok, '}'))
-            break;
-        unget_token(tok);
-        list_push(r, read_decl_init_elem(ctype->ptr));
+            return;
+        if (is_punct(tok, '.')) {
+            read_token();
+            expect('=');
+        } else {
+            unget_token(tok);
+        }
+        Node *ignore = read_expr_int(3);
+        if (!ignore)
+            return;
+        warn("ignore excessive initializer: %s", a2s(ignore));
+        tok = read_token();
+        if (!is_punct(tok, ','))
+            unget_token(tok);
     }
-    return r;
 }
 
-static Node *read_decl_array_init_val(Ctype *ctype) {
-    List *initlist = read_decl_array_init_int(ctype);
-    Node *init = ast_array_init(initlist, ctype->ptr);
+static Node *get_zero(Ctype *ctype) {
+    return is_flotype(ctype)
+        ? ast_floattype(ctype_double, 0.0)
+        : ast_inttype(ctype_int, 0);
+}
 
-    int len = (init->type == AST_STRING)
-        ? strlen(init->sval) + 1
-        : list_len(init->initlist);
-    if (ctype->len == -1) {
-        ctype->len = len;
-        ctype->size = len * ctype->ptr->size;
-    } else if (ctype->len != len) {
-        error("Invalid array initializer: expected %d items but got %d",
-              ctype->len, len);
+static void read_initializer_list(List *inits, Ctype *ctype, int off);
+
+static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
+    if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
+        read_initializer_list(inits, ctype, off);
+    } else {
+        Node *expr = read_expr_int(3);
+        result_type('=', ctype, expr->ctype);
+        list_push(inits, ast_init(expr, ctype, off));
     }
-    return init;
 }
 
-static void set_struct_field(Dict *dict, char *name, Node *node) {
-    if (dict_get(dict, name))
-        error("initializer specified twice for %s", name);
-    dict_put(dict, name, node);
+static void initialize_with_zero(List *inits, Ctype *ctype, int off) {
+    if (ctype->type == CTYPE_STRUCT) {
+        Iter *iter = list_iter(dict_keys(ctype->fields));
+        while (!iter_end(iter)) {
+            char *fieldname = iter_next(iter);
+            Ctype *fieldtype = dict_get(ctype->fields, fieldname);
+            initialize_with_zero(inits, fieldtype, off + fieldtype->offset);
+            if (!ctype->is_struct)
+                return;
+        }
+        return;
+    }
+    if (ctype->type == CTYPE_ARRAY) {
+        assert(ctype->len >= 0);
+        for (int i = 0; i < ctype->len; i++)
+            initialize_with_zero(inits, ctype->ptr, off + i * ctype->ptr->size);
+        return;
+    }
+    list_push(inits, ast_init(get_zero(ctype), ctype, off));
 }
 
-static Node *read_decl_struct_init_val(Ctype *ctype) {
-    expect('{');
-    Dict *dict = make_dict(NULL);
+static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
+    bool has_brace = maybe_read_brace();
     Iter *iter = list_iter(dict_keys(ctype->fields));
+    Dict *written = make_dict(NULL);
     for (;;) {
         Token *tok = read_token();
-        if (is_punct(tok, '}'))
-            return ast_struct_init(ctype, dict);
+        if (is_punct(tok, '}')) {
+            if (!has_brace)
+                unget_token(tok);
+            goto finish;
+        }
+        char *fieldname;
+        Ctype *fieldtype;
         if (is_punct(tok, '.')) {
             tok = read_token();
             if (!tok || tok->type != TTYPE_IDENT)
                 error("malformed desginated initializer: %s", t2s(tok));
-            Ctype *fieldtype = dict_get(ctype->fields, tok->sval);
-            char *fieldname = tok->sval;
+            fieldname = tok->sval;
+            fieldtype = dict_get(ctype->fields, fieldname);
             if (!fieldtype)
                 error("field does not exist: %s", t2s(tok));
             expect('=');
-            set_struct_field(dict, fieldname, read_decl_init_elem(fieldtype));
-            for (iter = list_iter(dict_keys(ctype->fields)); !iter_end(iter);) {
+            iter = list_iter(dict_keys(ctype->fields));
+            while (!iter_end(iter)) {
                 char *s = iter_next(iter);
                 if (strcmp(fieldname, s) == 0)
                     break;
             }
-            continue;
-        }
-        if (iter_end(iter))
-            break;
-        char *fieldname = iter_next(iter);
-        Ctype *fieldtype = dict_get(ctype->fields, fieldname);
-        if (is_punct(tok, '{')) {
-            if (fieldtype->type != CTYPE_ARRAY)
-                error("array expected, but got %s", c2s(fieldtype));
+        } else {
             unget_token(tok);
-            Node *initlist = ast_array_init(read_decl_array_init_int(fieldtype), fieldtype);
-            set_struct_field(dict, fieldname, initlist);
+            if (iter_end(iter))
+                break;
+            fieldname = iter_next(iter);
+            fieldtype = dict_get(ctype->fields, fieldname);
+        }
+        if (dict_get(written, fieldname))
+            error("struct field initialized twice: %s", fieldname);
+        dict_put(written, fieldname, (void *)1);
+        read_initializer_elem(inits, fieldtype, off + fieldtype->offset);
+        maybe_skip_comma();
+        if (!ctype->is_struct)
+            break;
+    }
+    if (has_brace)
+        skip_to_brace();
+ finish:
+    iter = list_iter(dict_keys(ctype->fields));
+    while (!iter_end(iter)) {
+        char *fieldname = iter_next(iter);
+        if (dict_get(written, fieldname))
             continue;
+        Ctype *fieldtype = dict_get(ctype->fields, fieldname);
+        initialize_with_zero(inits, fieldtype, off + fieldtype->offset);
+    }
+}
+
+static void read_array_initializer(List *inits, Ctype *ctype, int off) {
+    bool has_brace = maybe_read_brace();
+    bool incomplete = (ctype->len == -1);
+    int elemsize = ctype->ptr->size;
+    int i;
+    for (i = 0; incomplete || i < ctype->len; i++) {
+        Token *tok = read_token();
+        if (is_punct(tok, '}')) {
+            if (!has_brace)
+                unget_token(tok);
+            goto finish;
         }
         unget_token(tok);
-        set_struct_field(dict, fieldname, read_decl_init_elem(fieldtype));
+        read_initializer_elem(inits, ctype->ptr, off + elemsize * i);
+        maybe_skip_comma();
     }
-    expect('}');
-    return ast_struct_init(ctype, dict);
+    if (has_brace)
+        skip_to_brace();
+ finish:
+    if (incomplete){
+        ctype->len = i;
+        ctype->size = elemsize * i;
+    }
+    for (; i < ctype->len; i++)
+        initialize_with_zero(inits, ctype->ptr, off + elemsize * i);
+}
+
+static void read_initializer_list(List *inits, Ctype *ctype, int off) {
+    Token *tok = read_token();
+    if (ctype->type == CTYPE_ARRAY && ctype->ptr->type == CTYPE_CHAR) {
+        if (tok->type == TTYPE_STRING) {
+            assign_string(inits, ctype, tok->sval, off);
+            return;
+        }
+        if (is_punct(tok, '{') && peek_token()->type == TTYPE_STRING) {
+            assign_string(inits, ctype, tok->sval, off);
+            expect('}');
+            return;
+        }
+    }
+    unget_token(tok);
+    if (ctype->type == CTYPE_ARRAY)
+        read_array_initializer(inits, ctype, off);
+    else if (ctype->type == CTYPE_STRUCT)
+        read_struct_initializer(inits, ctype, off);
+    else
+        error("internal error: %s", c2s(ctype));
 }
 
 static Node *read_decl_init(Node *var) {
-    Ctype *ctype = var->ctype;
-    Node *init = (ctype->type == CTYPE_ARRAY) ? read_decl_array_init_val(ctype)
-        : (ctype->type == CTYPE_STRUCT) ? read_decl_struct_init_val(ctype)
-        : read_expr();
-    if (var->type == AST_GVAR && is_inttype(var->ctype))
-        init = ast_inttype(ctype_int, eval_intexpr(init));
-    return ast_decl(var, init);
+    List *inits = make_list();
+    if (var->ctype->type == CTYPE_ARRAY || var->ctype->type == CTYPE_STRUCT)
+        read_initializer_list(inits, var->ctype, 0);
+    else
+        list_push(inits, ast_init(read_expr(), var->ctype, 0));
+    return ast_decl(var, inits);
 }
 
 /*----------------------------------------------------------------------
@@ -1373,7 +1461,7 @@ static void read_decl(List *block, MakeVarFn make_var) {
     unget_token(tok);
     for (;;) {
         char *name = NULL;
-        Ctype *ctype = read_declarator(&name, basetype, NULL, DECL_BODY);
+        Ctype *ctype = read_declarator(&name, copy_incomplete_type(basetype), NULL, DECL_BODY);
         tok = read_token();
         if (is_punct(tok, '=')) {
             if (sclass == S_TYPEDEF)
@@ -1394,7 +1482,7 @@ static void read_decl(List *block, MakeVarFn make_var) {
         if (is_punct(tok, ';'))
             return;
         if (!is_punct(tok, ','))
-            error("; or , are expected, but got %s", t2s(tok));
+            error("';' or ',' are expected, but got %s", t2s(tok));
     }
 }
 

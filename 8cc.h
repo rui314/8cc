@@ -63,8 +63,7 @@ enum {
     AST_FUNCALL,
     AST_FUNC,
     AST_DECL,
-    AST_ARRAY_INIT,
-    AST_STRUCT_INIT,
+    AST_INIT,
     AST_ADDR,
     AST_DEREF,
     AST_IF,
@@ -139,6 +138,7 @@ typedef struct Ctype {
     // struct
     Dict *fields;
     int offset;
+    bool is_struct; // true if struct, false if union
     // function
     struct Ctype *rettype;
     List *params;
@@ -191,17 +191,13 @@ typedef struct Node {
         // Declaration
         struct {
             struct Node *declvar;
-            struct Node *declinit;
+            struct List *declinit;
         };
-        // array initializer
+        // Initializer
         struct {
-            struct List *initlist;
+            struct Node *initval;
+            int initoff;
             Ctype *totype;
-        };
-        // struct initializer
-        struct {
-            Ctype *inittype;
-            struct Dict *initdict;
         };
         // If statement or ternary operator
         struct {

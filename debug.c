@@ -119,19 +119,19 @@ static void a2s_int(String *buf, Node *node) {
         string_appendf(buf, "(decl %s %s",
                        c2s(node->declvar->ctype),
                        node->declvar->varname);
-        if (node->declinit)
-            string_appendf(buf, " %s)", a2s(node->declinit));
-        else
-            string_appendf(buf, ")");
-        break;
-    case AST_ARRAY_INIT:
-        string_appendf(buf, "{");
-        for (Iter *i = list_iter(node->initlist); !iter_end(i);) {
-            a2s_int(buf, iter_next(i));
-            if (!iter_end(i))
-                string_appendf(buf, ",");
+        if (node->declinit) {
+            string_appendf(buf, " ");
+            for (Iter *i = list_iter(node->declinit); !iter_end(i);) {
+                Node *init = iter_next(i);
+                string_appendf(buf, "%s", a2s(init));
+                if (!iter_end(i))
+                    string_appendf(buf, " ");
+            }
         }
-        string_appendf(buf, "}");
+        string_appendf(buf, ")");
+        break;
+    case AST_INIT:
+        string_appendf(buf, "%s@%d", a2s(node->initval), node->initoff);
         break;
     case AST_IF:
         string_appendf(buf, "(if %s %s",
