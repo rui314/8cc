@@ -166,6 +166,7 @@ typedef struct Node {
             char *varname;
             int loff;
             char *glabel;
+            List *lvarinit;
         };
         // Binary operator
         struct {

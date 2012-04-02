@@ -1,8 +1,6 @@
 #include "test/test.h"
 
-void testmain() {
-    print("literal");
-
+static void test_char(void) {
     expect(65, 'A');
     expect(97, 'a');
     expect(7, '\a');
@@ -22,7 +20,9 @@ void testmain() {
     expect(0, '\x0');
     expect(-1, '\xff');
     expect(18, '\x012');
+}
 
+static void test_string(void) {
     expect_string("abc", "abc");
     expect('a', "abc"[0]);
     expect(0, "abc"[3]);
@@ -38,4 +38,18 @@ void testmain() {
     expect(7, L);
     int L123 = 123;
     expect(123, L123);
+}
+
+static void test_compound(void) {
+    expect(1, (int){ 1 });
+    expect(3, (int[]){ 1, 2, 3 }[2]);
+    expect(12, sizeof((int[]){ 1, 2, 3 }));
+    expect(6, (struct { int x[3]; }){ 5, 6, 7 }.x[1]);
+}
+
+void testmain() {
+    print("literal");
+    test_char();
+    test_string();
+    test_compound();
 }

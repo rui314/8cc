@@ -59,6 +59,7 @@ static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ct
 static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
 static Ctype *read_cast_type(void);
+static List *read_decl_init(Ctype *ctype);
 
 enum {
     S_TYPEDEF = 1,
@@ -123,6 +124,12 @@ static Node *ast_lvar(Ctype *ctype, char *name) {
         dict_put(localenv, name, r);
     if (localvars)
         list_push(localvars, r);
+    return r;
+}
+
+static Node *ast_lvarinit(Ctype *ctype, char *name, List *init) {
+    Node *r = ast_lvar(ctype, name);
+    r->lvarinit = init;
     return r;
 }
 
@@ -544,24 +551,31 @@ static Node *read_number(char *s) {
  * Sizeof operator
  */
 
-static Node *get_sizeof_size(bool allow_typename) {
+static Ctype *get_sizeof_ctype(bool allow_typename) {
     Token *tok = read_token();
     if (allow_typename && is_type_keyword(tok)) {
         unget_token(tok);
         Ctype *ctype;
         read_func_param(&ctype, NULL, true);
-        return ast_inttype(ctype_long, ctype->size);
+        return ctype;
     }
     if (is_punct(tok, '(')) {
-        Node *r = get_sizeof_size(true);
+        Ctype *r = get_sizeof_ctype(true);
         expect(')');
+        tok = read_token();
+        if (is_punct(tok, '{')) {
+            read_decl_init(r);
+            expect('}');
+        } else {
+            unget_token(tok);
+        }
         return r;
     }
     unget_token(tok);
     Node *expr = read_unary_expr();
     if (expr->ctype->size == 0)
         error("invalid operand for sizeof(): %s type=%s size=%d", a2s(expr), c2s(expr->ctype), expr->ctype->size);
-    return ast_inttype(ctype_long, expr->ctype->size);
+    return expr->ctype;
 }
 
 /*----------------------------------------------------------------------
@@ -686,9 +700,20 @@ static Ctype *read_cast_type(void) {
     return read_declarator(NULL, basetype, NULL, DECL_CAST);
 }
 
+static Node *read_compound_literal(Ctype *ctype) {
+    char *name = make_label();
+    List *init = read_decl_init(ctype);
+    expect('}');
+    return ast_lvarinit(ctype, name, init);
+}
+
 static Node *read_cast(void) {
     Ctype *ctype = read_cast_type();
     expect(')');
+    Token *tok = read_token();
+    if (is_punct(tok, '{'))
+        return read_compound_literal(ctype);
+    unget_token(tok);
     Node *expr = read_expr();
     return ast_uop(OP_CAST, ctype, expr);
 }
@@ -697,7 +722,7 @@ static Node *read_unary_expr(void) {
     Token *tok = read_token();
     if (!tok) error("premature end of input");
     if (is_ident(tok, "sizeof"))
-        return get_sizeof_size(false);
+        return ast_inttype(ctype_long, get_sizeof_ctype(false)->size);
     if (is_punct(tok, '(')) {
         if (is_type_keyword(peek_token()))
             return read_cast();
@@ -1207,13 +1232,13 @@ static void read_initializer_list(List *inits, Ctype *ctype, int off) {
         error("internal error: %s", c2s(ctype));
 }
 
-static Node *read_decl_init(Node *var) {
-    List *inits = make_list();
-    if (var->ctype->type == CTYPE_ARRAY || var->ctype->type == CTYPE_STRUCT)
-        read_initializer_list(inits, var->ctype, 0);
+static List *read_decl_init(Ctype *ctype) {
+    List *r = make_list();
+    if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT)
+        read_initializer_list(r, ctype, 0);
     else
-        list_push(inits, ast_init(read_expr(), var->ctype, 0));
-    return ast_decl(var, inits);
+        list_push(r, ast_init(read_expr(), ctype, 0));
+    return r;
 }
 
 /*----------------------------------------------------------------------
@@ -1468,7 +1493,7 @@ static void read_decl(List *block, MakeVarFn make_var) {
                 error("= after typedef");
             ensure_not_void(ctype);
             Node *var = make_var(ctype, name);
-            list_push(block, read_decl_init(var));
+            list_push(block, ast_decl(var, read_decl_init(var->ctype)));
             tok = read_token();
         } else if (sclass == S_TYPEDEF) {
             dict_put(typedefs, name, ctype);

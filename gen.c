@@ -14,6 +14,7 @@ static int numgp;
 static int numfp;
 
 static void emit_expr(Node *node);
+static void emit_decl_init(List *inits, int off);
 
 #define REGAREA_SIZE 304
 
@@ -196,10 +197,18 @@ static void emit_pointer_arith(char op, Node *left, Node *right) {
     emit("add %%rcx, %%rax");
 }
 
+static void ensure_lvar_init(Node *node) {
+    assert(node->type == AST_LVAR);
+    if (node->lvarinit)
+        emit_decl_init(node->lvarinit, node->loff);
+    node->lvarinit = NULL;
+}
+
 static void emit_assign_struct_ref(Node *struc, Ctype *field, int off) {
     SAVE;
     switch (struc->type) {
     case AST_LVAR:
+        ensure_lvar_init(struc);
         emit_lsave(field, struc->loff + field->offset + off);
         break;
     case AST_GVAR:
@@ -222,6 +231,7 @@ static void emit_load_struct_ref(Node *struc, Ctype *field, int off) {
     SAVE;
     switch (struc->type) {
     case AST_LVAR:
+        ensure_lvar_init(struc);
         emit_lload(field, "rbp", struc->loff + field->offset + off);
         break;
     case AST_GVAR:
@@ -244,7 +254,10 @@ static void emit_assign(Node *var) {
     switch (var->type) {
     case AST_DEREF: emit_assign_deref(var); break;
     case AST_STRUCT_REF: emit_assign_struct_ref(var->struc, var->ctype, 0); break;
-    case AST_LVAR: emit_lsave(var->ctype, var->loff); break;
+    case AST_LVAR:
+        ensure_lvar_init(var);
+        emit_lsave(var->ctype, var->loff);
+        break;
     case AST_GVAR: emit_gsave(var->varname, var->ctype, 0); break;
     default: error("internal error");
     }
@@ -482,6 +495,7 @@ static void emit_expr(Node *node) {
         emit("lea %s(%%rip), %%rax", node->slabel);
         break;
     case AST_LVAR:
+        ensure_lvar_init(node);
         emit_lload(node->ctype, "rbp", node->loff);
         break;
     case AST_GVAR:
@@ -544,6 +558,7 @@ static void emit_expr(Node *node) {
     case AST_ADDR:
         switch (node->operand->type) {
         case AST_LVAR:
+            ensure_lvar_init(node->operand);
             emit("lea %d(%%rbp), %%rax", node->operand->loff);
             break;
         case AST_GVAR:

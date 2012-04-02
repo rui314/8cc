@@ -58,6 +58,15 @@ static void binop_to_string(String *buf, char *op, Node *node) {
                    op, a2s(node->left), a2s(node->right));
 }
 
+static void a2s_declinit(String *buf, List *initlist) {
+    for (Iter *i = list_iter(initlist); !iter_end(i);) {
+        Node *init = iter_next(i);
+        string_appendf(buf, "%s", a2s(init));
+        if (!iter_end(i))
+            string_appendf(buf, " ");
+    }
+}
+
 static void a2s_int(String *buf, Node *node) {
     if (!node) {
         string_appendf(buf, "(nil)");
@@ -90,6 +99,13 @@ static void a2s_int(String *buf, Node *node) {
         string_appendf(buf, "\"%s\"", quote_cstring(node->sval));
         break;
     case AST_LVAR:
+        string_appendf(buf, "%s", node->varname);
+        if (node->lvarinit) {
+            string_appendf(buf, "(");
+            a2s_declinit(buf, node->lvarinit);
+            string_appendf(buf, ")");
+        }
+        break;
     case AST_GVAR:
         string_appendf(buf, "%s", node->varname);
         break;
@@ -121,12 +137,7 @@ static void a2s_int(String *buf, Node *node) {
                        node->declvar->varname);
         if (node->declinit) {
             string_appendf(buf, " ");
-            for (Iter *i = list_iter(node->declinit); !iter_end(i);) {
-                Node *init = iter_next(i);
-                string_appendf(buf, "%s", a2s(init));
-                if (!iter_end(i))
-                    string_appendf(buf, " ");
-            }
+            a2s_declinit(buf, node->declinit);
         }
         string_appendf(buf, ")");
         break;
