@@ -195,8 +195,8 @@ static Node *ast_switch(Node *expr, Node *body) {
     return make_ast(&(Node){ AST_SWITCH, .switchexpr = expr, .switchbody = body });
 }
 
-static Node *ast_case(int val) {
-    return make_ast(&(Node){ AST_CASE, .caseval = val });
+static Node *ast_case(int begin, int end) {
+    return make_ast(&(Node){ AST_CASE, .casebeg = begin, .caseend = end });
 }
 
 static Node *ast_return(Ctype *rettype, Node *retval) {
@@ -1718,9 +1718,19 @@ static Node *read_switch_stmt(void) {
 }
 
 static Node *read_case_label(void) {
-    int val = eval_intexpr(read_expr());
+    int beg = eval_intexpr(read_expr());
+    int end;
+    Token *tok = read_token();
+    if (is_ident(tok, "...")) {
+        end = eval_intexpr(read_expr());
+    } else {
+        end = beg;
+        unget_token(tok);
+    }
     expect(':');
-    return ast_case(val);
+    if (beg > end)
+        error("case region is not in correct order: %d %d", beg, end);
+    return ast_case(beg, end);
 }
 
 static Node *read_default_label(void) {

@@ -129,6 +129,13 @@ void test_switch() {
     }
     expect(a, 5);
 
+    switch (7) {
+    case 1 ... 2: fail("switch");
+    case 3: fail("switch");
+    case 5 ... 10: break;
+    default: fail("switch");
+    }
+
     a = 0;
     int count = 27;
     switch (count % 8) {

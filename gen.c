@@ -696,9 +696,15 @@ static void emit_expr(Node *node) {
         char *skip = make_label();
         emit_jmp(skip);
         emit_label(lswitch);
-        emit("cmp $%d, %%eax", node->caseval);
         lswitch = make_label();
-        emit("jne %s", lswitch);
+        emit("cmp $%d, %%eax", node->casebeg);
+        if (node->casebeg == node->caseend) {
+            emit("jne %s", lswitch);
+        } else {
+            emit("jl %s", lswitch);
+            emit("cmp $%d, %%eax", node->caseend);
+            emit("jg %s", lswitch);
+        }
         emit_label(skip);
         break;
     }

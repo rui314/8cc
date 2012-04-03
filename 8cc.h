@@ -222,7 +222,10 @@ typedef struct Node {
             struct Node *switchbody;
         };
         // Switch-case label
-        int caseval;
+        struct {
+            int casebeg;
+            int caseend;
+        };
         // Goto and label
         struct {
             char *label;
