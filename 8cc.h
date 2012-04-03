@@ -254,6 +254,7 @@ extern Ctype *ctype_float;
 extern Ctype *ctype_double;
 
 extern void cpp_init(void);
+extern void lex_init(void);
 extern void unget_cpp_token(Token *tok);
 extern Token *peek_cpp_token(void);
 extern Token *read_cpp_token(void);

@@ -31,7 +31,7 @@ static File *make_file(char *name, FILE *fp) {
     return r;
 }
 
-static __attribute__((constructor)) void init(void) {
+void lex_init(void) {
     file = make_file("(stdin)", stdin);
 }
 

@@ -695,7 +695,7 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
     dict_put(macros, name, make_special_macro(fn));
 }
 
-static __attribute__((constructor)) void init(void) {
+void cpp_init(void) {
     std_include_path = make_list();
     list_push(std_include_path, "/usr/local/include");
     list_push(std_include_path, "/usr/include");
