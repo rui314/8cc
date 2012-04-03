@@ -393,6 +393,7 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
     case CTYPE_INT:   emit("movl $%d, %d(%%rbp)", node->ival, off); break;
     case CTYPE_LONG:
     case CTYPE_LLONG:
+    case CTYPE_PTR:
         push("rax");
         emit("movq $%lu, %%rax", (unsigned long)node->ival);
         emit("movq %%rax, %d(%%rbp)", off);
@@ -406,7 +407,7 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
         pop("rax");
         break;
     default:
-        error("internal error");
+        error("internal error: <%s> <%s> <%d>", a2s(node), c2s(totype), off);
     }
 }
 
@@ -419,8 +420,11 @@ static void emit_addr(Node *node) {
     case AST_GVAR:
         emit("lea %s(%%rip), %%rax", node->glabel);
         break;
+    case AST_DEREF:
+        emit_expr(node->operand);
+        break;
     default:
-        error("internal error");
+        error("internal error: %s", a2s(node));
     }
 }
 
@@ -513,7 +517,7 @@ static void emit_expr(Node *node) {
             emit("mov $%d, %%rax", node->ival);
             break;
         case CTYPE_INT:
-            emit("mov $%d, %%eax", node->ival);
+            emit("mov $%d, %%rax", node->ival);
             break;
         case CTYPE_LONG:
         case CTYPE_LLONG:
@@ -858,32 +862,34 @@ static void emit_expr(Node *node) {
 static void emit_data_init_int(Dict *labels, char *data, Dict *complit, List *inits, int off) {
     for (Iter *i = list_iter(inits); !iter_end(i);) {
         Node *node = iter_next(i);
-        off += node->initoff;
         if (node->initval->type == AST_ADDR &&
             node->initval->operand->type == AST_LVAR &&
             node->initval->operand->lvarinit) {
             char *label = make_label();
             dict_put(complit, label, node->initval->operand);
-            dict_put(labels, format("%d", off), label);
+            dict_put(labels, format("%d", node->initoff + off), label);
             continue;
         }
         if (node->initval->type == AST_LVAR && node->initval->lvarinit) {
-            emit_data_init_int(labels, data, complit, node->initval->lvarinit, off);
+            emit_data_init_int(labels, data, complit, node->initval->lvarinit, node->initoff + off);
             continue;
         }
-        assert(node->initval->type == AST_LITERAL);
         if (node->totype->type == CTYPE_FLOAT)
-            *(float *)(data + off) = node->initval->fval;
+            *(float *)(data + node->initoff + off) = node->initval->fval;
         else if (node->totype->type == CTYPE_FLOAT)
-            *(double *)(data + off) = node->initval->fval;
+            *(double *)(data + node->initoff + off) = node->initval->fval;
         else if (node->totype->type == CTYPE_CHAR)
-            *(data + off) = node->initval->ival;
+            *(data + node->initoff + off) = eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_SHORT)
-            *(short *)(data + off) = node->initval->ival;
+            *(short *)(data + node->initoff + off) = eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_INT)
-            *(int *)(data + off) = node->initval->ival;
+            *(int *)(data + node->initoff + off) = eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_LONG || node->totype->type == CTYPE_LLONG)
-            *(long *)(data + off) = node->initval->ival;
+            *(long *)(data + node->initoff + off) = eval_intexpr(node->initval);
+        else if (node->totype->type == CTYPE_PTR) {
+            *(long *)(data + node->initoff + off) = eval_intexpr(node->initval);
+        } else
+            error("don't know how to handle\n  <%s>\n  <%s>", c2s(node->totype), a2s(node->initval));
     }
 }
 
@@ -895,10 +901,12 @@ static void emit_data_init(Dict *complit, List *inits, int datasize) {
     int i = 0;
     for (; i <= datasize - 4; i += 4) {
         char *label = dict_get(labels, format("%d", i));
-        if (label)
+        if (label) {
             emit(".quad %s", label);
-        else
+            i += 4;
+        } else {
             emit(".long %d", data[i]);
+        }
     }
     for (; i < datasize; i++)
         emit(".byte %d", data[i]);
