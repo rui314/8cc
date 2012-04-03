@@ -133,6 +133,17 @@ void unnamed() {
     expect(7, v.c[4]);
 }
 
+void assign() {
+    struct { int a, b, c; } v1, v2;
+    v1.a = 3;
+    v1.b = 5;
+    v1.c = 7;
+    v2 = v1;
+    expect(3, v2.a);
+    expect(5, v2.b);
+    expect(7, v2.c);
+}
+
 void testmain() {
     print("struct");
     t1();
@@ -150,4 +161,5 @@ void testmain() {
     t13();
     t14();
     unnamed();
+    assign();
 }

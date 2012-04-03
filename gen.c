@@ -410,6 +410,43 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
     }
 }
 
+static void emit_addr(Node *node) {
+    switch (node->type) {
+    case AST_LVAR:
+        ensure_lvar_init(node);
+        emit("lea %d(%%rbp), %%rax", node->loff);
+        break;
+    case AST_GVAR:
+        emit("lea %s(%%rip), %%rax", node->glabel);
+        break;
+    default:
+        error("internal error");
+    }
+}
+
+static void emit_copy_struct(Node *left, Node *right) {
+    push("rcx");
+    push("r11");
+    emit_addr(right);
+    emit("mov %%rax, %%rcx");
+    emit_addr(left);
+    int i = 0;
+    for (; i < left->ctype->size; i += 8) {
+        emit("movq %d(%%rcx), %%r11", i);
+        emit("movq %%r11, %d(%%rax)", i);
+    }
+    for (; i < left->ctype->size; i += 4) {
+        emit("movl %d(%%rcx), %%r11", i);
+        emit("movl %%r11, %d(%%rax)", i);
+    }
+    for (; i < left->ctype->size; i++) {
+        emit("movb %d(%%rcx), %%r11", i);
+        emit("movb %%r11, %d(%%rax)", i);
+    }
+    pop("r11");
+    pop("rcx");
+}
+
 static void emit_decl_init(List *inits, int off) {
     for (Iter *iter = list_iter(inits); !iter_end(iter);) {
         Node *node = iter_next(iter);
@@ -556,17 +593,7 @@ static void emit_expr(Node *node) {
         break;
     }
     case AST_ADDR:
-        switch (node->operand->type) {
-        case AST_LVAR:
-            ensure_lvar_init(node->operand);
-            emit("lea %d(%%rbp), %%rax", node->operand->loff);
-            break;
-        case AST_GVAR:
-            emit("lea %s(%%rip), %%rax", node->operand->glabel);
-            break;
-        default:
-            error("internal error");
-        }
+        emit_addr(node->operand);
         break;
     case AST_DEREF: {
         emit_expr(node->operand);
@@ -808,9 +835,14 @@ static void emit_expr(Node *node) {
         break;
     }
     case '=':
-        emit_expr(node->right);
-        emit_load_convert(node->ctype, node->right->ctype);
-        emit_assign(node->left);
+        if (node->left->ctype->type == CTYPE_STRUCT &&
+            node->left->ctype->size > 8) {
+            emit_copy_struct(node->left, node->right);
+        } else {
+            emit_expr(node->right);
+            emit_load_convert(node->ctype, node->right->ctype);
+            emit_assign(node->left);
+        }
         break;
     default:
         emit_binop(node);

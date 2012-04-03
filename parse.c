@@ -362,6 +362,35 @@ static bool is_type_keyword(Token *tok) {
  * Type conversion
  */
 
+static bool is_same_struct(Ctype *a, Ctype *b) {
+    if (a->type != b->type)
+        return false;
+    switch (a->type) {
+    case CTYPE_ARRAY:
+        return a->len == b->len &&
+            is_same_struct(a->ptr, b->ptr);
+    case CTYPE_PTR:
+        return is_same_struct(a->ptr, b->ptr);
+    case CTYPE_STRUCT: {
+        if (a->is_struct != b->is_struct)
+            return false;
+        List *ka = dict_keys(a->fields);
+        List *kb = dict_keys(b->fields);
+        if (list_len(ka) != list_len(kb))
+            return false;
+        Iter *ia = list_iter(ka);
+        Iter *ib = list_iter(kb);
+        while (!iter_end(ia)) {
+            if (!is_same_struct(iter_next(ia), iter_next(ib)))
+                return false;
+        }
+        return true;
+    }
+    default:
+        return true;
+    }
+}
+
 static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
     if (a->type > b->type)
         SWAP(a, b);
@@ -413,6 +442,10 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
         if (b->type != CTYPE_ARRAY)
             goto err;
         return result_type_int(jmpbuf, op, a->ptr, b->ptr);
+    case CTYPE_STRUCT:
+        if (!is_same_struct(a, b))
+            goto err;
+        return a;
     default:
         error("internal error: <%s>, <%s>", c2s(a), c2s(b));
     }
