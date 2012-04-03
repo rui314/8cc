@@ -249,7 +249,7 @@ static Ctype *make_numtype(int type, bool sig) {
     else if (type == CTYPE_INT)     r->size = 4;
     else if (type == CTYPE_LONG)    r->size = 8;
     else if (type == CTYPE_LLONG)   r->size = 8;
-    else if (type == CTYPE_FLOAT)   r->size = 8;
+    else if (type == CTYPE_FLOAT)   r->size = 4;
     else if (type == CTYPE_DOUBLE)  r->size = 8;
     else if (type == CTYPE_LDOUBLE) r->size = 8;
     else error("internal error");
@@ -653,7 +653,7 @@ static Node *read_var_or_func(char *name) {
         return read_func_args(name);
     }
     unget_token(tok);
-    Node *v = dict_get(localenv, name);
+    Node *v = dict_get(localenv ? localenv : globalenv, name);
     if (!v)
         error("Undefined varaible: %s", name);
     return v;

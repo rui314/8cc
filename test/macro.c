@@ -8,11 +8,45 @@ void special() {
 }
 
 void predefined() {
-    expect(1, __x86_64__);
     expect(1, __8cc__);
+    expect(1, __amd64);
+    expect(1, __amd64__);
+    expect(1, __x86_64);
+    expect(1, __x86_64__);
+    expect(1, linux);
+    expect(1, __linux);
+    expect(1, __linux__);
+    expect(1, __gnu_linux__);
+    expect(1, __unix);
+    expect(1, __unix__);
+    expect(1, _LP64);
+    expect(1, __LP64__);
+    expect(1, __ELF__);
     expect(1, __STDC__);
     expect(1, __STDC_HOSTED__);
     expect(199901, __STDC_VERSION__);
+
+    expect(2, __SIZEOF_SHORT__);
+    expect(4, __SIZEOF_INT__);
+    expect(8, __SIZEOF_LONG__);
+    expect(8, __SIZEOF_LONG_LONG__);
+    expect(4, __SIZEOF_FLOAT__);
+    expect(8, __SIZEOF_DOUBLE__);
+    expect(8, __SIZEOF_LONG_DOUBLE__);
+    expect(8, __SIZEOF_POINTER__);
+    expect(8, __SIZEOF_PTRDIFF_T__);
+    expect(8, __SIZEOF_SIZE_T__);
+
+    expect(sizeof(short), __SIZEOF_SHORT__);
+    expect(sizeof(int), __SIZEOF_INT__);
+    expect(sizeof(long), __SIZEOF_LONG__);
+    expect(sizeof(long long), __SIZEOF_LONG_LONG__);
+    expect(sizeof(float), __SIZEOF_FLOAT__);
+    expect(sizeof(double), __SIZEOF_DOUBLE__);
+    expect(sizeof(long double), __SIZEOF_LONG_DOUBLE__);
+    expect(sizeof(void *), __SIZEOF_POINTER__);
+    expect(sizeof(ptrdiff_t), __SIZEOF_PTRDIFF_T__);
+    expect(sizeof(size_t), __SIZEOF_SIZE_T__);
 }
 
 #define ZERO 0

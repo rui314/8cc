@@ -9,7 +9,6 @@ static List *cond_incl_stack = &EMPTY_LIST;
 static List *std_include_path;
 static Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
-static Token *cpp_token_199901L = &(Token){ .type = TTYPE_NUMBER, .sval = "199901L" };
 static struct tm *current_time;
 
 typedef void special_macro_handler(Token *tok);
@@ -89,6 +88,12 @@ static Token *copy_token(Token *tok) {
     Token *r = malloc(sizeof(Token));
     memcpy(r, tok, sizeof(Token));
     return r;
+}
+
+static Token *make_number(char *s) {
+    Token *tok = malloc(sizeof(Token));
+    *tok = (Token){ TTYPE_NUMBER, .sval = s };
+    return tok;
 }
 
 static void expect(char punct) {
@@ -686,7 +691,7 @@ static void define_obj_macro(char *name, Token *value) {
     dict_put(macros, name, make_obj_macro(make_list1(value)));
 }
 
-static void def_special_macro(char *name, special_macro_handler *fn) {
+static void define_special_macro(char *name, special_macro_handler *fn) {
     dict_put(macros, name, make_special_macro(fn));
 }
 
@@ -698,21 +703,36 @@ static __attribute__((constructor)) void init(void) {
     list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
     list_push(std_include_path, "./include");
 
-    define_obj_macro("__x86_64__", cpp_token_one);
-    define_obj_macro("__8cc__", cpp_token_one);
-    define_obj_macro("__STDC__", cpp_token_one);
-    define_obj_macro("__STDC_HOSTED__", cpp_token_one);
-    define_obj_macro("__STDC_VERSION__", cpp_token_199901L);
+    define_special_macro("__DATE__", handle_date_macro);
+    define_special_macro("__TIME__", handle_time_macro);
+    define_special_macro("__FILE__", handle_file_macro);
+    define_special_macro("__LINE__", handle_line_macro);
+    define_special_macro("_Pragma", handle_pragma_macro);
 
-    def_special_macro("__DATE__", handle_date_macro);
-    def_special_macro("__TIME__", handle_time_macro);
-    def_special_macro("__FILE__", handle_file_macro);
-    def_special_macro("__LINE__", handle_line_macro);
-    def_special_macro("_Pragma", handle_pragma_macro);
+    char *predefined[] = {
+        "__8cc__", "__amd64", "__amd64__", "__x86_64", "__x86_64__",
+        "linux", "__linux", "__linux__", "__gnu_linux__", "__unix", "__unix__",
+        "_LP64", "__LP64__", "__ELF__", "__STDC__", "__STDC_HOSTED__" };
 
-    eval("typedef int size_t;"
+    for (int i = 0; i < sizeof(predefined) / sizeof(*predefined); i++)
+        define_obj_macro(predefined[i], cpp_token_one);
+
+    define_obj_macro("__STDC_VERSION__", make_number("199901L"));
+    define_obj_macro("__SIZEOF_SHORT__", make_number("2"));
+    define_obj_macro("__SIZEOF_INT__", make_number("4"));
+    define_obj_macro("__SIZEOF_LONG__", make_number("8"));
+    define_obj_macro("__SIZEOF_LONG_LONG__", make_number("8"));
+    define_obj_macro("__SIZEOF_FLOAT__", make_number("4"));
+    define_obj_macro("__SIZEOF_DOUBLE__", make_number("8"));
+    define_obj_macro("__SIZEOF_LONG_DOUBLE__", make_number("8"));
+    define_obj_macro("__SIZEOF_POINTER__", make_number("8"));
+    define_obj_macro("__SIZEOF_PTRDIFF_T__", make_number("8"));
+    define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));
+
+    eval("typedef long size_t;"
+         "typedef long ptrdiff_t;"
          "typedef int wchar_t;"
-         "typedef int _Bool;");
+         "typedef char _Bool;");
 }
 
 /*----------------------------------------------------------------------
