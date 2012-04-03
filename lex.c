@@ -331,18 +331,6 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
     return make_punct(els);
 }
 
-static Token *read_rep3(char expect1, int t1, char expect2, int t2, char expect3, int t3, char els) {
-    int c = get();
-    if (c == expect1)
-        return make_punct(t1);
-    if (c == expect2)
-        return make_punct(t2);
-    if (c == expect3)
-        return make_punct(t3);
-    unget(c);
-    return make_punct(els);
-}
-
 static Token *read_token_int(void) {
     int c = get();
     switch (c) {
@@ -396,7 +384,17 @@ static Token *read_token_int(void) {
         return make_punct('#');
     }
     case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
-    case '-': return read_rep3('-', OP_DEC, '>', OP_ARROW, '=', OP_A_SUB, '-');
+    case '-': {
+        int c = get();
+        if (c == '-')
+            return make_punct(OP_DEC);
+        if (c == '>')
+            return make_punct(OP_ARROW);
+        if (c == '=')
+            return make_punct(OP_A_SUB);
+        unget(c);
+        return make_punct('-');
+    }
     case '*': return read_rep('=', OP_A_MUL, '*');
     case '%': return read_rep('=', OP_A_MOD, '%');
     case '=': return read_rep('=', OP_EQ, '=');
