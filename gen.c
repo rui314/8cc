@@ -397,17 +397,13 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
     case CTYPE_LONG:
     case CTYPE_LLONG:
     case CTYPE_PTR:
-        push("rax");
-        emit("movq $%lu, %%rax", (unsigned long)node->ival);
-        emit("movq %%rax, %d(%%rbp)", off);
-        pop("rax");
+        emit("movl $%lu, %d(%%rbp)", ((unsigned long)node->ival) & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(%%rbp)", ((unsigned long)node->ival) >> 32, off + 4);
         break;
     case CTYPE_FLOAT:
     case CTYPE_DOUBLE:
-        push("rax");
-        emit("movq $%uld, %%rax", *(long *)&node->fval);
-        emit("movq %%rax, %d(%%rbp)", off);
-        pop("rax");
+        emit("movq $%lu, %d(%%rbp)", (*(long *)&node->fval) & ((1L << 32) - 1), off);
+        emit("movq $%lu, %d(%%rbp)", (*(long *)&node->fval) >> 32, off + 4);
         break;
     default:
         error("internal error: <%s> <%s> <%d>", a2s(node), c2s(totype), off);
@@ -1012,6 +1008,7 @@ static void emit_func_prologue(Node *func) {
     emit(".text");
     emit_noindent(".global %s", func->fname);
     emit_noindent("%s:", func->fname);
+    emit("nop");
     push("rbp");
     emit("mov %%rsp, %%rbp");
     int off = 0;
