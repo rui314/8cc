@@ -498,6 +498,13 @@ static void set_reg_nums(List *args) {
     }
 }
 
+static void emit_zero_filler(int start, int end) {
+    for (; start <= end - 4; start += 4)
+        emit("movl $0, %d(%%rbp)", start);
+    for (; start < end; start++)
+        emit("movb $0, %d(%%rbp)", start);
+}
+
 static void emit_je(char *label) {
     emit("test %%rax, %%rax");
     emit("je %s", label);
@@ -595,8 +602,11 @@ static void emit_expr(Node *node) {
         break;
     }
     case AST_DECL: {
-        if (node->declinit)
+        if (node->declinit) {
+            emit_zero_filler(node->declvar->loff,
+                             node->declvar->loff + node->declvar->ctype->size);
             emit_decl_init(node->declinit, node->declvar->loff);
+        }
         break;
     }
     case AST_ADDR:

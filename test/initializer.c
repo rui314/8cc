@@ -71,6 +71,9 @@ void test_zero() {
     struct { int x; int y; } v2 = { .y = 3 };
     expect(0, v2.x);
     expect(3, v2.y);
+
+    struct { union { int x, y; }; } v3 = { .x = 61 };
+    expect(61, v3.x);
 }
 
 

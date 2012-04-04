@@ -1117,12 +1117,6 @@ static void skip_to_brace(void) {
     }
 }
 
-static Node *get_zero(Ctype *ctype) {
-    return is_flotype(ctype)
-        ? ast_floattype(ctype_double, 0.0)
-        : ast_inttype(ctype_int, 0);
-}
-
 static void read_initializer_list(List *inits, Ctype *ctype, int off);
 
 static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
@@ -1135,27 +1129,6 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
     }
 }
 
-static void initialize_with_zero(List *inits, Ctype *ctype, int off) {
-    if (ctype->type == CTYPE_STRUCT) {
-        Iter *iter = list_iter(dict_keys(ctype->fields));
-        while (!iter_end(iter)) {
-            char *fieldname = iter_next(iter);
-            Ctype *fieldtype = dict_get(ctype->fields, fieldname);
-            initialize_with_zero(inits, fieldtype, off + fieldtype->offset);
-            if (!ctype->is_struct)
-                return;
-        }
-        return;
-    }
-    if (ctype->type == CTYPE_ARRAY) {
-        assert(ctype->len >= 0);
-        for (int i = 0; i < ctype->len; i++)
-            initialize_with_zero(inits, ctype->ptr, off + i * ctype->ptr->size);
-        return;
-    }
-    list_push(inits, ast_init(get_zero(ctype), ctype, off));
-}
-
 static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
     bool has_brace = maybe_read_brace();
     Iter *iter = list_iter(dict_keys(ctype->fields));
@@ -1165,7 +1138,7 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
         if (is_punct(tok, '}')) {
             if (!has_brace)
                 unget_token(tok);
-            goto finish;
+            return;
         }
         char *fieldname;
         Ctype *fieldtype;
@@ -1201,15 +1174,6 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
     }
     if (has_brace)
         skip_to_brace();
- finish:
-    iter = list_iter(dict_keys(ctype->fields));
-    while (!iter_end(iter)) {
-        char *fieldname = iter_next(iter);
-        if (dict_get(written, fieldname))
-            continue;
-        Ctype *fieldtype = dict_get(ctype->fields, fieldname);
-        initialize_with_zero(inits, fieldtype, off + fieldtype->offset);
-    }
 }
 
 static void read_array_initializer(List *inits, Ctype *ctype, int off) {
@@ -1235,8 +1199,6 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
         ctype->len = i;
         ctype->size = elemsize * i;
     }
-    for (; i < ctype->len; i++)
-        initialize_with_zero(inits, ctype->ptr, off + elemsize * i);
 }
 
 static void read_initializer_list(List *inits, Ctype *ctype, int off) {
