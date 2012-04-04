@@ -64,6 +64,17 @@ static char *get_int_reg(Ctype *ctype, char r) {
     }
 }
 
+static char *get_load_inst(Ctype *ctype) {
+    switch (ctype->size) {
+    case 1: return "movsbq";
+    case 2: return "movswq";
+    case 4: return "movslq";
+    case 8: return "mov";
+    default:
+        error("Unknown data size: %s: %d", c2s(ctype), ctype->size);
+    }
+}
+
 static void push_xmm(int reg) {
     SAVE;
     emit("sub $8, %%rsp");
@@ -101,13 +112,8 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
             emit("lea %s(%%rip), %%rax", label);
         return;
     }
-    char *reg = get_int_reg(ctype, 'a');
-    if (ctype->size < 4)
-        emit("mov $0, %%eax");
-    if (off)
-        emit("mov %s+%d(%%rip), %%%s", label, off, reg);
-    else
-        emit("mov %s(%%rip), %%%s", label, reg);
+    char *inst = get_load_inst(ctype);
+    emit("%s %s+%d(%%rip), %%rax", inst, label, off);
 }
 
 static void emit_toint(Ctype *ctype) {
@@ -133,11 +139,8 @@ static void emit_lload(Ctype *ctype, char *base, int off) {
     } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
         emit("movsd %d(%%%s), %%xmm0", off, base);
     } else {
-        char *reg = get_int_reg(ctype, 'c');
-        if (ctype->size < 4)
-            emit("mov $0, %%ecx");
-        emit("mov %d(%%%s), %%%s", off, base, reg);
-        emit("mov %%rcx, %rax");
+        char *inst = get_load_inst(ctype);
+        emit("%s %d(%%%s), %%rax", inst, off, base);
     }
 }
 
@@ -307,7 +310,7 @@ static void emit_binop_int_arith(Node *node) {
     emit("mov %%rax, %%rcx");
     pop("rax");
     if (node->type == '/' || node->type == '%') {
-        emit("mov $0, %%edx");
+        emit("cqo");
         emit("idiv %%rcx");
         if (node->type == '%')
             emit("mov %%edx, %%eax");

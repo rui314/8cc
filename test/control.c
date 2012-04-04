@@ -33,8 +33,9 @@ void test_for() {
     expect(10, acc);
 
     acc = 0;
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < 5; i++) {
         acc = acc + i;
+    }
     expect(10, acc);
 
     acc = 0;
