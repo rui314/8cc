@@ -1,4 +1,5 @@
 #include "test/test.h"
+#include <stdbool.h>
 
 void test_type() {
     char a;
@@ -13,6 +14,8 @@ void test_type() {
     float h;
     double i;
     long double j;
+    _Bool k;
+    bool l;
 }
 
 void test_signed() {

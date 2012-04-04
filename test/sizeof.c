@@ -1,9 +1,12 @@
 #include "test/test.h"
+#include <stdbool.h>
 
 void testmain() {
     print("sizeof");
 
     expect(1, sizeof(char));
+    expect(1, sizeof(_Bool));
+    expect(1, sizeof(bool));
     expect(2, sizeof(short));
     expect(4, sizeof(int));
     expect(8, sizeof(long));
