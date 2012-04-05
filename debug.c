@@ -194,6 +194,8 @@ static void a2s_int(String *buf, Node *node) {
         break;
     case AST_ADDR:  uop_to_string(buf, "addr", node); break;
     case AST_DEREF: uop_to_string(buf, "deref", node); break;
+    case OP_LSH:  binop_to_string(buf, "<<", node); break;
+    case OP_RSH:  binop_to_string(buf, ">>", node); break;
     case OP_GE:  binop_to_string(buf, ">=", node); break;
     case OP_LE:  binop_to_string(buf, "<=", node); break;
     case OP_NE:  binop_to_string(buf, "!=", node); break;

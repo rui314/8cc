@@ -743,7 +743,7 @@ static Node *read_cast(void) {
     if (is_punct(tok, '{'))
         return read_compound_literal(ctype);
     unget_token(tok);
-    Node *expr = read_unary_expr();
+    Node *expr = read_expr_int(1);
     return ast_uop(OP_CAST, ctype, expr);
 }
 
