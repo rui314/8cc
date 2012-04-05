@@ -21,6 +21,7 @@ static void emit_decl_init(List *inits, int off);
 #define emit(...)        emitf(__LINE__, "\t" __VA_ARGS__)
 #define emit_noindent(...)  emitf(__LINE__, __VA_ARGS__)
 
+#ifdef __GNUC__
 #define SAVE                                                    \
     int save_hook __attribute__((cleanup(pop_function)));       \
     list_push(functions, (void *)__func__)
@@ -28,6 +29,9 @@ static void emit_decl_init(List *inits, int off);
 static void pop_function(void *ignore) {
     list_pop(functions);
 }
+#else
+#define SAVE 1
+#endif
 
 static char *get_caller_list(void) {
     String *s = make_string();
