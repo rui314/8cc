@@ -8,4 +8,8 @@ void testmain() {
     expect(1, (int)1);
     expectf(1.0, (float)1);
     expectd(2.0, (double)2);
+
+    int a[3];
+    *(int *)(a + 2) = 5;
+    expect(5, a[2]);
 }
