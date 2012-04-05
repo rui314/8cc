@@ -201,6 +201,16 @@ static void a2s_int(String *buf, Node *node) {
     case OP_DEC: uop_to_string(buf, "--", node); break;
     case OP_LOGAND: binop_to_string(buf, "and", node); break;
     case OP_LOGOR:  binop_to_string(buf, "or", node); break;
+    case OP_A_ADD:  binop_to_string(buf, "+=", node); break;
+    case OP_A_SUB:  binop_to_string(buf, "-=", node); break;
+    case OP_A_MUL:  binop_to_string(buf, "*=", node); break;
+    case OP_A_DIV:  binop_to_string(buf, "/=", node); break;
+    case OP_A_MOD:  binop_to_string(buf, "%=", node); break;
+    case OP_A_AND:  binop_to_string(buf, "&=", node); break;
+    case OP_A_OR:   binop_to_string(buf, "|=", node); break;
+    case OP_A_XOR:  binop_to_string(buf, "^=", node); break;
+    case OP_A_LSH:  binop_to_string(buf, "<<=", node); break;
+    case OP_A_RSH:  binop_to_string(buf, ">>=", node); break;
     case '!': uop_to_string(buf, "!", node); break;
     case '&': binop_to_string(buf, "&", node); break;
     case '|': binop_to_string(buf, "|", node); break;
@@ -236,9 +246,24 @@ char *t2s(Token *tok) {
     case TTYPE_IDENT:
         return tok->sval;
     case TTYPE_PUNCT:
-        if (is_punct(tok, OP_EQ))
-            return "==";
-        return format("%c", tok->c);
+        switch (tok->punct) {
+        case OP_EQ:     return "==";
+        case OP_INC:    return "++";
+        case OP_DEC:    return "--";
+        case OP_LOGAND: return "and";
+        case OP_LOGOR:  return "or";
+        case OP_A_ADD:  return "+=";
+        case OP_A_SUB:  return "-=";
+        case OP_A_MUL:  return "*=";
+        case OP_A_DIV:  return "/=";
+        case OP_A_MOD:  return "%=";
+        case OP_A_AND:  return "&=";
+        case OP_A_OR:   return "|=";
+        case OP_A_XOR:  return "^=";
+        case OP_A_LSH:  return "<<=";
+        case OP_A_RSH:  return ">>=";
+        default: return format("%c", tok->c);
+        }
     case TTYPE_CHAR:
         return format("%c", tok->c);
     case TTYPE_NUMBER:
