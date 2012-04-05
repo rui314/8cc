@@ -808,5 +808,15 @@ Token *read_token(void) {
     assert(r->type != TTYPE_NEWLINE);
     assert(r->type != TTYPE_SPACE);
     assert(r->type != TTYPE_MACRO_PARAM);
-    return r;
+    if (r->type != TTYPE_STRING)
+        return r;
+    Token *r2 = read_token_int(false);
+    if (r2->type != TTYPE_STRING) {
+        unget_token(r2);
+        return r;
+    }
+    Token *conc = copy_token(r);
+    conc->sval = format("%s%s", r->sval, r2->sval);
+    unget_token(conc);
+    return read_token();
 }
