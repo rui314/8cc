@@ -467,7 +467,13 @@ static void emit_decl_init(List *inits, int off) {
     }
 }
 
-static void emit_inc_dec(Node *node, char *op) {
+static void emit_pre_inc_dec(Node *node, char *op) {
+    emit_expr(node->operand);
+    emit("%s $1, %%rax", op);
+    emit_assign(node->operand);
+}
+
+static void emit_post_inc_dec(Node *node, char *op) {
     SAVE;
     emit_expr(node->operand);
     push("rax");
@@ -794,11 +800,17 @@ static void emit_expr(Node *node) {
         pop("rbx");
         pop("rcx");
         break;
-    case OP_INC:
-        emit_inc_dec(node, "add");
+    case OP_PRE_INC:
+        emit_pre_inc_dec(node, "add");
         break;
-    case OP_DEC:
-        emit_inc_dec(node, "sub");
+    case OP_PRE_DEC:
+        emit_pre_inc_dec(node, "sub");
+        break;
+    case OP_POST_INC:
+        emit_post_inc_dec(node, "add");
+        break;
+    case OP_POST_DEC:
+        emit_post_inc_dec(node, "sub");
         break;
     case '!':
         emit_expr(node->operand);

@@ -197,8 +197,10 @@ static void a2s_int(String *buf, Node *node) {
     case OP_GE:  binop_to_string(buf, ">=", node); break;
     case OP_LE:  binop_to_string(buf, "<=", node); break;
     case OP_NE:  binop_to_string(buf, "!=", node); break;
-    case OP_INC: uop_to_string(buf, "++", node); break;
-    case OP_DEC: uop_to_string(buf, "--", node); break;
+    case OP_PRE_INC: uop_to_string(buf, "pre++", node); break;
+    case OP_PRE_DEC: uop_to_string(buf, "pre--", node); break;
+    case OP_POST_INC: uop_to_string(buf, "post++", node); break;
+    case OP_POST_DEC: uop_to_string(buf, "post--", node); break;
     case OP_LOGAND: binop_to_string(buf, "and", node); break;
     case OP_LOGOR:  binop_to_string(buf, "or", node); break;
     case OP_A_ADD:  binop_to_string(buf, "+=", node); break;

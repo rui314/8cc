@@ -106,6 +106,10 @@ enum {
     OP_ARROW,
     OP_SIZEOF,
     OP_CAST,
+    OP_PRE_INC,
+    OP_PRE_DEC,
+    OP_POST_INC,
+    OP_POST_DEC,
 };
 
 enum {

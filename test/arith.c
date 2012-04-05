@@ -24,6 +24,10 @@ void test_inc_dec() {
     expect(16, a);
     expect(16, a--);
     expect(15, a);
+    expect(14, --a);
+    expect(14, a);
+    expect(15, ++a);
+    expect(15, a);
 }
 
 void test_bool() {

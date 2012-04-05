@@ -785,6 +785,12 @@ static Node *read_unary_expr(void) {
             error("pointer type expected, but got %s", a2s(operand));
         return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
     }
+    if (is_punct(tok, OP_INC) || is_punct(tok, OP_DEC)) {
+        Node *operand = read_expr_int(3);
+        ensure_lvalue(operand);
+        int op = is_punct(tok, OP_INC) ? OP_PRE_INC : OP_PRE_DEC;
+        return ast_uop(op, operand->ctype, operand);
+    }
     unget_token(tok);
     return read_prim();
 }
@@ -885,7 +891,8 @@ static Node *read_expr_int(int prec) {
         }
         if (is_punct(tok, OP_INC) || is_punct(tok, OP_DEC)) {
             ensure_lvalue(node);
-            node = ast_uop(tok->punct, node->ctype, node);
+            int op = is_punct(tok, OP_INC) ? OP_POST_INC : OP_POST_DEC;
+            node = ast_uop(op, node->ctype, node);
             continue;
         }
         int cop = get_compound_assign_op(tok);
