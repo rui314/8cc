@@ -3,6 +3,7 @@
 #include "8cc.h"
 
 int main(int argc, char **argv) {
+    setbuf(stdout, NULL);
     lex_init();
     cpp_init();
     int wantast = (argc > 1 && !strcmp(argv[1], "-a"));
