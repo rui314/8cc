@@ -9,7 +9,13 @@
         if (!(expr)) error("Assertion failed: " #expr); \
     } while (0)
 
-extern void errorf(char *file, int line, char *fmt, ...) __attribute__((noreturn));
+#ifndef __8cc__
+#define NORETURN __attribute__((noreturn))
+#else
+#define NORETURN
+#endif
+
+extern void errorf(char *file, int line, char *fmt, ...) NORETURN;
 extern void warn(char *fmt, ...);
 extern char *quote_cstring(char *p);
 extern char *quote_char(char c);

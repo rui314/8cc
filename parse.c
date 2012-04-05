@@ -96,15 +96,8 @@ static Node *ast_uop(int type, Ctype *ctype, Node *operand) {
 
 static Node *ast_binop(int type, Node *left, Node *right) {
     Node *r = make_ast(&(Node){ type, result_type(type, left->ctype, right->ctype) });
-    if (type != '=' &&
-        convert_array(left->ctype)->type != CTYPE_PTR &&
-        convert_array(right->ctype)->type == CTYPE_PTR) {
-        r->left = right;
-        r->right = left;
-    } else {
-        r->left = left;
-        r->right = right;
-    }
+    r->left = left;
+    r->right = right;
     return r;
 }
 
