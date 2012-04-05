@@ -163,9 +163,15 @@ static List *read_args_int(Macro *macro) {
 static List *read_args(Macro *macro) {
     List *args = read_args_int(macro);
     if (!args) return NULL;
-    if ((macro->is_varg && list_len(args) < macro->nargs) ||
-        (!macro->is_varg && list_len(args) != macro->nargs))
+    if (macro->is_varg && list_len(args) < macro->nargs)
+        error("Macro argument number is less than expected");
+    if (!macro->is_varg && list_len(args) != macro->nargs) {
+        if (macro->nargs == 0 &&
+            list_len(args) == 1 &&
+            list_len(list_get(args, 0)) == 0)
+            return &EMPTY_LIST;
         error("Macro argument number does not match");
+    }
     return args;
 }
 

@@ -329,6 +329,11 @@ void empty() {
     expect(2, 2 EMPTY2(((()))));
 }
 
+void noarg() {
+#define NOARG() 55
+    expect(55, NOARG());
+}
+
 void testmain() {
     print("macros");
 
@@ -343,4 +348,5 @@ void testmain() {
     ifdef();
     funclike();
     empty();
+    noarg();
 }
