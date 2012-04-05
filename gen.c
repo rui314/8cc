@@ -400,15 +400,20 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
     case CTYPE_INT:   emit("movl $%d, %d(%%rbp)", node->ival, off); break;
     case CTYPE_LONG:
     case CTYPE_LLONG:
-    case CTYPE_PTR:
-        emit("movl $%lu, %d(%%rbp)", ((unsigned long)node->ival) & ((1L << 32) - 1), off);
-        emit("movl $%lu, %d(%%rbp)", ((unsigned long)node->ival) >> 32, off + 4);
+    case CTYPE_PTR: {
+        unsigned long ival = node->ival;
+        emit("movl $%lu, %d(%%rbp)", ival & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(%%rbp)", ival >> 32, off + 4);
         break;
+    }
     case CTYPE_FLOAT:
-    case CTYPE_DOUBLE:
-        emit("movq $%lu, %d(%%rbp)", (*(long *)&node->fval) & ((1L << 32) - 1), off);
-        emit("movq $%lu, %d(%%rbp)", (*(long *)&node->fval) >> 32, off + 4);
+    case CTYPE_DOUBLE: {
+        double fp = node->fval;
+        long *p = (long *)&fp;
+        emit("movq $%lu, %d(%%rbp)", *p & ((1L << 32) - 1), off);
+        emit("movq $%lu, %d(%%rbp)", *p >> 32, off + 4);
         break;
+    }
     default:
         error("internal error: <%s> <%s> <%d>", a2s(node), c2s(totype), off);
     }
@@ -484,8 +489,9 @@ static void emit_post_inc_dec(Node *node, char *op) {
 
 static List *get_arg_types(Node *node) {
     List *r = make_list();
-    for (Iter *i = list_iter(node->args), *j = list_iter(node->ftype->params);
-         !iter_end(i);) {
+    Iter *i = list_iter(node->args);
+    Iter *j = list_iter(node->ftype->params);
+    while (!iter_end(i)) {
         Node *v = iter_next(i);
         Ctype *ptype = iter_next(j);
         list_push(r, ptype ? ptype : result_type('=', v->ctype, ctype_int));
@@ -536,9 +542,11 @@ static void emit_expr(Node *node) {
             emit("mov $%d, %%rax", node->ival);
             break;
         case CTYPE_LONG:
-        case CTYPE_LLONG:
-            emit("mov $%lu, %%rax", (unsigned long)node->ival);
+        case CTYPE_LLONG: {
+            unsigned long ival = node->ival;
+            emit("mov $%lu, %%rax", ival);
             break;
+        }
         case CTYPE_FLOAT:
         case CTYPE_DOUBLE:
         case CTYPE_LDOUBLE:
@@ -570,16 +578,19 @@ static void emit_expr(Node *node) {
                 push(REGS[ireg++]);
             }
         }
-        for (Iter *i = list_iter(node->args), *j = list_iter(argtypes);
-             !iter_end(i);) {
-            Node *v = iter_next(i);
-            emit_expr(v);
-            Ctype *ptype = iter_next(j);
-            emit_save_convert(ptype, v->ctype);
-            if (is_flotype(ptype))
-                push_xmm(0);
-            else
-                push("rax");
+        {
+            Iter *i = list_iter(node->args);
+            Iter *j = list_iter(argtypes);
+            while (!iter_end(i)) {
+                Node *v = iter_next(i);
+                emit_expr(v);
+                Ctype *ptype = iter_next(j);
+                emit_save_convert(ptype, v->ctype);
+                if (is_flotype(ptype))
+                    push_xmm(0);
+                else
+                    push("rax");
+            }
         }
         int ir = ireg;
         int xr = xreg;
@@ -650,7 +661,7 @@ static void emit_expr(Node *node) {
         lcontinue = cont
 #define RESTORE_JUMP_LABELS()                   \
         lbreak = obreak;                        \
-        lcontinue = ocontinue;
+        lcontinue = ocontinue
 
         if (node->forinit)
             emit_expr(node->forinit);
@@ -884,19 +895,26 @@ static void emit_expr(Node *node) {
     }
 }
 
-static void emit_data_init_int(Dict *labels, char *data, Dict *complit, List *inits, int off) {
-    for (Iter *i = list_iter(inits); !iter_end(i);) {
+static void emit_data_init_int(Dict *labels, char *data, Dict *literals, List *inits, int off) {
+    Iter *i = list_iter(inits);
+    while (!iter_end(i)) {
         Node *node = iter_next(i);
         if (node->initval->type == AST_ADDR &&
             node->initval->operand->type == AST_LVAR &&
             node->initval->operand->lvarinit) {
             char *label = make_label();
-            dict_put(complit, label, node->initval->operand);
+            dict_put(literals, label, node->initval->operand);
+            dict_put(labels, format("%d", node->initoff + off), label);
+            continue;
+        }
+        if (node->initval->ctype->type == CTYPE_ARRAY && node->initval->ctype->ptr->type == CTYPE_CHAR) {
+            char *label = make_label();
+            dict_put(literals, label, node->initval);
             dict_put(labels, format("%d", node->initoff + off), label);
             continue;
         }
         if (node->initval->type == AST_LVAR && node->initval->lvarinit) {
-            emit_data_init_int(labels, data, complit, node->initval->lvarinit, node->initoff + off);
+            emit_data_init_int(labels, data, literals, node->initval->lvarinit, node->initoff + off);
             continue;
         }
         if (node->totype->type == CTYPE_FLOAT)
@@ -918,11 +936,11 @@ static void emit_data_init_int(Dict *labels, char *data, Dict *complit, List *in
     }
 }
 
-static void emit_data_init(Dict *complit, List *inits, int datasize) {
+static void emit_data_init(Dict *literals, List *inits, int datasize) {
     char *data = malloc(datasize);
     memset(data, 0, datasize);
     Dict *labels = make_dict(NULL);
-    emit_data_init_int(labels, data, complit, inits, 0);
+    emit_data_init_int(labels, data, literals, inits, 0);
     int i = 0;
     for (; i <= datasize - 4; i += 4) {
         char *label = dict_get(labels, format("%d", i));
@@ -938,28 +956,32 @@ static void emit_data_init(Dict *complit, List *inits, int datasize) {
     emit(".align 8");
 }
 
-static void emit_data_complit(char *label, Node *node) {
-    Dict *complit = make_dict(NULL);
+static void emit_data_literals(char *label, Node *node) {
+    Dict *literals = make_dict(NULL);
     emit_noindent("%s:", label);
-    emit_data_init(complit, node->lvarinit, node->ctype->size);
-    for (Iter *i = list_iter(dict_keys(complit)); !iter_end(i);) {
+    if (node->ctype->type == CTYPE_ARRAY && node->ctype->ptr->type == CTYPE_CHAR) {
+        emit(".string \"%s\"", quote_cstring(node->sval));
+        return;
+    }
+    emit_data_init(literals, node->lvarinit, node->ctype->size);
+    for (Iter *i = list_iter(dict_keys(literals)); !iter_end(i);) {
         char *label = iter_next(i);
-        Node *node2 = dict_get(complit, label);
-        emit_data_complit(label, node2);
+        Node *node2 = dict_get(literals, label);
+        emit_data_literals(label, node2);
     }
 }
 
 static void emit_data(Node *v) {
     SAVE;
-    Dict *complit = make_dict(NULL);
+    Dict *literals = make_dict(NULL);
     if (!v->declvar->ctype->isstatic)
         emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
-    emit_data_init(complit, v->declinit, v->declvar->ctype->size);
-    for (Iter *i = list_iter(dict_keys(complit)); !iter_end(i);) {
+    emit_data_init(literals, v->declinit, v->declvar->ctype->size);
+    for (Iter *i = list_iter(dict_keys(literals)); !iter_end(i);) {
         char *label = iter_next(i);
-        Node *node = dict_get(complit, label);
-        emit_data_complit(label, node);
+        Node *node = dict_get(literals, label);
+        emit_data_literals(label, node);
     }
 }
 
@@ -989,8 +1011,9 @@ void emit_data_section(void) {
         char *label = make_label();
         v->flabel = label;
         emit_noindent("%s:", label);
-        emit(".long %d", ((int *)&v->fval)[0]);
-        emit(".long %d", ((int *)&v->fval)[1]);
+        double fval = v->fval;
+        emit(".long %d", ((int*)&fval)[0]);
+        emit(".long %d", ((int*)&fval)[1]);
     }
 }
 
