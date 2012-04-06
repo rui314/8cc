@@ -109,8 +109,10 @@ static void a2s_int(String *buf, Node *node) {
     case AST_GVAR:
         string_appendf(buf, "%s", node->varname);
         break;
-    case AST_FUNCALL: {
-        string_appendf(buf, "(%s)%s(", c2s(node->ctype), node->fname);
+    case AST_FUNCALL:
+    case AST_FUNCPTR_CALL: {
+        string_appendf(buf, "(%s)%s(", c2s(node->ctype),
+                       node->type == AST_FUNCALL ? node->fname : a2s(node));
         for (Iter *i = list_iter(node->args); !iter_end(i);) {
             string_appendf(buf, "%s", a2s(iter_next(i)));
             if (!iter_end(i))

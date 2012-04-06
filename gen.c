@@ -487,10 +487,10 @@ static void emit_post_inc_dec(Node *node, char *op) {
     pop("rax");
 }
 
-static List *get_arg_types(Node *node) {
+static List *get_arg_types(List *params, List *args) {
     List *r = make_list();
-    Iter *i = list_iter(node->args);
-    Iter *j = list_iter(node->ftype->params);
+    Iter *i = list_iter(params);
+    Iter *j = list_iter(args);
     while (!iter_end(i)) {
         Node *v = iter_next(i);
         Ctype *ptype = iter_next(j);
@@ -566,10 +566,14 @@ static void emit_expr(Node *node) {
     case AST_GVAR:
         emit_gload(node->ctype, node->glabel, 0);
         break;
-    case AST_FUNCALL: {
+    case AST_FUNCALL:
+    case AST_FUNCPTR_CALL: {
+        bool isptr = (node->type == AST_FUNCPTR_CALL);
         int ireg = 0;
         int xreg = 0;
-        List *argtypes = get_arg_types(node);
+        List *argtypes = isptr
+            ? get_arg_types(node->args, node->fptr->ctype->ptr->params)
+            : get_arg_types(node->args, node->ftype->params);
         for (Iter *i = list_iter(argtypes); !iter_end(i);) {
             if (is_flotype(iter_next(i))) {
                 if (xreg > 0) push_xmm(xreg);
@@ -577,6 +581,10 @@ static void emit_expr(Node *node) {
             } else {
                 push(REGS[ireg++]);
             }
+        }
+        if (isptr) {
+            emit_expr(node->fptr);
+            push("rax");
         }
         {
             Iter *i = list_iter(node->args);
@@ -600,10 +608,15 @@ static void emit_expr(Node *node) {
             else
                 pop(REGS[--ir]);
         }
+        if (isptr) pop("rbx");
         emit("mov $%d, %%eax", xreg);
         if (stackpos % 16)
             emit("sub $8, %%rsp");
-        emit("call %s", node->fname);
+        if (isptr) {
+            emit("call *%%rbx");
+        } else {
+            emit("call %s", node->fname);
+        }
         if (stackpos % 16)
             emit("add $8, %%rsp");
         for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {

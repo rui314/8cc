@@ -66,6 +66,27 @@ void t9() {
     return;
 }
 
+int ptrtest1(void) {
+    return 55;
+}
+
+int ptrtest2(int a) {
+    return a * 2;
+}
+
+float ptrtest3(float a) {
+    return a * 2;
+}
+
+void func_ptr_call(void) {
+    int (*p1)(void) = ptrtest1;
+    expect(55, p1());
+    int (*p2)(int) = ptrtest2;
+    expect(110, p2(55));
+    float (*p3)(float) = ptrtest3;
+    expectf(4, p3(2));
+}
+
 void testmain() {
     print("function");
 
@@ -78,4 +99,5 @@ void testmain() {
     expect(12, t7(3, 4));
     t8(23);
     t9();
+    func_ptr_call();
 }

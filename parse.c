@@ -143,6 +143,16 @@ static Node *ast_funcall(Ctype *ftype, char *fname, List *args) {
         .ftype = ftype });
 }
 
+static Node *ast_funcptr_call(Node *fptr, List *args) {
+    assert(fptr->ctype->type == CTYPE_PTR);
+    assert(fptr->ctype->ptr->type == CTYPE_FUNC);
+    return make_ast(&(Node){
+        .type = AST_FUNCPTR_CALL,
+        .ctype = fptr->ctype->ptr->rettype,
+        .fptr = fptr,
+        .args = args });
+}
+
 static Node *ast_func(Ctype *ctype, char *fname, List *params,
                       Node *body, List *localvars, bool use_varargs) {
     return make_ast(&(Node){
@@ -615,7 +625,7 @@ static void function_type_check(char *fname, List *params, List *args) {
     }
 }
 
-static Node *read_func_args(char *fname) {
+static List *read_func_args(void) {
     List *args = make_list();
     for (;;) {
         Token *tok = read_token();
@@ -628,10 +638,19 @@ static Node *read_func_args(char *fname) {
             error("Unexpected token: '%s'", t2s(tok));
     }
     if (MAX_ARGS < list_len(args))
-        error("Too many arguments: %s", fname);
+        error("Too many arguments");
+    return args;
+}
+
+static Node *read_funcall(char *fname) {
+    List *args = read_func_args();
     Node *func = dict_get(localenv, fname);
     if (func) {
         Ctype *t = func->ctype;
+        if (t->type == CTYPE_PTR && t->ptr->type == CTYPE_FUNC) {
+            function_type_check(fname, t->ptr->params, args);
+            return ast_funcptr_call(func, args);
+        }
         if (t->type != CTYPE_FUNC)
             error("%s is not a function, but %s", fname, c2s(t));
         assert(t->params);
@@ -676,7 +695,7 @@ static Node *read_var_or_func(char *name) {
             return read_va_start();
         if (strcmp(name, "__builtin_va_arg") == 0)
             return read_va_arg();
-        return read_func_args(name);
+        return read_funcall(name);
     }
     unget_token(tok);
     Node *v = dict_get(localenv ? localenv : globalenv, name);
@@ -740,6 +759,14 @@ static Node *read_cast(void) {
     return ast_uop(OP_CAST, ctype, expr);
 }
 
+static Node *convert_func_ptr(Node *node) {
+    if (!node)
+        return NULL;
+    if (node->ctype->type == CTYPE_FUNC)
+        return ast_uop(AST_ADDR, make_ptr_type(node->ctype), node);
+    return node;
+}
+
 static Node *read_unary_expr(void) {
     Token *tok = read_token();
     if (!tok) error("premature end of input");
@@ -759,33 +786,40 @@ static Node *read_unary_expr(void) {
     }
     if (is_punct(tok, '!')) {
         Node *operand = read_expr_int(3);
+        operand = convert_func_ptr(operand);
         return ast_uop('!', ctype_int, operand);
     }
     if (is_punct(tok, '-')) {
         Node *expr = read_expr_int(3);
+        expr = convert_func_ptr(expr);
         return ast_binop('-', ast_inttype(ctype_int, 0), expr);
     }
     if (is_punct(tok, '~')) {
         Node *expr = read_expr_int(3);
+        expr = convert_func_ptr(expr);
         if (!is_inttype(expr->ctype))
             error("invalid use of ~: %s", a2s(expr));
         return ast_uop('~', expr->ctype, expr);
     }
     if (is_punct(tok, '*')) {
         Node *operand = read_expr_int(3);
+        operand = convert_func_ptr(operand);
         Ctype *ctype = convert_array(operand->ctype);
         if (ctype->type != CTYPE_PTR)
             error("pointer type expected, but got %s", a2s(operand));
+        if (ctype->ptr->type == CTYPE_FUNC)
+            return operand;
         return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
     }
     if (is_punct(tok, OP_INC) || is_punct(tok, OP_DEC)) {
         Node *operand = read_expr_int(3);
+        operand = convert_func_ptr(operand);
         ensure_lvalue(operand);
         int op = is_punct(tok, OP_INC) ? OP_PRE_INC : OP_PRE_DEC;
         return ast_uop(op, operand->ctype, operand);
     }
     unget_token(tok);
-    return read_prim();
+    return convert_func_ptr(read_prim());
 }
 
 static Node *read_cond_expr(Node *cond) {
@@ -861,6 +895,15 @@ static Node *read_expr_int(int prec) {
         if (prec2 < 0 || prec <= prec2) {
             unget_token(tok);
             return node;
+        }
+        if (is_punct(tok, '(')) {
+            if (node->ctype->type != CTYPE_PTR ||
+                node->ctype->ptr->type != CTYPE_FUNC)
+                error("Function expected before '(', but got %s %s",
+                      c2s(node->ctype), a2s(node));
+            List *args = read_func_args();
+            function_type_check(NULL, node->ctype->params, args);
+            node = ast_funcptr_call(node, args);
         }
         if (is_punct(tok, '?')) {
             node = read_cond_expr(node);

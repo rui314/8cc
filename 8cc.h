@@ -61,6 +61,7 @@ enum {
     AST_LVAR,
     AST_GVAR,
     AST_FUNCALL,
+    AST_FUNCPTR_CALL,
     AST_FUNC,
     AST_DECL,
     AST_INIT,
@@ -190,6 +191,8 @@ typedef struct Node {
             // Function call
             struct List *args;
             struct Ctype *ftype;
+            // Functoin pointer call
+            struct Node *fptr;
             // Function declaration
             struct List *params;
             struct List *localvars;
