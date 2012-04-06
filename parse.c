@@ -12,8 +12,6 @@
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define SWAP(a, b)                              \
-    { typeof(a) tmp = b; b = a; a = tmp; }
 
 List *strings = &EMPTY_LIST;
 List *flonums = &EMPTY_LIST;
@@ -36,6 +34,7 @@ Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, true };
 Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, true };
 Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, true };
 Ctype *ctype_ldouble = &(Ctype){ CTYPE_LDOUBLE, 8, true };
+static Ctype *ctype_uint = &(Ctype){ CTYPE_INT, 4, false };
 static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
 static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, true };
 static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, false };
@@ -54,7 +53,7 @@ static Node *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Node *read_unary_expr(void);
 static void read_func_param(Ctype **rtype, char **name, bool optional);
-static void read_decl(List *toplevel, MakeVarFn make_var);
+static void read_decl(List *toplevel, MakeVarFn *make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
@@ -112,7 +111,7 @@ static Node *ast_floattype(Ctype *ctype, double val) {
 }
 
 static Node *ast_lvar(Ctype *ctype, char *name) {
-    Node *r = make_ast(&(Node){ AST_LVAR, ctype, .varname = name });
+    Node *r = make_ast(&(Node){ AST_LVAR, ctype, .varname = name, .lvarinit = NULL });
     if (localenv)
         dict_put(localenv, name, r);
     if (localvars)
@@ -219,7 +218,7 @@ static Node *ast_goto(char *label) {
 }
 
 static Node *ast_label(char *label) {
-    return make_ast(&(Node){ AST_LABEL, .label = label });
+    return make_ast(&(Node){ AST_LABEL, .label = label, .newlabel = NULL });
 }
 
 static Node *ast_va_start(Node *ap) {
@@ -264,10 +263,15 @@ static Ctype* make_ptr_type(Ctype *ctype) {
 }
 
 static Ctype* make_array_type(Ctype *ctype, int len) {
+    int size;
+    if (len < 0)
+        size = -1;
+    else
+        size = ctype->size * len;
     return make_type(&(Ctype){
         CTYPE_ARRAY,
         .ptr = ctype,
-        .size = (len < 0) ? -1 : ctype->size * len,
+        .size = size,
         .len = len });
 }
 
@@ -279,7 +283,7 @@ static Ctype* make_struct_field_type(Ctype *ctype, int offset) {
 
 static Ctype* make_struct_type(Dict *fields, int size, bool is_struct) {
     return make_type(&(Ctype){
-            CTYPE_STRUCT, .fields = fields, size = size, is_struct = is_struct });
+            CTYPE_STRUCT, .fields = fields, .size = size, .is_struct = is_struct });
 }
 
 static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs) {
@@ -395,8 +399,11 @@ static bool is_same_struct(Ctype *a, Ctype *b) {
 }
 
 static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
-    if (a->type > b->type)
-        SWAP(a, b);
+    if (a->type > b->type) {
+        Ctype *tmp = a;
+        a = b;
+        b = tmp;
+    }
     if (b->type == CTYPE_PTR) {
         if (op == '=')
             return a;
@@ -538,6 +545,8 @@ static Node *read_int(char *s) {
             error("invalid digit '%c' in a octal number: %s", *p, s);
         p++;
     }
+    if (!strcasecmp(p, "u"))
+        return ast_inttype(ctype_uint, strtol(s, NULL, base));
     if (!strcasecmp(p, "l"))
         return ast_inttype(ctype_long, strtol(s, NULL, base));
     if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
@@ -615,9 +624,12 @@ static Ctype *get_sizeof_ctype(bool allow_typename) {
 static void function_type_check(char *fname, List *params, List *args) {
     if (list_len(args) < list_len(params))
         error("Too few arguments: %s", fname);
-    for (Iter *i = list_iter(params), *j = list_iter(args); !iter_end(j);) {
+    Iter *i = list_iter(params);
+    Iter *j = list_iter(args);
+    while (!iter_end(j)) {
         Ctype *param = iter_next(i);
-        Ctype *arg = ((Node *)iter_next(j))->ctype;
+        Node *node = iter_next(j);
+        Ctype *arg = node->ctype;
         if (param)
             result_type('=', param, arg);
         else
@@ -1312,8 +1324,10 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
         if (ptype->type == CTYPE_ARRAY)
             ptype = make_ptr_type(ptype->ptr);
         list_push(paramtypes, ptype);
-        if (!typeonly)
-            list_push(paramvars, ast_lvar(ptype, name));
+        if (!typeonly) {
+            Node *node = ast_lvar(ptype, name);
+            list_push(paramvars, node);
+        }
         Token *tok = read_token();
         if (is_punct(tok, ')'))
             return make_func_type(rettype, paramtypes, false);
@@ -1511,7 +1525,7 @@ static Ctype *read_decl_spec(int *rsclass) {
  * Declaration
  */
 
-static void read_decl(List *block, MakeVarFn make_var) {
+static void read_decl(List *block, MakeVarFn *make_var) {
     int sclass;
     Ctype *basetype = read_decl_spec(&sclass);
     Token *tok = read_token();

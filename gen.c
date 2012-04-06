@@ -204,6 +204,13 @@ static void emit_pointer_arith(char op, Node *left, Node *right) {
     emit("add %%rcx, %%rax");
 }
 
+static void emit_zero_filler(int start, int end) {
+    for (; start <= end - 4; start += 4)
+        emit("movl $0, %d(%%rbp)", start);
+    for (; start < end; start++)
+        emit("movb $0, %d(%%rbp)", start);
+}
+
 static void ensure_lvar_init(Node *node) {
     assert(node->type == AST_LVAR);
     if (node->lvarinit)
@@ -460,7 +467,8 @@ static void emit_copy_struct(Node *left, Node *right) {
 }
 
 static void emit_decl_init(List *inits, int off) {
-    for (Iter *iter = list_iter(inits); !iter_end(iter);) {
+    Iter *iter = list_iter(inits);
+    while (!iter_end(iter)) {
         Node *node = iter_next(iter);
         assert(node->type == AST_INIT);
         if (node->initval->type == AST_LITERAL) {
@@ -508,13 +516,6 @@ static void set_reg_nums(List *args) {
         else
             numgp++;
     }
-}
-
-static void emit_zero_filler(int start, int end) {
-    for (; start <= end - 4; start += 4)
-        emit("movl $0, %d(%%rbp)", start);
-    for (; start < end; start++)
-        emit("movb $0, %d(%%rbp)", start);
 }
 
 static void emit_je(char *label) {
