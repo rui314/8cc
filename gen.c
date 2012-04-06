@@ -1058,7 +1058,8 @@ static int emit_regsave_area(void) {
 static void emit_func_prologue(Node *func) {
     SAVE;
     emit(".text");
-    emit_noindent(".global %s", func->fname);
+    if (!func->ctype->isstatic)
+        emit_noindent(".global %s", func->fname);
     emit_noindent("%s:", func->fname);
     emit("nop");
     push("rbp");

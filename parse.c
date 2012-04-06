@@ -1611,13 +1611,15 @@ static void backfill_labels(void) {
 }
 
 static Node *read_funcdef(void) {
-    Ctype *basetype = read_decl_spec(NULL);
+    int sclass;
+    Ctype *basetype = read_decl_spec(&sclass);
     localenv = make_dict(globalenv);
     gotos = make_list();
     labels = make_dict(NULL);
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
+    functype->isstatic = (sclass == S_STATIC);
     ast_gvar(functype, name);
     expect('{');
     Node *r = read_func_body(functype, name, params);
