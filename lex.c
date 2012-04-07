@@ -470,6 +470,23 @@ List *get_input_buffer(void) {
     return altbuffer;
 }
 
+char *read_error_directive(void) {
+    String *s = make_string();
+    bool bol = true;
+    for (;;) {
+        int c = get();
+        if (c == EOF) break;
+        if (c == '\n') {
+            unget(c);
+            break;
+        }
+        if (bol && c == ' ') continue;
+        bol = false;
+        string_append(s, c);
+    }
+    return get_cstring(s);
+}
+
 void unget_cpp_token(Token *tok) {
     if (!tok) return;
     list_push(altbuffer ? altbuffer : buffer, tok);

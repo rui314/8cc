@@ -571,6 +571,14 @@ static void read_endif(void) {
 }
 
 /*----------------------------------------------------------------------
+ * #error
+ */
+
+static void read_error(void) {
+    error("#error: %s", read_error_directive());
+}
+
+/*----------------------------------------------------------------------
  * #include
  */
 
@@ -640,6 +648,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "else"))    read_else();
     else if (is_ident(tok, "elif"))    read_elif();
     else if (is_ident(tok, "endif"))   read_endif();
+    else if (is_ident(tok, "error"))   read_error();
     else if (is_ident(tok, "include")) read_include();
     else if (is_ident(tok, "print"))   read_print();
     else
