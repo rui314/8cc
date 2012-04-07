@@ -87,6 +87,10 @@ void func_ptr_call(void) {
     expectf(4, p3(2));
 }
 
+void func_name(void) {
+    expect_string("func_name", __func__);
+}
+
 void testmain() {
     print("function");
 
@@ -100,4 +104,5 @@ void testmain() {
     t8(23);
     t9();
     func_ptr_call();
+    func_name();
 }
