@@ -45,6 +45,11 @@ void test_for() {
         acc += i;
     }
     expect(5 + 6 + 7 + 8, acc);
+
+    for (;;)
+        break;
+    for (i = 0; i < 100; i++)
+        ;
 }
 
 void test_while() {
@@ -69,6 +74,10 @@ void test_while() {
         if (i == 9) break;
     }
     expect(6 + 7 + 8 + 9, acc);
+
+    i = 0;
+    while (i++ < 100)
+        ;
 }
 
 void test_do() {
@@ -91,6 +100,12 @@ void test_do() {
         if (i == 9) break;
     } while (i < 10);
     expect(6 + 7 + 8 + 9, acc);
+
+    i = 0;
+    do 1; while (i++ < 100);
+
+    i = 0;
+    do; while (i++ < 100);
 }
 
 void test_switch() {
@@ -151,6 +166,9 @@ void test_switch() {
             } while ((count -= 8) > 0);
     }
     expect(27, a);
+
+    switch (1)
+        ;
 }
 
 void test_goto() {

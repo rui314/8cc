@@ -30,7 +30,7 @@ static void pop_function(void *ignore) {
     list_pop(functions);
 }
 #else
-#define SAVE 1
+#define SAVE
 #endif
 
 static char *get_caller_list(void) {
@@ -654,7 +654,8 @@ static void emit_expr(Node *node) {
         emit_expr(node->cond);
         char *ne = make_label();
         emit_je(ne);
-        emit_expr(node->then);
+        if (node->then)
+            emit_expr(node->then);
         if (node->els) {
             char *end = make_label();
             emit_jmp(end);
@@ -688,7 +689,8 @@ static void emit_expr(Node *node) {
             emit_expr(node->forcond);
             emit_je(end);
         }
-        emit_expr(node->forbody);
+        if (node->forbody)
+            emit_expr(node->forbody);
         emit_label(step);
         if (node->forstep)
             emit_expr(node->forstep);
@@ -704,7 +706,8 @@ static void emit_expr(Node *node) {
         emit_label(begin);
         emit_expr(node->forcond);
         emit_je(end);
-        emit_expr(node->forbody);
+        if (node->forbody)
+            emit_expr(node->forbody);
         emit_jmp(begin);
         emit_label(end);
         RESTORE_JUMP_LABELS();
@@ -715,7 +718,8 @@ static void emit_expr(Node *node) {
         char *end = make_label();
         SET_JUMP_LABELS(end, begin);
         emit_label(begin);
-        emit_expr(node->forbody);
+        if (node->forbody)
+            emit_expr(node->forbody);
         emit_expr(node->forcond);
         emit_je(end);
         emit_jmp(begin);
@@ -731,7 +735,8 @@ static void emit_expr(Node *node) {
         lswitch = make_label();
         lbreak = make_label();
         emit_jmp(lswitch);
-        emit_expr(node->switchbody);
+        if (node->switchbody)
+            emit_expr(node->switchbody);
         emit_label(lswitch);
         emit_label(lbreak);
         lswitch = oswitch;

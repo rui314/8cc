@@ -91,6 +91,13 @@ void func_name(void) {
     expect_string("func_name", __func__);
 }
 
+void empty(void) {
+}
+
+void empty2(void) {
+    ;;;
+}
+
 void testmain() {
     print("function");
 
@@ -105,4 +112,6 @@ void testmain() {
     t9();
     func_ptr_call();
     func_name();
+    empty();
+    empty2();
 }

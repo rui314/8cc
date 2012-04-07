@@ -59,6 +59,10 @@ static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
 static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
+static Node *read_expr_int(int prec);
+static Node *read_multiplicative_expr(void);
+static Node *read_postfix_expr(void);
+static Node *read_expr_opt(void);
 
 enum {
     S_TYPEDEF = 1,
@@ -741,6 +745,8 @@ static Node *read_prim(void) {
 
 static Node *read_subscript_expr(Node *node) {
     Node *sub = read_expr();
+    if (!sub)
+        error("subscription expected");
     expect(']');
     Node *t = ast_binop('+', node, sub);
     return ast_uop(AST_DEREF, t->ctype->ptr, t);
@@ -767,7 +773,9 @@ static Node *read_cast(void) {
     if (is_punct(tok, '{'))
         return read_compound_literal(ctype);
     unget_token(tok);
-    Node *expr = read_expr_int(1);
+    Node *expr = read_postfix_expr();
+    if (!expr)
+        error("nothing follows cast operator");
     return ast_uop(OP_CAST, ctype, expr);
 }
 
@@ -792,29 +800,29 @@ static Node *read_unary_expr(void) {
         return r;
     }
     if (is_punct(tok, '&')) {
-        Node *operand = read_expr_int(3);
+        Node *operand = read_multiplicative_expr();
         ensure_lvalue(operand);
         return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
     }
     if (is_punct(tok, '!')) {
-        Node *operand = read_expr_int(3);
+        Node *operand = read_multiplicative_expr();
         operand = convert_func_ptr(operand);
         return ast_uop('!', ctype_int, operand);
     }
     if (is_punct(tok, '-')) {
-        Node *expr = read_expr_int(3);
+        Node *expr = read_multiplicative_expr();
         expr = convert_func_ptr(expr);
         return ast_binop('-', ast_inttype(ctype_int, 0), expr);
     }
     if (is_punct(tok, '~')) {
-        Node *expr = read_expr_int(3);
+        Node *expr = read_multiplicative_expr();
         expr = convert_func_ptr(expr);
         if (!is_inttype(expr->ctype))
             error("invalid use of ~: %s", a2s(expr));
         return ast_uop('~', expr->ctype, expr);
     }
     if (is_punct(tok, '*')) {
-        Node *operand = read_expr_int(3);
+        Node *operand = read_multiplicative_expr();
         operand = convert_func_ptr(operand);
         Ctype *ctype = convert_array(operand->ctype);
         if (ctype->type != CTYPE_PTR)
@@ -824,7 +832,7 @@ static Node *read_unary_expr(void) {
         return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
     }
     if (is_punct(tok, OP_INC) || is_punct(tok, OP_DEC)) {
-        Node *operand = read_expr_int(3);
+        Node *operand = read_multiplicative_expr();
         operand = convert_func_ptr(operand);
         ensure_lvalue(operand);
         int op = is_punct(tok, OP_INC) ? OP_PRE_INC : OP_PRE_DEC;
@@ -892,7 +900,7 @@ static bool is_int_op(int op) {
     return op == '^' || op == '%' || op == OP_LSH || op == OP_RSH;
 }
 
-static Node *read_expr_int(int prec) {
+static Node *read_op_precedence(int prec) {
     Node *node = read_unary_expr();
     if (!node) return NULL;
     for (;;) {
@@ -946,7 +954,7 @@ static Node *read_expr_int(int prec) {
         int cop = get_compound_assign_op(tok);
         if (is_punct(tok, '=') || cop)
             ensure_lvalue(node);
-        Node *rest = read_expr_int(prec2 + (is_right_assoc(tok) ? 1 : 0));
+        Node *rest = read_op_precedence(prec2 + (is_right_assoc(tok) ? 1 : 0));
         if (!rest)
             error("second operand missing");
         int op = cop ? cop: tok->punct;
@@ -961,8 +969,27 @@ static Node *read_expr_int(int prec) {
     }
 }
 
+static Node *read_expr_int(int prec) {
+    Node *r = read_op_precedence(prec);
+    if (!r)
+        error("expression expected");
+    return r;
+}
+
+static Node *read_multiplicative_expr(void) {
+    return read_expr_int(3);
+}
+
+static Node *read_postfix_expr(void) {
+    return read_expr_int(1);
+}
+
 Node *read_expr(void) {
-    return read_expr_int(MAX_OP_PRIO);
+    return read_op_precedence(MAX_OP_PRIO);
+}
+
+static Node *read_expr_opt(void) {
+    return read_op_precedence(MAX_OP_PRIO);
 }
 
 /*----------------------------------------------------------------------
@@ -1162,7 +1189,7 @@ static void skip_to_brace(void) {
         } else {
             unget_token(tok);
         }
-        Node *ignore = read_expr_int(3);
+        Node *ignore = read_multiplicative_expr();
         if (!ignore)
             return;
         warn("ignore excessive initializer: %s", a2s(ignore));
@@ -1178,7 +1205,7 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
     if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
         read_initializer_list(inits, ctype, off);
     } else {
-        Node *expr = read_expr_int(3);
+        Node *expr = read_multiplicative_expr();
         result_type('=', ctype, expr->ctype);
         list_push(inits, ast_init(expr, ctype, off));
     }
@@ -1678,23 +1705,13 @@ static Node *read_opt_decl_or_stmt(void) {
     return list_shift(list);
 }
 
-static Node *read_opt_expr(void) {
-    Token *tok = read_token();
-    if (is_punct(tok, ';'))
-        return NULL;
-    unget_token(tok);
-    Node *r = read_expr();
-    expect(';');
-    return r;
-}
-
 static Node *read_for_stmt(void) {
     expect('(');
     localenv = make_dict(localenv);
     Node *init = read_opt_decl_or_stmt();
-    Node *cond = read_opt_expr();
-    Node *step = is_punct(peek_token(), ')')
-        ? NULL : read_expr();
+    Node *cond = read_expr_opt();
+    expect(';');
+    Node *step = read_expr_opt();
     expect(')');
     Node *body = read_stmt();
     localenv = dict_parent(localenv);
@@ -1778,7 +1795,7 @@ static Node *read_continue_stmt(void) {
 }
 
 static Node *read_return_stmt(void) {
-    Node *retval = read_expr();
+    Node *retval = read_expr_opt();
     expect(';');
     return ast_return(current_func_type->rettype, retval);
 }
@@ -1824,7 +1841,7 @@ static Node *read_stmt(void) {
     if (tok->type == TTYPE_IDENT && is_punct(peek_token(), ':'))
         return read_label(tok);
     unget_token(tok);
-    Node *r = read_expr();
+    Node *r = read_expr_opt();
     expect(';');
     return r;
 }
@@ -1833,11 +1850,11 @@ static Node *read_compound_stmt(void) {
     localenv = make_dict(localenv);
     List *list = make_list();
     for (;;) {
-        read_decl_or_stmt(list);
         Token *tok = read_token();
         if (is_punct(tok, '}'))
             break;
         unget_token(tok);
+        read_decl_or_stmt(list);
     }
     localenv = dict_parent(localenv);
     return ast_compound_stmt(list);
@@ -1847,10 +1864,13 @@ static void read_decl_or_stmt(List *list) {
     Token *tok = peek_token();
     if (tok == NULL)
         error("premature end of input");
-    if (is_type_keyword(tok))
+    if (is_type_keyword(tok)) {
         read_decl(list, ast_lvar);
-    else
-        list_push(list, read_stmt());
+    } else {
+        Node *stmt = read_stmt();
+        if (stmt)
+            list_push(list, stmt);
+    }
 }
 
 /*----------------------------------------------------------------------
