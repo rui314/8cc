@@ -29,12 +29,23 @@ $(SELF): 8cc
 	./8cc < $(@:s=c) > $@
 	gcc -c $@
 
-gen2: $(SELF)
+next: $(SELF)
 	rm -f 8cc utiltest
 	$(MAKE) 8cc
 
-gen2test: gen2
+fulltest:
+	$(MAKE) clean
 	$(MAKE) test
+	cp 8cc gen1
+	rm $(OBJS) main.o
+	$(MAKE) next
+	$(MAKE) test
+	cp 8cc gen2
+	rm $(OBJS) main.o
+	$(MAKE) next
+	$(MAKE) test
+	cp 8cc gen3
+	diff gen2 gen3
 
 sample/nqueen: 8cc sample/nqueen.c
 	./8cc < sample/nqueen.c > sample/nqueen.s
@@ -42,7 +53,7 @@ sample/nqueen: 8cc sample/nqueen.c
 
 clean:
 	rm -f 8cc *.o *.s tmp.* test/*.s test/*.o sample/*.o
-	rm -f utiltest sample/nqueen.s sample/nqueen gen1 gen2
+	rm -f utiltest sample/nqueen.s sample/nqueen gen[1-9]
 	rm -f $(TESTS)
 
 all: 8cc
