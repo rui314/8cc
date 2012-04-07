@@ -7,6 +7,24 @@ void special() {
     expect(8, strlen(__TIME__));
 }
 
+void include() {
+#include "test/macro1.h"
+    expect_string("macro1", MACRO_1);
+
+#define MACRO_2_FILE "test/macro2.h"
+#include MACRO_2_FILE
+    expect_string("macro2", MACRO_2);
+
+#define STDBOOL_H_FILE <stdbool.h>
+#ifdef __STDBOOL_H
+# error test failed
+#endif
+#include STDBOOL_H_FILE
+#ifndef __STDBOOL_H
+# error test failed
+#endif
+}
+
 void predefined() {
     expect(1, __8cc__);
     expect(1, __amd64);
@@ -338,6 +356,7 @@ void testmain() {
     print("macros");
 
     special();
+    include();
     predefined();
     simple();
     loop();

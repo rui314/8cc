@@ -54,6 +54,7 @@ sample/nqueen: 8cc sample/nqueen.c
 clean:
 	rm -f 8cc *.o *.s tmp.* test/*.s test/*.o sample/*.o
 	rm -f utiltest sample/nqueen.s sample/nqueen gen[1-9]
+	rm -f test/util/testmain.o
 	rm -f $(TESTS)
 
 all: 8cc
