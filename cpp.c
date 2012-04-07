@@ -527,7 +527,7 @@ static void read_ifdef_generic(bool is_ifdef) {
     Token *tok = read_cpp_token();
     if (!tok || tok->type != TTYPE_IDENT)
         error("identifier expected, but got %s", t2s(tok));
-    bool cond = dict_get(macros, tok->sval);
+    bool cond = !!dict_get(macros, tok->sval);
     expect_newline();
     read_if_generic(is_ifdef ? cond : !cond);
 }
