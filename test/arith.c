@@ -18,6 +18,11 @@ void test_basic() {
     expect(0, a + 1);
 }
 
+void test_relative() {
+    expect(1, 1 > 0);
+    expect(1, 0 < 1);
+}
+
 void test_inc_dec() {
     int a = 15;
     expect(15, a++);
@@ -45,6 +50,7 @@ void test_ternary() {
 void testmain() {
     print("basic arithmetic");
     test_basic();
+    test_relative();
     test_inc_dec();
     test_bool();
     test_ternary();
