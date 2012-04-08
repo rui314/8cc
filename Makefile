@@ -20,13 +20,13 @@ test: utiltest $(TESTS) sample/nqueen
 	./test.sh
 
 test/%.s: test/%.c 8cc
-	./8cc < $< > $@
+	./8cc $< > $@
 
 test/%.bin: test/%.s test/util/testmain.o 8cc
 	$(CC) -o $@ $< test/util/testmain.o
 
 $(SELF): 8cc
-	./8cc < $(@:s=c) > $@
+	./8cc $(@:s=c) > $@
 	$(CC) -c $@
 
 next: $(SELF)
@@ -48,7 +48,7 @@ fulltest:
 	diff gen2 gen3
 
 sample/nqueen: 8cc sample/nqueen.c
-	./8cc < sample/nqueen.c > sample/nqueen.s
+	./8cc sample/nqueen.c > sample/nqueen.s
 	$(CC) -o sample/nqueen sample/nqueen.s
 
 clean:

@@ -1,5 +1,7 @@
-#include <stdlib.h>
 #include <ctype.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include "8cc.h"
 
 static bool at_bol = true;
@@ -31,8 +33,18 @@ static File *make_file(char *name, FILE *fp) {
     return r;
 }
 
-void lex_init(void) {
-    file = make_file("(stdin)", stdin);
+void lex_init(char *filename) {
+    if (!strcmp(filename, "-")) {
+        set_input_file("(stdin)", stdin);
+        return;
+    }
+    FILE *fp = fopen(filename, "r");
+    if (!fp) {
+        char buf[128];
+        strerror_r(errno, buf, sizeof(buf));
+        error("Cannot open %s: %s", filename, buf);
+    }
+    set_input_file(filename, fp);
 }
 
 static Token *make_token(Token *tmpl) {

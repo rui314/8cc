@@ -1,7 +1,7 @@
 #include "test/test.h"
 
 void special(void) {
-    expect_string("(stdin)", __FILE__);
+    expect_string("test/macro.c", __FILE__);
     expect(5, __LINE__);
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));

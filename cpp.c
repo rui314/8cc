@@ -44,7 +44,6 @@ static void eval(char *buf) {
     List *toplevels = read_toplevels();
     for (Iter *i = list_iter(toplevels); !iter_end(i);)
         emit_toplevel(iter_next(i));
-    set_input_file("(stdin)", stdin);
 }
 
 /*----------------------------------------------------------------------
