@@ -1077,7 +1077,7 @@ static void emit_func_prologue(Node *func) {
     int off = 0;
     int ireg = 0;
     int xreg = 0;
-    if (func->use_varargs) {
+    if (func->ctype->hasva) {
         set_reg_nums(func->params);
         off -= emit_regsave_area();
     }

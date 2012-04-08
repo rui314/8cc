@@ -24,7 +24,6 @@ static List *gotos;
 static Dict *labels;
 static List *localvars;
 static Ctype *current_func_type;
-static bool use_varargs;
 
 Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
@@ -155,16 +154,14 @@ static Node *ast_funcptr_call(Node *fptr, List *args) {
         .args = args });
 }
 
-static Node *ast_func(Ctype *ctype, char *fname, List *params,
-                      Node *body, List *localvars, bool use_varargs) {
+static Node *ast_func(Ctype *ctype, char *fname, List *params, Node *body, List *localvars) {
     return make_ast(&(Node){
         .type = AST_FUNC,
         .ctype = ctype,
         .fname = fname,
         .params = params,
         .localvars = localvars,
-        .body = body,
-        .use_varargs = use_varargs});
+        .body = body});
 }
 
 static Node *ast_decl(Node *var, List *init) {
@@ -688,7 +685,6 @@ static Node *read_va_start(void) {
     // void __builtin_va_start(va_list ap)
     Node *ap = read_assignment_expr();
     expect(')');
-    use_varargs = true;
     return ast_va_start(ap);
 }
 
@@ -698,7 +694,6 @@ static Node *read_va_arg(void) {
     expect(',');
     Ctype *ctype = read_cast_type();
     expect(')');
-    use_varargs = true;
     return ast_va_arg(ctype, ap);
 }
 
@@ -1629,14 +1624,13 @@ static Node *read_func_body(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
     localvars = make_list();
     current_func_type = functype;
-    use_varargs = false;
 
     Node *node = ast_string(fname);
     dict_put(localenv, "__func__", node);
     list_push(strings, node);
 
     Node *body = read_compound_stmt();
-    Node *r = ast_func(functype, fname, params, body, localvars, use_varargs);
+    Node *r = ast_func(functype, fname, params, body, localvars);
     dict_put(globalenv, fname, r);
     current_func_type = NULL;
     localenv = NULL;

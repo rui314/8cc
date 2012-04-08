@@ -197,7 +197,6 @@ typedef struct Node {
             struct List *params;
             struct List *localvars;
             struct Node *body;
-            bool use_varargs;
         };
         // Declaration
         struct {
