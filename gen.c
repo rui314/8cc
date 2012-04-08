@@ -148,9 +148,17 @@ static void emit_lload(Ctype *ctype, char *base, int off) {
     }
 }
 
+static void maybe_convert_bool(Ctype *ctype) {
+    if (ctype->type == CTYPE_BOOL) {
+        emit("test %%rax, %%rax");
+        emit("setne %%al");
+    }
+}
+
 static void emit_gsave(char *varname, Ctype *ctype, int off) {
     SAVE;
     assert(ctype->type != CTYPE_ARRAY);
+    maybe_convert_bool(ctype);
     char *reg = get_int_reg(ctype, 'a');
     if (off)
         emit("mov %%%s, %s+%d(%%rip)", reg, varname, off);
@@ -168,6 +176,7 @@ static void emit_lsave(Ctype *ctype, int off) {
     } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
         emit("movsd %%xmm0, %d(%%rbp)", off);
     } else {
+        maybe_convert_bool(ctype);
         char *reg = get_int_reg(ctype, 'a');
         emit("mov %%%s, %d(%%rbp)", reg, off);
     }
@@ -354,10 +363,12 @@ static void emit_binop_float_arith(Node *node) {
 
 static void emit_load_convert(Ctype *to, Ctype *from) {
     SAVE;
-    if (is_flotype(to))
+    if (is_flotype(to)) {
         emit_todouble(from);
-    else
+    } else {
         emit_toint(from);
+        maybe_convert_bool(to);
+    }
 }
 
 static void emit_save_convert(Ctype *to, Ctype *from) {
@@ -402,6 +413,7 @@ static void emit_binop(Node *node) {
 
 static void emit_save_literal(Node *node, Ctype *totype, int off) {
     switch (totype->type) {
+    case CTYPE_BOOL:  emit("movb $%d, %d(%%rbp)", !!node->ival, off); break;
     case CTYPE_CHAR:  emit("movb $%d, %d(%%rbp)", node->ival, off); break;
     case CTYPE_SHORT: emit("movw $%d, %d(%%rbp)", node->ival, off); break;
     case CTYPE_INT:   emit("movl $%d, %d(%%rbp)", node->ival, off); break;
@@ -539,6 +551,7 @@ static void emit_expr(Node *node) {
     switch (node->type) {
     case AST_LITERAL:
         switch (node->ctype->type) {
+        case CTYPE_BOOL:
         case CTYPE_CHAR:
             emit("mov $%d, %%rax", node->ival);
             break;
@@ -946,6 +959,8 @@ static void emit_data_init_int(Dict *labels, char *data, Dict *literals, List *i
             *(float *)(data + node->initoff + off) = node->initval->fval;
         else if (node->totype->type == CTYPE_FLOAT)
             *(double *)(data + node->initoff + off) = node->initval->fval;
+        else if (node->totype->type == CTYPE_BOOL)
+            *(data + node->initoff + off) = !!eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_CHAR)
             *(data + node->initoff + off) = eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_SHORT)

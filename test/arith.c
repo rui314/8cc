@@ -38,6 +38,12 @@ void test_inc_dec(void) {
 void test_bool(void) {
     expect(0, !1);
     expect(1 ,!0);
+
+    _Bool b1 = 3;
+    expect(1, b1);
+    _Bool b2;
+    b2 = 5;
+    expect(1, b2);
 }
 
 void test_ternary(void) {

@@ -246,6 +246,7 @@ static Ctype *make_numtype(int type, bool sig) {
     r->type = type;
     r->sig = sig;
     if (type == CTYPE_VOID)         r->size = 0;
+    else if (type == CTYPE_BOOL)    r->size = 1;
     else if (type == CTYPE_CHAR)    r->size = 1;
     else if (type == CTYPE_SHORT)   r->size = 2;
     else if (type == CTYPE_INT)     r->size = 4;
@@ -353,7 +354,7 @@ static bool is_type_keyword(Token *tok) {
         "char", "short", "int", "long", "float", "double", "struct",
         "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
         "static", "auto", "register", "const", "volatile", "inline",
-        "restrict", "__signed__",
+        "restrict", "__signed__", "_Bool",
     };
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
         if (!strcmp(keyword[i], tok->sval))
@@ -422,11 +423,12 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
     switch (a->type) {
     case CTYPE_VOID:
         goto err;
+    case CTYPE_BOOL:
     case CTYPE_CHAR:
     case CTYPE_SHORT:
     case CTYPE_INT:
         switch (b->type) {
-        case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
+        case CTYPE_BOOL: case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
             return ctype_int;
         case CTYPE_LONG: case CTYPE_LLONG:
             return ctype_long;
@@ -1493,7 +1495,7 @@ static Ctype *read_decl_spec(int *rsclass) {
     bool kconst unused = false, kvolatile unused = false, kinline unused = false;
 #undef unused
     Ctype *usertype = NULL, *tmp = NULL;
-    enum { kvoid = 1, kchar, kint, kfloat, kdouble } type = 0;
+    enum { kvoid = 1, kbool, kchar, kint, kfloat, kdouble } type = 0;
     enum { kshort = 1, klong, kllong } size = 0;
     enum { ksigned = 1, kunsigned } sig = 0;
 
@@ -1504,6 +1506,8 @@ static Ctype *read_decl_spec(int *rsclass) {
 #define set(var, val)                                                   \
         if (var != 0) goto err;                                         \
         var = val;                                                      \
+        if (type == kbool && (size != 0 && sig != 0))                   \
+            goto err;                                                   \
         if (size == kshort && (type != 0 && type != kint))              \
             goto err;                                                   \
         if (size == klong && (type != 0 && type != kint && type != kdouble)) \
@@ -1530,6 +1534,7 @@ static Ctype *read_decl_spec(int *rsclass) {
         else if (_("volatile")) { kvolatile = 1; }
         else if (_("inline"))   { kinline = 1; }
         else if (_("void"))     { set(type, kvoid); }
+        else if (_("_Bool"))    { set(type, kbool); }
         else if (_("char"))     { set(type, kchar); }
         else if (_("int"))      { set(type, kint); }
         else if (_("float"))    { set(type, kfloat); }
@@ -1561,6 +1566,7 @@ static Ctype *read_decl_spec(int *rsclass) {
         return usertype;
     switch (type) {
     case kvoid:   return ctype_void;
+    case kbool:   return make_numtype(CTYPE_BOOL, false);
     case kchar:   return make_numtype(CTYPE_CHAR, sig != kunsigned);
     case kfloat:  return make_numtype(CTYPE_FLOAT, false);
     case kdouble: return make_numtype(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false);

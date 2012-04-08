@@ -113,6 +113,7 @@ enum {
 
 enum {
     CTYPE_VOID,
+    CTYPE_BOOL,
     CTYPE_CHAR,
     CTYPE_SHORT,
     CTYPE_INT,

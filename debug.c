@@ -5,6 +5,7 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
         return "(nil)";
     switch (ctype->type) {
     case CTYPE_VOID: return "void";
+    case CTYPE_BOOL: return "_Bool";
     case CTYPE_CHAR: return "char";
     case CTYPE_SHORT: return "short";
     case CTYPE_INT:  return "int";
