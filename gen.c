@@ -22,8 +22,8 @@ static void emit_decl_init(List *inits, int off);
 #define emit_noindent(...)  emitf(__LINE__, __VA_ARGS__)
 
 #ifdef __GNUC__
-#define SAVE                                                    \
-    int save_hook __attribute__((cleanup(pop_function)));       \
+#define SAVE                                                            \
+    int save_hook __attribute__((unused, cleanup(pop_function)));       \
     list_push(functions, (void *)__func__)
 
 static void pop_function(void *ignore) {
