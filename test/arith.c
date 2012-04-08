@@ -47,6 +47,11 @@ void test_ternary() {
     expect(17, (1 - 0) ? 51 / 3 : 52);
 }
 
+void test_comma() {
+    expect(3, (1, 3));
+    expectf(7.0, (1, 3, 5, 7.0));
+}
+
 void testmain() {
     print("basic arithmetic");
     test_basic();
@@ -54,4 +59,5 @@ void testmain() {
     test_inc_dec();
     test_bool();
     test_ternary();
+    test_comma();
 }

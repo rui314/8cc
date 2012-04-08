@@ -61,6 +61,7 @@ static List *read_decl_init(Ctype *ctype);
 static Node *read_expr_opt(void);
 static Node *read_assignment_expr(void);
 static Node *read_cast_expr(void);
+static Node *read_comma_expr(void);
 
 enum {
     S_TYPEDEF = 1,
@@ -405,6 +406,8 @@ static bool is_same_struct(Ctype *a, Ctype *b) {
 }
 
 static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
+    if (op == ',')
+        return b;
     if (a->type > b->type) {
         Ctype *tmp = a;
         a = b;
@@ -647,7 +650,7 @@ static List *read_func_args(void) {
     List *args = make_list();
     for (;;) {
         if (next_token(')')) break;
-        list_push(args, read_expr());
+        list_push(args, read_assignment_expr());
         Token *tok = read_token();
         if (is_punct(tok, ')')) break;
         if (!is_punct(tok, ','))
@@ -683,7 +686,7 @@ static Node *read_funcall(char *fname) {
 
 static Node *read_va_start(void) {
     // void __builtin_va_start(va_list ap)
-    Node *ap = read_expr();
+    Node *ap = read_assignment_expr();
     expect(')');
     use_varargs = true;
     return ast_va_start(ap);
@@ -691,7 +694,7 @@ static Node *read_va_start(void) {
 
 static Node *read_va_arg(void) {
     // <type> __builtin_va_arg(va_list ap, <type>)
-    Node *ap = read_expr();
+    Node *ap = read_assignment_expr();
     expect(',');
     Ctype *ctype = read_cast_type();
     expect(')');
@@ -750,7 +753,7 @@ static Node *read_primary_expr(void) {
     Token *tok = read_token();
     if (!tok) return NULL;
     if (is_punct(tok, '(')) {
-        Node *r = read_assignment_expr();
+        Node *r = read_expr();
         expect(')');
         return r;
     }
@@ -989,9 +992,9 @@ static Node *read_assignment_expr(void) {
     if (!tok)
         return node;
     if (is_punct(tok, '?')) {
-        Node *then = read_expr();
+        Node *then = read_comma_expr();
         expect(':');
-        Node *els = read_expr();
+        Node *els = read_assignment_expr();
         return ast_ternary(then->ctype, node, then, els);
     }
     int cop = get_compound_assign_op(tok);
@@ -1005,15 +1008,22 @@ static Node *read_assignment_expr(void) {
     return node;
 }
 
+static Node *read_comma_expr(void) {
+    Node *node = read_assignment_expr();
+    while (next_token(','))
+        node = ast_binop(',', node, read_equality_expr());
+    return node;
+}
+
 Node *read_expr(void) {
-    Node *r = read_assignment_expr();
+    Node *r = read_comma_expr();
     if (!r)
         error("expression expected");
     return r;
 }
 
 static Node *read_expr_opt(void) {
-    return read_assignment_expr();
+    return read_comma_expr();
 }
 
 /*----------------------------------------------------------------------
@@ -1158,7 +1168,7 @@ static Ctype *read_enum_def(void) {
 
         tok = read_token();
         if (is_punct(tok, '='))
-            val = eval_intexpr(read_expr());
+            val = eval_intexpr(read_assignment_expr());
         else
             unget_token(tok);
 
@@ -1334,7 +1344,7 @@ static List *read_decl_init(Ctype *ctype) {
     if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT)
         read_initializer_list(r, ctype, 0);
     else
-        list_push(r, ast_init(read_expr(), ctype, 0));
+        list_push(r, ast_init(read_assignment_expr(), ctype, 0));
     return r;
 }
 
@@ -1396,7 +1406,7 @@ static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
             len = -1;
         } else {
             unget_token(tok);
-            len = eval_intexpr(read_expr());
+            len = eval_intexpr(read_comma_expr());
             expect(']');
         }
         Ctype *t = read_direct_declarator2(basetype, params);

@@ -899,6 +899,10 @@ static void emit_expr(Node *node) {
         emit_load_convert(node->ctype, node->operand->ctype);
         break;
     }
+    case ',':
+        emit_expr(node->left);
+        emit_expr(node->right);
+        break;
     case '=':
         if (node->left->ctype->type == CTYPE_STRUCT &&
             node->left->ctype->size > 8) {
