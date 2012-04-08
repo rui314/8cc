@@ -7,7 +7,8 @@
 static bool at_bol = true;
 
 typedef struct {
-    char *name;
+    char *displayname;
+    char *realname;
     int line;
     int column;
     FILE *fp;
@@ -24,9 +25,10 @@ static Token *space_token = &(Token){ .type = TTYPE_SPACE, .space = false };
 
 static void skip_block_comment(void);
 
-static File *make_file(char *name, FILE *fp) {
+static File *make_file(char *displayname, char *realname, FILE *fp) {
     File *r = malloc(sizeof(File));
-    r->name = name;
+    r->displayname = displayname;
+    r->realname = realname;
     r->line = 1;
     r->column = 0;
     r->fp = fp;
@@ -35,7 +37,7 @@ static File *make_file(char *name, FILE *fp) {
 
 void lex_init(char *filename) {
     if (!strcmp(filename, "-")) {
-        set_input_file("(stdin)", stdin);
+        set_input_file("(stdin)", NULL, stdin);
         return;
     }
     FILE *fp = fopen(filename, "r");
@@ -44,14 +46,14 @@ void lex_init(char *filename) {
         strerror_r(errno, buf, sizeof(buf));
         error("Cannot open %s: %s", filename, buf);
     }
-    set_input_file(filename, fp);
+    set_input_file(filename, filename, fp);
 }
 
 static Token *make_token(Token *tmpl) {
     Token *r = malloc(sizeof(Token));
     *r = *tmpl;
     r->hideset = make_dict(NULL);
-    r->file = file->name;
+    r->file = file->displayname;
     r->line = file->line;
     r->column = file->column;
     return r;
@@ -77,23 +79,23 @@ static Token *make_char(char c) {
     return make_token(&(Token){ TTYPE_CHAR, .c = c });
 }
 
-void push_input_file(char *filename, FILE *fp) {
+void push_input_file(char *displayname, char *realname, FILE *fp) {
     list_push(file_stack, file);
-    file = make_file(filename, fp);
+    file = make_file(displayname, realname, fp);
     at_bol = true;
 }
 
-void set_input_file(char *filename, FILE *fp) {
-    file = make_file(filename, fp);
+void set_input_file(char *displayname, char *realname, FILE *fp) {
+    file = make_file(displayname, realname, fp);
     at_bol = true;
 }
 
 char *input_position(void) {
-    return format("%s:%d:%d", file->name, file->line, file->column);
+    return format("%s:%d:%d", file->displayname, file->line, file->column);
 }
 
 char *get_current_file(void) {
-    return file->name;
+    return file->realname;
 }
 
 int get_current_line(void) {
@@ -441,7 +443,7 @@ static Token *read_token_int(void) {
     }
 }
 
-bool read_header_file_name(char **name, bool *std) {
+char *read_header_file_name(bool *std) {
     skip_space();
     char close;
     int c = get();
@@ -453,7 +455,7 @@ bool read_header_file_name(char **name, bool *std) {
         close = '>';
     } else {
         unget(c);
-        return false;
+        return NULL;
     }
     String *s = make_string();
     for (;;) {
@@ -466,8 +468,7 @@ bool read_header_file_name(char **name, bool *std) {
     }
     if (get_cstring(s)[0] == '\0')
         error("header name should not be empty");
-    *name = get_cstring(s);
-    return true;
+    return get_cstring(s);
 }
 
 bool is_punct(Token *tok, int c) {

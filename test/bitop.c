@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void test_or(void) {
     expect(3, 1 | 2);

@@ -1,5 +1,5 @@
 #include <stdarg.h>
-#include "test/test.h"
+#include "test.h"
 
 char buf[100];
 

@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void expectf(float a, float b);
 void expectd(double a, double b);

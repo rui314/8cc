@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void t1(void) {
     union { int a; int b; } x;

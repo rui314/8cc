@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 int val = 21;
 int a1[3];

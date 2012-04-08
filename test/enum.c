@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 enum { g1, g2, g3 } global1;
 

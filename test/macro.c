@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void special(void) {
     expect_string("test/macro.c", __FILE__);
@@ -8,10 +8,10 @@ void special(void) {
 }
 
 void include(void) {
-#include "test/macro1.h"
+#include "macro1.h"
     expect_string("macro1", MACRO_1);
 
-#define MACRO_2_FILE "test/macro2.h"
+#define MACRO_2_FILE "macro2.h"
 #include MACRO_2_FILE
     expect_string("macro2", MACRO_2);
 

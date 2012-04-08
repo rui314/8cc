@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 float tf1(float a)  { return a; }
 float tf2(double a) { return a; }

@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void testmain(void) {
     print("compound assignment");

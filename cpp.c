@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <ctype.h>
+#include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -40,7 +41,7 @@ static void read_print(void);
 
 static void eval(char *buf) {
     FILE *fp = fmemopen(buf, strlen(buf), "r");
-    set_input_file("(eval)", fp);
+    set_input_file("(eval)", NULL, fp);
     List *toplevels = read_toplevels();
     for (Iter *i = list_iter(toplevels); !iter_end(i);)
         emit_toplevel(iter_next(i));
@@ -581,18 +582,18 @@ static void read_error(void) {
  * #include
  */
 
-static void read_cpp_header_name(char **name, bool *std) {
+static char *read_cpp_header_name(bool *std) {
     if (!get_input_buffer()) {
-        if (read_header_file_name(name, std))
-            return;
+        char *r = read_header_file_name(std);
+        if (r)
+            return r;
     }
     Token *tok = read_expand();
     if (!tok || tok->type == TTYPE_NEWLINE)
         error("expected file name, but got %s", t2s(tok));
     if (tok->type == TTYPE_STRING) {
-        *name = tok->sval;
         *std = false;
-        return;
+        return tok->sval;
     }
     if (!is_punct(tok, '<'))
         error("'<' expected, but got %s", t2s(tok));
@@ -605,28 +606,28 @@ static void read_cpp_header_name(char **name, bool *std) {
             break;
         list_push(tokens, tok);
     }
-    *name = join_tokens(tokens, false);
     *std = true;
-    return;
-}
-
-static char *construct_path(char *path1, char *path2) {
-    if (path1[0] == '\0')
-        return path2;
-    return format("%s/%s", path1, path2);
+    return join_tokens(tokens, false);
 }
 
 static void read_include(void) {
-    char *name;
     bool std;
-    read_cpp_header_name(&name, &std);
+    char *name = read_cpp_header_name(&std);
     expect_newline();
-    List *paths = std ? std_include_path : make_list1("");
+    List *paths;
+    if (std) {
+        paths = std_include_path;
+    } else if (get_current_file()) {
+        char *buf = format("%s", get_current_file());
+        paths = make_list1(dirname(buf));
+    } else {
+        paths = make_list1(".");
+    }
     for (Iter *i = list_iter(paths); !iter_end(i);) {
-        char *path = construct_path(iter_next(i), name);
+        char *path = format("%s/%s", iter_next(i), name);
         FILE *fp = fopen(path, "r");
         if (fp) {
-            push_input_file(path, fp);
+            push_input_file(path, path, fp);
             return;
         }
     }

@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 int test_if1(void) { if (1) { return 'a';} return 0; }
 int test_if2(void) { if (0) { return 0;} return 'b'; }

@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void expects(short a, short b) {
     if (!(a == b)) {

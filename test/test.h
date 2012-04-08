@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 void exit(int);
-int strlen(char *);
+size_t strlen(const char *);
 
 extern int externvar1;
 extern int externvar2;

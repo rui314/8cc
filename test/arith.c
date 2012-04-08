@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void test_basic(void) {
     expect(0, 0);

@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 static void test_char(void) {
     expect(65, 'A');

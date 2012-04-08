@@ -1,4 +1,4 @@
-#include "test/test.h"
+#include "test.h"
 
 void t1(void) {
     int a = 61;
