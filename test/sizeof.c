@@ -1,7 +1,7 @@
 #include "test/test.h"
 #include <stdbool.h>
 
-void testmain() {
+void testmain(void) {
     print("sizeof");
 
     expect(1, sizeof(char));

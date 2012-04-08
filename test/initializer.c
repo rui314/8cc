@@ -37,7 +37,7 @@ void test_struct(void) {
     verify(we, &w, 8);
 }
 
-void test_nested() {
+void test_nested(void) {
     struct {
         struct {
             struct { int a; int b; } x;
@@ -50,7 +50,7 @@ void test_nested() {
     expect(10, v.w.y.c[7]);
 }
 
-void test_designated() {
+void test_designated(void) {
     struct { int x; int y; } v1 = { .y = 1, .x = 5 };
     expect(5, v1.x);
     expect(1, v1.y);
@@ -63,7 +63,7 @@ void test_designated() {
     expect(17, v3.z);
 }
 
-void test_zero() {
+void test_zero(void) {
     struct { int x; int y; } v1 = { 6 };
     expect(6, v1.x);
     expect(0, v1.y);
@@ -85,7 +85,7 @@ void test_typedef(void) {
     expect(3, sizeof(b) / sizeof(*b));
 }
 
-void testmain() {
+void testmain(void) {
     print("initializer");
 
     test_array();

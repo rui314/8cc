@@ -1,6 +1,6 @@
 #include "test/test.h"
 
-void testmain() {
+void testmain(void) {
     print("compound assignment");
 
     int a = 0;

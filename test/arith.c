@@ -1,6 +1,6 @@
 #include "test/test.h"
 
-void test_basic() {
+void test_basic(void) {
     expect(0, 0);
     expect(3, 1 + 2);
     expect(3, 1 + 2);
@@ -18,12 +18,12 @@ void test_basic() {
     expect(0, a + 1);
 }
 
-void test_relative() {
+void test_relative(void) {
     expect(1, 1 > 0);
     expect(1, 0 < 1);
 }
 
-void test_inc_dec() {
+void test_inc_dec(void) {
     int a = 15;
     expect(15, a++);
     expect(16, a);
@@ -35,24 +35,24 @@ void test_inc_dec() {
     expect(15, a);
 }
 
-void test_bool() {
+void test_bool(void) {
     expect(0, !1);
     expect(1 ,!0);
 }
 
-void test_ternary() {
+void test_ternary(void) {
     expect(51, (1 + 2) ? 51 : 52);
     expect(52, (1 - 1) ? 51 : 52);
     expect(26, (1 - 1) ? 51 : 52 / 2);
     expect(17, (1 - 0) ? 51 / 3 : 52);
 }
 
-void test_comma() {
+void test_comma(void) {
     expect(3, (1, 3));
     expectf(7.0, (1, 3, 5, 7.0));
 }
 
-void testmain() {
+void testmain(void) {
     print("basic arithmetic");
     test_basic();
     test_relative();

@@ -13,7 +13,7 @@ double recursive(double a) {
     return recursive(3.33);
 }
 
-void testmain() {
+void testmain(void) {
     print("float");
 
     expectf(1.0, 1.0);

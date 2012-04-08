@@ -1,6 +1,6 @@
 #include "test/test.h"
 
-void testmain() {
+void testmain(void) {
     print("numeric constants");
 
     expect(1, 0x1);

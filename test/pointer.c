@@ -1,34 +1,34 @@
 #include "test/test.h"
 
-void t1() {
+void t1(void) {
     int a = 61;
     int *b = &a;
     expect(61, *b);
 }
 
-void t2() {
+void t2(void) {
     char *c = "ab";
     expect(97, *c);
 }
 
-void t3() {
+void t3(void) {
     char *c = "ab" + 1;
     expect(98, *c);
 }
 
-void t4() {
+void t4(void) {
     char s[] = "xyz";
     char *c = s + 2;
     expect(122, *c);
 }
 
-void t5() {
+void t5(void) {
     char s[] = "xyz";
     *s = 65;
     expect(65, *s);
 }
 
-void t6() {
+void t6(void) {
     struct tag {
         int val;
         struct tag *next;
@@ -44,7 +44,7 @@ void t6() {
     expect(1, p->next->val);
 }
 
-void testmain() {
+void testmain(void) {
     print("pointer");
     t1();
     t2();

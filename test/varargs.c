@@ -49,7 +49,7 @@ void test_va_list(void) {
     expect_string("3,1.0,6,2.0,abc", format("%d,%.1f,%d,%.1f,%s", 3, 1.0, 6, 2.0, "abc"));
 }
 
-void testmain() {
+void testmain(void) {
     print("varargs");
     test_int(1, 2, 3, 5, 8);
     test_float(1.0, 2.0, 4.0, 8.0);

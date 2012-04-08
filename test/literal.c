@@ -61,7 +61,7 @@ static void test_compound(void) {
     expect(85, g4->z->y[1]);
 }
 
-void testmain() {
+void testmain(void) {
     print("literal");
     test_char();
     test_string();

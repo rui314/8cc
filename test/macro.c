@@ -1,13 +1,13 @@
 #include "test/test.h"
 
-void special() {
+void special(void) {
     expect_string("(stdin)", __FILE__);
     expect(5, __LINE__);
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));
 }
 
-void include() {
+void include(void) {
 #include "test/macro1.h"
     expect_string("macro1", MACRO_1);
 
@@ -25,7 +25,7 @@ void include() {
 #endif
 }
 
-void predefined() {
+void predefined(void) {
     expect(1, __8cc__);
     expect(1, __amd64);
     expect(1, __amd64__);
@@ -72,7 +72,7 @@ void predefined() {
 #define TWO ONE + ONE
 #define LOOP LOOP
 
-void simple() {
+void simple(void) {
     expect(1, ONE);
     expect(2, TWO);
 }
@@ -80,14 +80,14 @@ void simple() {
 #define VAR1 VAR2
 #define VAR2 VAR1
 
-void loop() {
+void loop(void) {
     int VAR1 = 1;
     int VAR2 = 2;
     expect(1, VAR1);
     expect(2, VAR2);
 }
 
-void undef() {
+void undef(void) {
     int a = 3;
 #define a 10
     expect(10, a);
@@ -98,7 +98,7 @@ void undef() {
 #undef a
 }
 
-void cond_incl() {
+void cond_incl(void) {
     int a = 1;
 #if 0
     a = 2;
@@ -146,7 +146,7 @@ void cond_incl() {
     expect(150, a);
 }
 
-void const_expr() {
+void const_expr(void) {
     int a = 1;
 #if 0 + 1
     a = 2;
@@ -221,7 +221,7 @@ void const_expr() {
     expect(13, a);
 }
 
-void defined() {
+void defined(void) {
     int a = 0;
 #if defined ZERO
     a = 1;
@@ -239,7 +239,7 @@ void defined() {
     expect(4, a);
 }
 
-void ifdef() {
+void ifdef(void) {
     int a = 0;
 #ifdef ONE
     a = 1;
@@ -278,7 +278,7 @@ int minus(int a, int b) {
     return a - b;
 }
 
-void funclike() {
+void funclike(void) {
 #define m1(x) x
     expect(5, m1(5));
     expect(7, m1((5 + 2)));
@@ -338,7 +338,7 @@ void funclike() {
     expect_string("x ## y", join(x, y));
 }
 
-void empty() {
+void empty(void) {
 #define EMPTY
     expect(1, 1 EMPTY);
 #define EMPTY2(x)
@@ -347,16 +347,16 @@ void empty() {
     expect(2, 2 EMPTY2(((()))));
 }
 
-void noarg() {
+void noarg(void) {
 #define NOARG() 55
     expect(55, NOARG());
 }
 
-void null() {
+void null(void) {
     #
 }
 
-void testmain() {
+void testmain(void) {
     print("macros");
 
     special();

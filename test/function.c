@@ -1,6 +1,6 @@
 #include "test/test.h"
 
-int t1() {
+int t1(void) {
     return 77;
 }
 
@@ -21,7 +21,7 @@ int t4a(int *p) {
     return *p;
 }
 
-void t4() {
+void t4(void) {
     int a[] = { 98 };
     expect(98, t4a(a));
 }
@@ -38,7 +38,7 @@ void t5b(int p[]) {
     expect(97, *p);
 }
 
-void t5() {
+void t5(void) {
     int a[] = {1, 2, 3};
     int *p = a;
     *p = 99; p = p + 1;
@@ -49,7 +49,7 @@ void t5() {
 }
 
 int t6();
-int t6() {
+int t6(void) {
     return 3;
 }
 
@@ -62,7 +62,7 @@ int t8(int a, ...) {
     expect(23, a);
 }
 
-void t9() {
+void t9(void) {
     return;
 }
 
@@ -98,7 +98,7 @@ void empty2(void) {
     ;;;
 }
 
-void testmain() {
+void testmain(void) {
     print("function");
 
     expect(77, t1());

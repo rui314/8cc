@@ -1,6 +1,6 @@
 #include "test/test.h"
 
-void testmain() {
+void testmain(void) {
     print("comparison operators");
     expect(1, 1 < 2);
     expect(0, 2 < 1);

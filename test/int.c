@@ -16,7 +16,7 @@ void expectl(long a, long b) {
     }
 }
 
-void testmain() {
+void testmain(void) {
     print("long");
 
     short a = 10;

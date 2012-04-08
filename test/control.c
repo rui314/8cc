@@ -1,17 +1,17 @@
 #include "test/test.h"
 
-int test_if1() { if (1) { return 'a';} return 0; }
-int test_if2() { if (0) { return 0;} return 'b'; }
-int test_if3() { if (1) { return 'c';} else { return 0; } return 0; }
-int test_if4() { if (0) { return 0;} else { return 'd'; } return 0; }
-int test_if5() { if (1) return 'e'; return 0; }
-int test_if6() { if (0) return 0; return 'f'; }
-int test_if7() { if (1) return 'g'; else return 0; return 0; }
-int test_if8() { if (0) return 0; else return 'h'; return 0; }
-int test_if9() { if (0+1) return 'i'; return 0; }
-int test_if10() { if (1-1) return 0; return 'j'; }
+int test_if1(void) { if (1) { return 'a';} return 0; }
+int test_if2(void) { if (0) { return 0;} return 'b'; }
+int test_if3(void) { if (1) { return 'c';} else { return 0; } return 0; }
+int test_if4(void) { if (0) { return 0;} else { return 'd'; } return 0; }
+int test_if5(void) { if (1) return 'e'; return 0; }
+int test_if6(void) { if (0) return 0; return 'f'; }
+int test_if7(void) { if (1) return 'g'; else return 0; return 0; }
+int test_if8(void) { if (0) return 0; else return 'h'; return 0; }
+int test_if9(void) { if (0+1) return 'i'; return 0; }
+int test_if10(void) { if (1-1) return 0; return 'j'; }
 
-void test_if() {
+void test_if(void) {
     expect('a', test_if1());
     expect('b', test_if2());
     expect('c', test_if3());
@@ -24,7 +24,7 @@ void test_if() {
     expect('j', test_if10());
 }
 
-void test_for() {
+void test_for(void) {
     int i;
     int acc = 0;
     for (i = 0; i < 5; i++) {
@@ -52,7 +52,7 @@ void test_for() {
         ;
 }
 
-void test_while() {
+void test_while(void) {
     int acc = 0;
     int i = 0;
     while (i <= 100)
@@ -80,7 +80,7 @@ void test_while() {
         ;
 }
 
-void test_do() {
+void test_do(void) {
     int acc = 0;
     int i = 0;
     do {
@@ -108,7 +108,7 @@ void test_do() {
     do; while (i++ < 100);
 }
 
-void test_switch() {
+void test_switch(void) {
     int a = 0;
     switch (1+2) {
     case 0: fail("0");
@@ -171,7 +171,7 @@ void test_switch() {
         ;
 }
 
-void test_goto() {
+void test_goto(void) {
     int acc = 0;
     goto x;
     acc = 5;
@@ -189,7 +189,7 @@ void test_goto() {
  a:
 }
 
-void testmain() {
+void testmain(void) {
     print("control flow");
     test_if();
     test_for();

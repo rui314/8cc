@@ -7,7 +7,7 @@ int x1, x2;
 int x3, x4 = 4;
 int x5 = 5, x6;
 
-void testmain() {
+void testmain(void) {
     print("global variable");
 
     expect(21, val);

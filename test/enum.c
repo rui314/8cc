@@ -2,7 +2,7 @@
 
 enum { g1, g2, g3 } global1;
 
-void testmain() {
+void testmain(void) {
     print("enum");
 
     expect(0, g1);
