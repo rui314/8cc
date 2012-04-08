@@ -415,8 +415,7 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
     }
     case CTYPE_FLOAT:
     case CTYPE_DOUBLE: {
-        double fp = node->fval;
-        long *p = (long *)&fp;
+        long *p = (long *)&node->fval;
         emit("movq $%lu, %d(%%rbp)", *p & ((1L << 32) - 1), off);
         emit("movq $%lu, %d(%%rbp)", *p >> 32, off + 4);
         break;
@@ -548,8 +547,7 @@ static void emit_expr(Node *node) {
             break;
         case CTYPE_LONG:
         case CTYPE_LLONG: {
-            unsigned long ival = node->ival;
-            emit("mov $%lu, %%rax", ival);
+            emit("mov $%lu, %%rax", node->ival);
             break;
         }
         case CTYPE_FLOAT:
@@ -1038,9 +1036,8 @@ void emit_data_section(void) {
         char *label = make_label();
         v->flabel = label;
         emit_noindent("%s:", label);
-        double fval = v->fval;
-        emit(".long %d", ((int*)&fval)[0]);
-        emit(".long %d", ((int*)&fval)[1]);
+        emit(".long %d", ((int*)&v->fval)[0]);
+        emit(".long %d", ((int*)&v->fval)[1]);
     }
 }
 
