@@ -1006,7 +1006,7 @@ static Node *read_assignment_expr(void) {
 static Node *read_comma_expr(void) {
     Node *node = read_assignment_expr();
     while (next_token(','))
-        node = ast_binop(',', node, read_equality_expr());
+        node = ast_binop(',', node, read_assignment_expr());
     return node;
 }
 
