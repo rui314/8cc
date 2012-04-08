@@ -1,3 +1,6 @@
+// Copyright 2012 Rui Ueyama <rui314@gmail.com>
+// This program is free software licensed under the MIT license.
+
 #ifndef EIGHTCC_LIST_H
 #define EIGHTCC_LIST_H
 

@@ -1,8 +1,11 @@
+// Copyright 2012 Rui Ueyama <rui314@gmail.com>
+// This program is free software licensed under the MIT license.
+
 #include "test.h"
 
 void special(void) {
     expect_string("test/macro.c", __FILE__);
-    expect(5, __LINE__);
+    expect(8, __LINE__);
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));
 }
