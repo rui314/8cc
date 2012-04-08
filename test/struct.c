@@ -144,6 +144,43 @@ void assign(void) {
     expect(7, v2.c);
 }
 
+void arrow(void) {
+    struct cell { int val; struct cell *next; };
+    struct cell v1 = { 5, NULL };
+    struct cell v2 = { 6, &v1 };
+    struct cell v3 = { 7, &v2 };
+    struct cell *p = &v3;
+    expect(7, v3.val);
+    expect(7, p->val);
+    expect(6, p->next->val);
+    expect(5, p->next->next->val);
+
+    p->val = 10;
+    p->next->val = 11;
+    p->next->next->val = 12;
+    expect(10, p->val);
+    expect(11, p->next->val);
+    expect(12, p->next->next->val);
+}
+
+void address(void) {
+    struct tag { int a; struct { int b; } y; } x = { 6, 7 };
+    int *p1 = &x.a;
+    int *p2 = &x.y.b;
+    expect(6, *p1);
+    expect(7, *p2);
+    expect(6, *&x.a);
+    expect(7, *&x.y.b);
+
+    struct tag *xp = &x;
+    int *p3 = &xp->a;
+    int *p4 = &xp->y.b;
+    expect(6, *p3);
+    expect(7, *p4);
+    expect(6, *&xp->a);
+    expect(7, *&xp->y.b);
+}
+
 void testmain(void) {
     print("struct");
     t1();
@@ -162,4 +199,5 @@ void testmain(void) {
     t14();
     unnamed();
     assign();
+    arrow();
 }
