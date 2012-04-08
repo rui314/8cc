@@ -58,9 +58,7 @@ static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
 static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
-static Node *read_postfix_expr(void);
 static Node *read_expr_opt(void);
-static Node *read_multiplicative_expr(void);
 static Node *read_assignment_expr(void);
 static Node *read_cast_expr(void);
 
@@ -1215,7 +1213,7 @@ static void skip_to_brace(void) {
         } else {
             unget_token(tok);
         }
-        Node *ignore = read_multiplicative_expr();
+        Node *ignore = read_assignment_expr();
         if (!ignore)
             return;
         warn("ignore excessive initializer: %s", a2s(ignore));
@@ -1231,7 +1229,7 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
     if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
         read_initializer_list(inits, ctype, off);
     } else {
-        Node *expr = read_multiplicative_expr();
+        Node *expr = read_assignment_expr();
         result_type('=', ctype, expr->ctype);
         list_push(inits, ast_init(expr, ctype, off));
     }
