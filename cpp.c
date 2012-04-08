@@ -651,7 +651,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "error"))   read_error();
     else if (is_ident(tok, "include")) read_include();
     else if (is_ident(tok, "print"))   read_print();
-    else
+    else if (tok->type != TTYPE_NEWLINE)
         error("unsupported preprocessor directive: %s", t2s(tok));
 }
 
