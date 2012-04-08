@@ -311,7 +311,7 @@ static void emit_comp(char *inst, Node *node) {
 
 static void emit_binop_int_arith(Node *node) {
     SAVE;
-    char *op;
+    char *op = NULL;
     switch (node->type) {
     case '+': op = "add"; break;
     case '-': op = "sub"; break;
@@ -1050,9 +1050,10 @@ void emit_data_section(void) {
         Node *v = iter_next(i);
         char *label = make_label();
         v->flabel = label;
+        int *fval = (int*)&v->fval;
         emit_noindent("%s:", label);
-        emit(".long %d", ((int*)&v->fval)[0]);
-        emit(".long %d", ((int*)&v->fval)[1]);
+        emit(".long %d", fval[0]);
+        emit(".long %d", fval[1]);
     }
 }
 

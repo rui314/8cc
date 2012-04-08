@@ -1122,7 +1122,7 @@ static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
         if (tag)
             dict_put(env, tag, r);
     }
-    int size;
+    int size = 0;
     Dict *fields = read_struct_union_fields(&size, is_struct);
     if (r && !fields)
         return r;
