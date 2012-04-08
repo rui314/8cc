@@ -275,7 +275,7 @@ char *t2s(Token *tok) {
         default: return format("%c", tok->c);
         }
     case TTYPE_CHAR:
-        return format("'%s'", quote_char(tok->c));
+        return quote_char(tok->c);
     case TTYPE_NUMBER:
         return tok->sval;
     case TTYPE_STRING:
