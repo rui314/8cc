@@ -254,9 +254,13 @@ char *t2s(Token *tok) {
     case TTYPE_PUNCT:
         switch (tok->punct) {
         case OP_EQ:     return "==";
+        case OP_NE:     return "!=";
+        case OP_GE:     return ">=";
+        case OP_LE:     return "<=";
         case OP_INC:    return "++";
         case OP_DEC:    return "--";
-        case OP_LOGAND: return "and";
+        case OP_ARROW:  return "->";
+        case OP_LOGAND: return "&&";
         case OP_LOGOR:  return "or";
         case OP_A_ADD:  return "+=";
         case OP_A_SUB:  return "-=";
@@ -271,11 +275,11 @@ char *t2s(Token *tok) {
         default: return format("%c", tok->c);
         }
     case TTYPE_CHAR:
-        return format("%c", tok->c);
+        return format("'%s'", quote_char(tok->c));
     case TTYPE_NUMBER:
         return tok->sval;
     case TTYPE_STRING:
-        return format("\"%s\"", tok->sval);
+        return format("\"%s\"", quote_cstring(tok->sval));
     case TTYPE_NEWLINE:
         return "(newline)";
     case TTYPE_SPACE:

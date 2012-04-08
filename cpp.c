@@ -82,7 +82,7 @@ static Token *make_macro_token(int position) {
     r->type = TTYPE_MACRO_PARAM;
     r->hideset = make_dict(NULL);
     r->position = position;
-    r->space = false;
+    r->nspace = 0;
     r->bol = false;
     return r;
 }
@@ -221,7 +221,7 @@ static void paste(String *s, Token *tok) {
         string_appendf(s, "%s", tok->sval);
         return;
     case TTYPE_PUNCT:
-        string_appendf(s, "%c", tok->c);
+        string_appendf(s, "%s", t2s(tok));
         return;
     default:
         error("can't paste: %s", t2s(tok));
@@ -248,7 +248,7 @@ static char *join_tokens(List *args, bool sep) {
     String *s = make_string();
     for (Iter *i = list_iter(args); !iter_end(i);) {
         Token *tok = iter_next(i);
-        if (sep && string_len(s) && tok->space)
+        if (sep && string_len(s) && tok->nspace)
             string_appendf(s, " ");
         switch (tok->type) {
         case TTYPE_IDENT:
@@ -256,7 +256,7 @@ static char *join_tokens(List *args, bool sep) {
             string_appendf(s, "%s", tok->sval);
             break;
         case TTYPE_PUNCT:
-            string_appendf(s, "%c", tok->c);
+            string_appendf(s, "%s", t2s(tok));
             break;
         case TTYPE_CHAR:
             string_appendf(s, "%s", quote_char(tok->c));
@@ -450,7 +450,7 @@ static void read_obj_macro(char *name) {
 static void read_define(void) {
     Token *name = read_ident();
     Token *tok = read_cpp_token();
-    if (tok && is_punct(tok, '(') && !tok->space) {
+    if (tok && is_punct(tok, '(') && !tok->nspace) {
         read_funclike_macro(name->sval);
         return;
     }
@@ -832,7 +832,7 @@ Token *read_token(void) {
         if (r->type != TTYPE_STRING)
             return r;
         Token *r2 = read_token_int(false);
-        if (r2->type != TTYPE_STRING) {
+        if (!r2 || r2->type != TTYPE_STRING) {
             unget_token(r2);
             return r;
         }

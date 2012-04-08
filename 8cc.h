@@ -39,7 +39,7 @@ enum {
 
 typedef struct {
     int type;
-    bool space;
+    int nspace;
     bool bol;
     char *file;
     int line;
@@ -49,9 +49,7 @@ typedef struct {
         char *sval;
         int punct;
         char c;
-        union {
-            int position;
-        };
+        int position;
     };
 } Token;
 
