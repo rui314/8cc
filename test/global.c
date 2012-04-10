@@ -12,6 +12,8 @@ int x5 = 5, x6;
 
 char s1[] = "abcd";
 char *s2 = "ABCD";
+long l1 = 8;
+int *intp = &(int){ 9 };
 
 void testmain(void) {
     print("global variable");
@@ -37,4 +39,7 @@ void testmain(void) {
 
     expect_string("abcd", s1);
     expect_string("ABCD", s2);
+
+    expectl(8, l1);
+    expectl(9, *intp);
 }

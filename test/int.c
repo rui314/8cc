@@ -11,14 +11,6 @@ void expects(short a, short b) {
     }
 }
 
-void expectl(long a, long b) {
-    if (!(a == b)) {
-        printf("Failed\n");
-        printf("  %ld expected, but got %ld\n", a, b);
-        exit(1);
-    }
-}
-
 void testmain(void) {
     print("long");
 

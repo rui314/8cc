@@ -52,6 +52,14 @@ void expectd(double a, double b) {
     }
 }
 
+void expectl(long a, long b) {
+    if (!(a == b)) {
+        printf("Failed\n");
+        printf("  %ld expected, but got %ld\n", a, b);
+        exit(1);
+    }
+}
+
 int main() {
     testmain();
     printf("OK\n");
