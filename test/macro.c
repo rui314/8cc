@@ -248,6 +248,8 @@ void ifdef(void) {
     a = 1;
 #else
     a = 2;
+#
+#1234
 #endif
     expect(a, 1);
 
