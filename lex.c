@@ -271,7 +271,7 @@ static int read_hex_char(void) {
         switch (c) {
         case '0' ... '9': r = (r << 4) | (c - '0'); continue;
         case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
-        case 'A' ... 'F': r = (r << 4) | (c - 'f' + 10); continue;
+        case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
         default: unget(c); return r;
         }
     }

@@ -22,6 +22,7 @@ static void test_char(void) {
 
     expect(0, '\x0');
     expect(-1, '\xff');
+    expect(15, '\xF');
     expect(18, '\x012');
 }
 
