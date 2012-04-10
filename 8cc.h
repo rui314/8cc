@@ -276,6 +276,9 @@ extern void set_input_file(char *displayname, char *realname, FILE *input);
 extern char *input_position(void);
 extern char *get_current_file(void);
 extern int get_current_line(void);
+extern char *get_current_displayname(void);
+extern void set_current_displayname(char *name);
+extern void set_current_line(int line);
 
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);

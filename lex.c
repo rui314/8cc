@@ -108,6 +108,18 @@ int get_current_line(void) {
     return file->line;
 }
 
+void set_current_line(int line) {
+    file->line = line;
+}
+
+char *get_current_displayname(void) {
+    return file->displayname;
+}
+
+void set_current_displayname(char *name) {
+    file->displayname = name;
+}
+
 static void unget(int c) {
     if (c == '\n')
         file->line--;

@@ -638,6 +638,35 @@ static void read_include(void) {
 }
 
 /*----------------------------------------------------------------------
+ * #line
+ */
+
+static bool is_digit_sequence(char *p) {
+    for (; *p; p++)
+        if (!isdigit(*p))
+            return false;
+    return true;
+}
+
+static void read_line(void) {
+    Token *tok = read_cpp_token();
+    if (!tok || tok->type != TTYPE_NUMBER || !is_digit_sequence(tok->sval))
+        error("number expected after #line, but got %s", t2s(tok));
+    int line = atoi(tok->sval);
+    tok = read_cpp_token();
+    char *filename = NULL;
+    if (tok && tok->type == TTYPE_STRING) {
+        filename = tok->sval;
+        expect_newline();
+    } else if (tok->type != TTYPE_NEWLINE) {
+        error("newline or a source name are expected, but got %s", t2s(tok));
+    }
+    set_current_line(line);
+    if (filename)
+        set_current_displayname(filename);
+}
+
+/*----------------------------------------------------------------------
  * #-directive
  */
 
@@ -653,6 +682,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "endif"))   read_endif();
     else if (is_ident(tok, "error"))   read_error();
     else if (is_ident(tok, "include")) read_include();
+    else if (is_ident(tok, "line"))    read_line();
     else if (is_ident(tok, "print"))   read_print();
     else if (tok->type != TTYPE_NEWLINE)
         error("unsupported preprocessor directive: %s", t2s(tok));
@@ -691,7 +721,7 @@ static void handle_time_macro(Token *tmpl) {
 static void handle_file_macro(Token *tmpl) {
     Token *tok = copy_token(tmpl);
     tok->type = TTYPE_STRING;
-    tok->sval = get_current_file();
+    tok->sval = get_current_displayname();
     unget_token(tok);
 }
 

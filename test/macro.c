@@ -355,6 +355,14 @@ void noarg(void) {
     expect(55, NOARG());
 }
 
+void line(void) {
+#line 99
+    expect(99, __LINE__);
+#line 199 "foo"
+    expect(199, __LINE__);
+    expect_string("foo", __FILE__);
+}
+
 void null(void) {
     #
 }
@@ -375,5 +383,6 @@ void testmain(void) {
     funclike();
     empty();
     noarg();
+    line();
     null();
 }
