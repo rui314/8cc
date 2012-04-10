@@ -292,7 +292,7 @@ static void emit_assign(Node *var) {
 
 static void emit_comp(char *inst, Node *node) {
     SAVE;
-    if (is_flotype(node->ctype)) {
+    if (is_flotype(node->left->ctype) || is_flotype(node->right->ctype)) {
         emit_expr(node->left);
         emit_todouble(node->left->ctype);
         push_xmm(0);
