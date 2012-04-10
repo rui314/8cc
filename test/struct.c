@@ -188,6 +188,16 @@ void address(void) {
     expect(7, *&xp->y.b);
 }
 
+void incomplete(void) {
+    struct tag1;
+    struct tag2 { struct tag1 *p; };
+    struct tag1 { int x; };
+
+    struct tag1 v1 = { 3 };
+    struct tag2 v2 = { &v1 };
+    expect(3, v2.p->x);
+}
+
 void testmain(void) {
     print("struct");
     t1();
@@ -207,4 +217,5 @@ void testmain(void) {
     unnamed();
     assign();
     arrow();
+    incomplete();
 }
