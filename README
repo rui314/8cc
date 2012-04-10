@@ -1,6 +1,15 @@
 The files under this directory are written by Rui Ueyama <rui314@gmail.com> and
 licensed under the MIT license.
 
+This is my hobby project. As of April 2012, 8cc supports many C99 features
+including preprocessor. Because 8cc can compile itself, the source code of the
+compiler may be a good example what 8cc is able to handle.
+
+8cc consists with two paths. In the first path, an AST is constructed for each
+top level definition (function or variable definition), and the AST is then
+transformed to an assembly text in the second path. The output can be run only
+on Linux x86-64.
+
 
 Some useful links for C compiler development:
 
@@ -24,6 +33,3 @@ http://www.spinellis.gr/blog/20060626/
 
 x86-64 ABI
 http://www.x86-64.org/documentation/abi.pdf
-
-Calling conventions on various platforms
-http://agner.org/optimize/calling_conventions.pdf
