@@ -969,9 +969,9 @@ static void emit_data_init_int(Dict *labels, char *data, Dict *literals, List *i
         else if (node->totype->type == CTYPE_FLOAT)
             *(double *)(data + node->initoff + off) = node->initval->fval;
         else if (node->totype->type == CTYPE_BOOL)
-            *(data + node->initoff + off) = !!eval_intexpr(node->initval);
+            *(bool *)(data + node->initoff + off) = !!eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_CHAR)
-            *(data + node->initoff + off) = eval_intexpr(node->initval);
+            *(char *)(data + node->initoff + off) = eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_SHORT)
             *(short *)(data + node->initoff + off) = eval_intexpr(node->initval);
         else if (node->totype->type == CTYPE_INT)
@@ -997,7 +997,10 @@ static void emit_data_init(Dict *literals, List *inits, int datasize) {
             emit(".quad %s", label);
             i += 4;
         } else {
-            emit(".long %d", data[i]);
+            emit(".byte %d", data[i]);
+            emit(".byte %d", data[i+1]);
+            emit(".byte %d", data[i+2]);
+            emit(".byte %d", data[i+3]);
         }
     }
     for (; i < datasize; i++)

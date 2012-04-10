@@ -10,6 +10,9 @@ int x1, x2;
 int x3, x4 = 4;
 int x5 = 5, x6;
 
+char s1[] = "abcd";
+char *s2 = "ABCD";
+
 void testmain(void) {
     print("global variable");
 
@@ -31,4 +34,7 @@ void testmain(void) {
     expect(5, x5);
     x6 = 6;
     expect(6, x6);
+
+    expect_string("abcd", s1);
+    expect_string("ABCD", s2);
 }
