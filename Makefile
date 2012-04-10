@@ -29,7 +29,7 @@ $(SELF): 8cc
 	./8cc $(@:s=c) > $@
 	$(CC) -c $@
 
-next: $(SELF)
+self: $(SELF)
 	rm -f 8cc utiltest
 	$(MAKE) 8cc
 
@@ -38,11 +38,11 @@ fulltest:
 	$(MAKE) test
 	cp 8cc gen1
 	rm $(OBJS) main.o
-	$(MAKE) next
+	$(MAKE) self
 	$(MAKE) test
 	cp 8cc gen2
 	rm $(OBJS) main.o
-	$(MAKE) next
+	$(MAKE) self
 	$(MAKE) test
 	cp 8cc gen3
 	diff gen2 gen3
