@@ -18,5 +18,7 @@ void testmain(void) {
     expect(0, y);
 
     enum tag { z };
+    enum tag a = z;
     expect(0, z);
+    expect(0, a);
 }

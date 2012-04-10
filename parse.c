@@ -440,7 +440,7 @@ static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
         case CTYPE_ARRAY: case CTYPE_PTR:
             return b;
         }
-        error("internal error");
+        error("internal error: %s", c2s(b));
     case CTYPE_LONG: case CTYPE_LLONG:
         switch (b->type) {
         case CTYPE_LONG: case CTYPE_LLONG:
