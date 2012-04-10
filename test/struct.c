@@ -137,14 +137,18 @@ void unnamed(void) {
 }
 
 void assign(void) {
-    struct { int a, b, c; } v1, v2;
+    struct { int a, b, c; short d; char f; } v1, v2;
     v1.a = 3;
     v1.b = 5;
     v1.c = 7;
+    v1.d = 9;
+    v1.f = 11;
     v2 = v1;
     expect(3, v2.a);
     expect(5, v2.b);
     expect(7, v2.c);
+    expect(9, v2.d);
+    expect(11, v2.f);
 }
 
 void arrow(void) {
