@@ -4,12 +4,12 @@ SELF=cpp.s debug.s dict.s gen.s lex.s list.s parse.s string.s util.s main.s
 TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))
 
 8cc: 8cc.h main.o $(OBJS)
-	$(CC) -o $@ main.o $(OBJS)
+	$(CC) -o $@ main.o $(OBJS) $(LDFLAGS)
 
 $(OBJS) utiltest.o main.o: 8cc.h
 
 utiltest: 8cc.h utiltest.o $(OBJS)
-	$(CC) -o $@ utiltest.o $(OBJS)
+	$(CC) -o $@ utiltest.o $(OBJS) $(LDFLAGS)
 
 test: utiltest $(TESTS) sample/nqueen
 	@echo
@@ -23,7 +23,7 @@ test/%.s: test/%.c 8cc
 	./8cc $< > $@
 
 test/%.bin: test/%.s test/util/testmain.o 8cc
-	$(CC) -o $@ $< test/util/testmain.o
+	$(CC) -o $@ $< test/util/testmain.o $(LDFLAGS)
 
 $(SELF): 8cc
 	./8cc $(@:s=c) > $@

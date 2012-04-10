@@ -19,6 +19,16 @@ double recursive(double a) {
 void testmain(void) {
     print("float");
 
+    float v1 = 10.0;
+    float v2 = v1;
+    expectf(10.0, v1);
+    expectf(10.0, v2);
+    return;
+    double v3 = 20.0;
+    double v4 = v3;
+    expectd(20.0, v3);
+    expectd(20.0, v4);
+
     expectf(1.0, 1.0);
     expectf(1.5, 1.0 + 0.5);
     expectf(0.5, 1.0 - 0.5);

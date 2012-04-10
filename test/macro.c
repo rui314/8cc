@@ -287,6 +287,8 @@ void funclike(void) {
     expect(7, m1((5 + 2)));
     expect(8, m1(plus(5, 3)));
     expect(10, m1() 10);
+    expect(14, m1(2 +
+                  2 +) 10);
 
 #define m2(x) x + x
     expect(10, m2(5));
@@ -330,9 +332,13 @@ void funclike(void) {
 
 #define m8(x, y) x ## y
     expect(2, m8(TW, O));
+    expect(0, m8(ZERO,));
 
 #define m9(x, y, z) x y + z
     expect(8, m9(1,, 7));
+
+#define m10(x) x ## x
+    expect_string("a", "a" m10());
 
 #define hash_hash # ## #
 #define mkstr(a) # a

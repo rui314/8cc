@@ -173,6 +173,7 @@ static void emit_lsave(Ctype *ctype, int off) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT) {
         push_xmm(0);
+        emit("unpcklpd %%xmm0, %%xmm0");
         emit("cvtpd2ps %%xmm0, %%xmm0");
         emit("movss %%xmm0, %d(%%rbp)", off);
         pop_xmm(0);
@@ -428,11 +429,16 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
         emit("movl $%lu, %d(%%rbp)", ival >> 32, off + 4);
         break;
     }
-    case CTYPE_FLOAT:
+    case CTYPE_FLOAT: {
+        float fval = (float)node->fval;
+        int *p = (int *)&fval;
+        emit("movl $%u, %d(%%rbp)", *p, off);
+        break;
+    }
     case CTYPE_DOUBLE: {
         long *p = (long *)&node->fval;
-        emit("movq $%lu, %d(%%rbp)", *p & ((1L << 32) - 1), off);
-        emit("movq $%lu, %d(%%rbp)", *p >> 32, off + 4);
+        emit("movl $%lu, %d(%%rbp)", *p & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(%%rbp)", *p >> 32, off + 4);
         break;
     }
     default:

@@ -1572,7 +1572,7 @@ static Ctype *read_decl_spec(int *rsclass) {
     case kbool:   return make_numtype(CTYPE_BOOL, false);
     case kchar:   return make_numtype(CTYPE_CHAR, sig != kunsigned);
     case kfloat:  return make_numtype(CTYPE_FLOAT, false);
-    case kdouble: return make_numtype(size == klong ? CTYPE_DOUBLE : CTYPE_LDOUBLE, false);
+    case kdouble: return make_numtype(size == klong ? CTYPE_LDOUBLE : CTYPE_DOUBLE, false);
     default: break;
     }
     switch (size) {
