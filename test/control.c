@@ -192,6 +192,12 @@ void test_goto(void) {
  a:
 }
 
+void test_logor(void) {
+    expect(1, 0 || 3);
+    expect(1, 5 || 0);
+    expect(0, 0 || 0);
+}
+
 void testmain(void) {
     print("control flow");
     test_if();
@@ -200,4 +206,5 @@ void testmain(void) {
     test_do();
     test_switch();
     test_goto();
+    test_logor();
 }
