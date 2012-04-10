@@ -19,6 +19,7 @@ void test_basic(void) {
     expect(0 - 1, a);
     expect(-1, a);
     expect(0, a + 1);
+    expect(1, +1);
 }
 
 void test_relative(void) {
