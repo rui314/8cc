@@ -17,6 +17,7 @@ static List *std_include_path;
 static Token *cpp_token_zero = &(Token){ .type = TTYPE_NUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TTYPE_NUMBER, .sval = "1" };
 static struct tm *current_time;
+static int macro_counter;
 
 typedef void special_macro_handler(Token *tok);
 typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
@@ -736,6 +737,13 @@ static void handle_pragma_macro(Token *ignore) {
     error("No pragmas supported");
 }
 
+static void handle_counter_macro(Token *tmpl) {
+    Token *tok = copy_token(tmpl);
+    tok->type = TTYPE_NUMBER;
+    tok->sval = format("%d", macro_counter++);
+    unget_token(tok);
+}
+
 /*----------------------------------------------------------------------
  * Initializer
  */
@@ -760,7 +768,8 @@ void cpp_init(void) {
     define_special_macro("__TIME__", handle_time_macro);
     define_special_macro("__FILE__", handle_file_macro);
     define_special_macro("__LINE__", handle_line_macro);
-    define_special_macro("_Pragma", handle_pragma_macro);
+    define_special_macro("_Pragma",  handle_pragma_macro);
+    define_special_macro("__COUNTER__", handle_counter_macro);
 
     char *predefined[] = {
         "__8cc__", "__amd64", "__amd64__", "__x86_64", "__x86_64__",

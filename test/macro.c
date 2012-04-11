@@ -375,6 +375,12 @@ void null(void) {
     #
 }
 
+void counter(void) {
+    expect(0, __COUNTER__);
+    expect(1, __COUNTER__);
+    expect(2, __COUNTER__);
+}
+
 void testmain(void) {
     print("macros");
 
@@ -393,4 +399,5 @@ void testmain(void) {
     noarg();
     line();
     null();
+    counter();
 }
