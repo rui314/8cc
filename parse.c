@@ -545,15 +545,21 @@ static Node *read_int(char *s) {
     if (strncasecmp(s, "0x", 2) == 0) {
         base = 16;
         p += 2;
+    } else if (strncasecmp(s, "0b", 2) == 0) {
+        base = 2;
+        p += 2;
     } else if (s[0] == '0' && s[1] != '\0') {
         base = 8;
         p++;
     }
+    char *digits = p;
     while (isxdigit(*p)) {
         if (base == 10 && isalpha(*p))
             error("invalid digit '%c' in a decimal number: %s", *p, s);
         if (base == 8 && !('0' <= *p && *p <= '7'))
             error("invalid digit '%c' in a octal number: %s", *p, s);
+        if (base == 2 && (*p != '0' && *p != '1'))
+            error("invalid digit '%c' in a binary number: %s", *p, s);
         p++;
     }
     if (!strcasecmp(p, "u"))
@@ -568,7 +574,7 @@ static Node *read_int(char *s) {
         return ast_inttype(ctype_ullong, strtoull(s, NULL, base));
     if (*p != '\0')
         error("invalid suffix '%c': %s", *p, s);
-    long val = strtol(s, NULL, base);
+    long val = strtol(digits, NULL, base);
     return (val & ~(long)UINT_MAX)
         ? ast_inttype(ctype_long, val)
         : ast_inttype(ctype_int, val);
