@@ -1,31 +1,27 @@
 #!/bin/bash
 
+function fail {
+    echo -n -e '\e[1;31m[ERROR]\e[0m '
+    echo "$1"
+    exit 1
+}
+
 function compile {
-    echo "$1" | ./8cc - > tmp.s || echo "Failed to compile $1"
+    echo "$1" | ./8cc - > tmp.s || fail "Failed to compile $1"
     if [ $? -ne 0 ]; then
-        echo "Failed to compile $1"
-        exit
+        fail "Failed to compile $1"
     fi
     gcc -o tmp.out tmp.s
-    if [ $? -ne 0 ]; then
-        echo "GCC failed: $1"
-        exit
-    fi
+     [ $? -ne 0 ] && fail "GCC failed: $1"
 }
 
 function assertequal {
-    if [ "$1" != "$2" ]; then
-        echo "Test failed: $2 expected but got $1"
-        exit
-    fi
+    [ "$1" != "$2" ] && fail "Test failed: $2 expected but got $1"
 }
 
 function testastf {
     result="$(echo "$2" | ./8cc -a -)"
-    if [ $? -ne 0 ]; then
-        echo "Failed to compile $2"
-        exit
-    fi
+    [ $? -ne 0 ] && fail "Failed to compile $2"
     assertequal "$result" "$1"
 }
 
@@ -41,10 +37,7 @@ function testm {
 function testfail {
     expr="int f(){$1}"
     echo "$expr" | ./8cc - > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "Should fail to compile, but succeded: $expr"
-        exit
-    fi
+    [ $? -eq 0 ] && fail "Should fail to compile, but succeded: $expr"
 }
 
 # Parser
