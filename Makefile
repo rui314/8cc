@@ -11,7 +11,7 @@ $(OBJS) utiltest.o main.o: 8cc.h
 utiltest: 8cc.h utiltest.o $(OBJS)
 	$(CC) -o $@ utiltest.o $(OBJS) $(LDFLAGS)
 
-test: utiltest $(TESTS) sample/nqueen
+test: utiltest $(TESTS)
 	@echo
 	./utiltest
 	@for test in $(TESTS); do \
@@ -47,14 +47,9 @@ fulltest:
 	cp 8cc gen3
 	diff gen2 gen3
 
-sample/nqueen: 8cc sample/nqueen.c
-	./8cc sample/nqueen.c > sample/nqueen.s
-	$(CC) -o sample/nqueen sample/nqueen.s
-
 clean:
 	rm -f 8cc *.o *.s tmp.* test/*.s test/*.o sample/*.o
-	rm -f utiltest sample/nqueen.s sample/nqueen gen[1-9]
-	rm -f test/util/testmain.o
+	rm -f utiltest gen[1-9] test/util/testmain.o
 	rm -f $(TESTS)
 
 all: 8cc
