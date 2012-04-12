@@ -277,7 +277,7 @@ static void emit_load_struct_ref(Node *struc, Ctype *field, int off) {
     }
 }
 
-static void emit_assign(Node *var) {
+static void emit_store(Node *var) {
     SAVE;
     switch (var->type) {
     case AST_DEREF: emit_assign_deref(var); break;
@@ -508,7 +508,7 @@ static void emit_decl_init(List *inits, int off) {
 static void emit_pre_inc_dec(Node *node, char *op) {
     emit_expr(node->operand);
     emit("%s $1, %%rax", op);
-    emit_assign(node->operand);
+    emit_store(node->operand);
 }
 
 static void emit_post_inc_dec(Node *node, char *op) {
@@ -516,7 +516,7 @@ static void emit_post_inc_dec(Node *node, char *op) {
     emit_expr(node->operand);
     push("rax");
     emit("%s $1, %%rax", op);
-    emit_assign(node->operand);
+    emit_store(node->operand);
     pop("rax");
 }
 
@@ -556,406 +556,478 @@ static void emit_jmp(char *label) {
     emit("jmp %s", label);
 }
 
+static void emit_literal(Node *node) {
+    SAVE;
+    switch (node->ctype->type) {
+    case CTYPE_BOOL:
+    case CTYPE_CHAR:
+        emit("mov $%d, %%rax", node->ival);
+        break;
+    case CTYPE_INT:
+        emit("mov $%d, %%rax", node->ival);
+        break;
+    case CTYPE_LONG:
+    case CTYPE_LLONG: {
+        emit("mov $%lu, %%rax", node->ival);
+        break;
+    }
+    case CTYPE_FLOAT:
+    case CTYPE_DOUBLE:
+    case CTYPE_LDOUBLE: {
+        if (!node->flabel) {
+            node->flabel = make_label();
+            int *fval = (int*)&node->fval;
+            emit_noindent(".data");
+            emit_label(node->flabel);
+            emit(".long %d", fval[0]);
+            emit(".long %d", fval[1]);
+            emit_noindent(".text");
+        }
+        emit("movsd %s(%%rip), %%xmm0", node->flabel);
+        break;
+    }
+    default:
+        error("internal error");
+    }
+}
+
+static void emit_literal_string(Node *node) {
+    SAVE;
+    if (!node->slabel) {
+        node->slabel = make_label();
+        emit_noindent(".data");
+        emit_label(node->slabel);
+        emit(".string \"%s\"", quote_cstring(node->sval));
+        emit_noindent(".text");
+    }
+    emit("lea %s(%%rip), %%rax", node->slabel);
+}
+
+static void emit_lvar(Node *node) {
+    SAVE;
+    ensure_lvar_init(node);
+    emit_lload(node->ctype, "rbp", node->loff);
+}
+
+static void emit_gvar(Node *node) {
+    SAVE;
+    emit_gload(node->ctype, node->glabel, 0);
+}
+
+static void emit_func_call(Node *node) {
+    SAVE;
+    bool isptr = (node->type == AST_FUNCPTR_CALL);
+    int ireg = 0;
+    int xreg = 0;
+    List *argtypes = isptr
+        ? get_arg_types(node->args, node->fptr->ctype->ptr->params)
+        : get_arg_types(node->args, node->ftype->params);
+    for (Iter *i = list_iter(argtypes); !iter_end(i);) {
+        if (is_flotype(iter_next(i))) {
+            if (xreg > 0) push_xmm(xreg);
+            xreg++;
+        } else {
+            push(REGS[ireg++]);
+        }
+    }
+    if (isptr) {
+        emit_expr(node->fptr);
+        push("rax");
+    }
+    {
+        Iter *i = list_iter(node->args);
+        Iter *j = list_iter(argtypes);
+        while (!iter_end(i)) {
+            Node *v = iter_next(i);
+            emit_expr(v);
+            Ctype *ptype = iter_next(j);
+            emit_save_convert(ptype, v->ctype);
+            if (is_flotype(ptype))
+                push_xmm(0);
+            else
+                push("rax");
+        }
+    }
+    int ir = ireg;
+    int xr = xreg;
+    for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
+        if (is_flotype(iter_next(i)))
+            pop_xmm(--xr);
+        else
+            pop(REGS[--ir]);
+    }
+    if (isptr) pop("rbx");
+    emit("mov $%d, %%eax", xreg);
+    if (stackpos % 16)
+        emit("sub $8, %%rsp");
+    if (isptr) {
+        emit("call *%%rbx");
+    } else {
+        emit("call %s", node->fname);
+    }
+    if (stackpos % 16)
+        emit("add $8, %%rsp");
+    for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
+        if (is_flotype(iter_next(i))) {
+            if (xreg != 1)
+                pop_xmm(--xreg);
+        } else {
+            pop(REGS[--ireg]);
+        }
+    }
+    if (node->ctype->type == CTYPE_FLOAT)
+        emit("cvtps2pd %%xmm0, %%xmm0");
+}
+
+static void emit_decl(Node *node) {
+    SAVE;
+    if (!node->declinit)
+        return;
+    emit_zero_filler(node->declvar->loff,
+                     node->declvar->loff + node->declvar->ctype->size);
+    emit_decl_init(node->declinit, node->declvar->loff);
+}
+
+static void emit_deref(Node *node) {
+    SAVE;
+    emit_expr(node->operand);
+    emit_lload(node->operand->ctype->ptr, "rax", 0);
+    emit_load_convert(node->ctype, node->operand->ctype->ptr);
+}
+
+static void emit_ternary(Node *node) {
+    SAVE;
+    emit_expr(node->cond);
+    char *ne = make_label();
+    emit_je(ne);
+    if (node->then)
+        emit_expr(node->then);
+    if (node->els) {
+        char *end = make_label();
+        emit_jmp(end);
+        emit_label(ne);
+        emit_expr(node->els);
+        emit_label(end);
+    } else {
+        emit_label(ne);
+    }
+}
+
+#define SET_JUMP_LABELS(brk, cont)              \
+    char *obreak = lbreak;                      \
+    char *ocontinue = lcontinue;                \
+    lbreak = brk;                               \
+    lcontinue = cont
+#define RESTORE_JUMP_LABELS()                   \
+    lbreak = obreak;                            \
+    lcontinue = ocontinue
+
+static void emit_for(Node *node) {
+    SAVE;
+    if (node->forinit)
+        emit_expr(node->forinit);
+    char *begin = make_label();
+    char *step = make_label();
+    char *end = make_label();
+    SET_JUMP_LABELS(end, step);
+    emit_label(begin);
+    if (node->forcond) {
+        emit_expr(node->forcond);
+        emit_je(end);
+    }
+    if (node->forbody)
+        emit_expr(node->forbody);
+    emit_label(step);
+    if (node->forstep)
+        emit_expr(node->forstep);
+    emit_jmp(begin);
+    emit_label(end);
+    RESTORE_JUMP_LABELS();
+}
+
+static void emit_while(Node *node) {
+    SAVE;
+    char *begin = make_label();
+    char *end = make_label();
+    SET_JUMP_LABELS(end, begin);
+    emit_label(begin);
+    emit_expr(node->forcond);
+    emit_je(end);
+    if (node->forbody)
+        emit_expr(node->forbody);
+    emit_jmp(begin);
+    emit_label(end);
+    RESTORE_JUMP_LABELS();
+}
+
+static void emit_do(Node *node) {
+    SAVE;
+    char *begin = make_label();
+    char *end = make_label();
+    SET_JUMP_LABELS(end, begin);
+    emit_label(begin);
+    if (node->forbody)
+        emit_expr(node->forbody);
+    emit_expr(node->forcond);
+    emit_je(end);
+    emit_jmp(begin);
+    emit_label(end);
+    RESTORE_JUMP_LABELS();
+}
+
+#undef SET_JUMP_LABELS
+#undef RESTORE_JUMP_LABELS
+
+static void emit_switch(Node *node) {
+    SAVE;
+    char *oswitch = lswitch, *obreak = lbreak;
+    emit_expr(node->switchexpr);
+    lswitch = make_label();
+    lbreak = make_label();
+    emit_jmp(lswitch);
+    if (node->switchbody)
+        emit_expr(node->switchbody);
+    emit_label(lswitch);
+    emit_label(lbreak);
+    lswitch = oswitch;
+    lbreak = obreak;
+}
+
+static void emit_case(Node *node) {
+    SAVE;
+    if (!lswitch)
+        error("stray case label");
+    char *skip = make_label();
+    emit_jmp(skip);
+    emit_label(lswitch);
+    lswitch = make_label();
+    emit("cmp $%d, %%eax", node->casebeg);
+    if (node->casebeg == node->caseend) {
+        emit("jne %s", lswitch);
+    } else {
+        emit("jl %s", lswitch);
+        emit("cmp $%d, %%eax", node->caseend);
+        emit("jg %s", lswitch);
+    }
+    emit_label(skip);
+}
+
+static void emit_default(Node *node) {
+    SAVE;
+    if (!lswitch)
+        error("stray case label");
+    emit_label(lswitch);
+    lswitch = make_label();
+}
+
+static void emit_goto(Node *node) {
+    SAVE;
+    assert(node->newlabel);
+    emit_jmp(node->newlabel);
+}
+
+static void emit_return(Node *node) {
+    SAVE;
+    if (node->retval) {
+        emit_expr(node->retval);
+        emit_save_convert(node->ctype, node->retval->ctype);
+    }
+    emit_ret();
+}
+
+static void emit_break(Node *node) {
+    SAVE;
+    if (!lbreak)
+        error("stray break statement");
+    emit_jmp(lbreak);
+}
+
+static void emit_continue(Node *node) {
+    SAVE;
+    if (!lcontinue)
+        error("stray continue statement");
+    emit_jmp(lcontinue);
+}
+
+static void emit_compound_stmt(Node *node) {
+    SAVE;
+    for (Iter *i = list_iter(node->stmts); !iter_end(i);)
+        emit_expr(iter_next(i));
+}
+
+static void emit_va_start(Node *node) {
+    SAVE;
+    emit_expr(node->ap);
+    push("rcx");
+    emit("movl $%d, (%%rax)", numgp * 8);
+    emit("movl $%d, 4(%%rax)", 48 + numfp * 16);
+    emit("lea %d(%%rbp), %%rcx", -REGAREA_SIZE);
+    emit("mov %%rcx, 16(%%rax)");
+    pop("rcx");
+}
+
+static void emit_va_arg(Node *node) {
+    SAVE;
+    emit_expr(node->ap);
+    emit("nop");
+    push("rcx");
+    push("rbx");
+    emit("mov 16(%%rax), %%rcx");
+    if (is_flotype(node->ctype)) {
+        emit("mov 4(%%rax), %%ebx");
+        emit("add %%rbx, %%rcx");
+        emit("add $16, %%ebx");
+        emit("mov %%ebx, 4(%%rax)");
+        emit("movsd (%%rcx), %%xmm0");
+    } else {
+        emit("mov (%%rax), %%ebx");
+        emit("add %%rbx, %%rcx");
+        emit("add $8, %%ebx");
+        emit("mov %%rbx, (%%rax)");
+        emit("mov (%%rcx), %%rax");
+    }
+    pop("rbx");
+    pop("rcx");
+}
+
+static void emit_logand(Node *node) {
+    SAVE;
+    char *end = make_label();
+    emit_expr(node->left);
+    emit("test %%rax, %%rax");
+    emit("mov $0, %%rax");
+    emit("je %s", end);
+    emit_expr(node->right);
+    emit("test %%rax, %%rax");
+    emit("mov $0, %%rax");
+    emit("je %s", end);
+    emit("mov $1, %%rax");
+    emit_label(end);
+}
+
+static void emit_logor(Node *node) {
+    SAVE;
+    char *end = make_label();
+    emit_expr(node->left);
+    emit("test %%rax, %%rax");
+    emit("mov $1, %%rax");
+    emit("jne %s", end);
+    emit_expr(node->right);
+    emit("test %%rax, %%rax");
+    emit("mov $1, %%rax");
+    emit("jne %s", end);
+    emit("mov $0, %%rax");
+    emit_label(end);
+}
+
+static void emit_lognot(Node *node) {
+    SAVE;
+    emit_expr(node->operand);
+    emit("cmp $0, %%rax");
+    emit("sete %%al");
+    emit("movzb %%al, %%eax");
+}
+
+static void emit_bitand(Node *node) {
+    SAVE;
+    emit_expr(node->left);
+    push("rax");
+    emit_expr(node->right);
+    pop("rcx");
+    emit("and %%rcx, %%rax");
+}
+
+static void emit_bitor(Node *node) {
+    SAVE;
+    emit_expr(node->left);
+    push("rax");
+    emit_expr(node->right);
+    pop("rcx");
+    emit("or %%rcx, %%rax");
+}
+
+static void emit_bitnot(Node *node) {
+    SAVE;
+    emit_expr(node->left);
+    emit("not %%rax");
+}
+
+static void emit_cast(Node *node) {
+    SAVE;
+    emit_expr(node->operand);
+    emit_load_convert(node->ctype, node->operand->ctype);
+    return;
+}
+
+static void emit_comma(Node *node) {
+    SAVE;
+    emit_expr(node->left);
+    emit_expr(node->right);
+}
+
+static void emit_assign(Node *node) {
+    SAVE;
+    if (node->left->ctype->type == CTYPE_STRUCT &&
+        node->left->ctype->size > 8) {
+        emit_copy_struct(node->left, node->right);
+    } else {
+        emit_expr(node->right);
+        emit_load_convert(node->ctype, node->right->ctype);
+        emit_store(node->left);
+    }
+}
+
 static void emit_expr(Node *node) {
     SAVE;
     switch (node->type) {
-    case AST_LITERAL:
-        switch (node->ctype->type) {
-        case CTYPE_BOOL:
-        case CTYPE_CHAR:
-            emit("mov $%d, %%rax", node->ival);
-            break;
-        case CTYPE_INT:
-            emit("mov $%d, %%rax", node->ival);
-            break;
-        case CTYPE_LONG:
-        case CTYPE_LLONG: {
-            emit("mov $%lu, %%rax", node->ival);
-            break;
-        }
-        case CTYPE_FLOAT:
-        case CTYPE_DOUBLE:
-        case CTYPE_LDOUBLE: {
-            if (!node->flabel) {
-                node->flabel = make_label();
-                int *fval = (int*)&node->fval;
-                emit_noindent(".data");
-                emit_label(node->flabel);
-                emit(".long %d", fval[0]);
-                emit(".long %d", fval[1]);
-                emit_noindent(".text");
-            }
-            emit("movsd %s(%%rip), %%xmm0", node->flabel);
-            break;
-        }
-        default:
-            error("internal error");
-        }
-        break;
-    case AST_STRING: {
-        if (!node->slabel) {
-            node->slabel = make_label();
-            emit_noindent(".data");
-            emit_label(node->slabel);
-            emit(".string \"%s\"", quote_cstring(node->sval));
-            emit_noindent(".text");
-        }
-        emit("lea %s(%%rip), %%rax", node->slabel);
-        break;
-    }
-    case AST_LVAR:
-        ensure_lvar_init(node);
-        emit_lload(node->ctype, "rbp", node->loff);
-        break;
-    case AST_GVAR:
-        emit_gload(node->ctype, node->glabel, 0);
-        break;
+    case AST_LITERAL: emit_literal(node); return;
+    case AST_STRING:  emit_literal_string(node); return;
+    case AST_LVAR:    emit_lvar(node); return;
+    case AST_GVAR:    emit_gvar(node); return;
     case AST_FUNCALL:
-    case AST_FUNCPTR_CALL: {
-        bool isptr = (node->type == AST_FUNCPTR_CALL);
-        int ireg = 0;
-        int xreg = 0;
-        List *argtypes = isptr
-            ? get_arg_types(node->args, node->fptr->ctype->ptr->params)
-            : get_arg_types(node->args, node->ftype->params);
-        for (Iter *i = list_iter(argtypes); !iter_end(i);) {
-            if (is_flotype(iter_next(i))) {
-                if (xreg > 0) push_xmm(xreg);
-                xreg++;
-            } else {
-                push(REGS[ireg++]);
-            }
-        }
-        if (isptr) {
-            emit_expr(node->fptr);
-            push("rax");
-        }
-        {
-            Iter *i = list_iter(node->args);
-            Iter *j = list_iter(argtypes);
-            while (!iter_end(i)) {
-                Node *v = iter_next(i);
-                emit_expr(v);
-                Ctype *ptype = iter_next(j);
-                emit_save_convert(ptype, v->ctype);
-                if (is_flotype(ptype))
-                    push_xmm(0);
-                else
-                    push("rax");
-            }
-        }
-        int ir = ireg;
-        int xr = xreg;
-        for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
-            if (is_flotype(iter_next(i)))
-                pop_xmm(--xr);
-            else
-                pop(REGS[--ir]);
-        }
-        if (isptr) pop("rbx");
-        emit("mov $%d, %%eax", xreg);
-        if (stackpos % 16)
-            emit("sub $8, %%rsp");
-        if (isptr) {
-            emit("call *%%rbx");
-        } else {
-            emit("call %s", node->fname);
-        }
-        if (stackpos % 16)
-            emit("add $8, %%rsp");
-        for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
-            if (is_flotype(iter_next(i))) {
-                if (xreg != 1)
-                    pop_xmm(--xreg);
-            } else {
-                pop(REGS[--ireg]);
-            }
-        }
-        if (node->ctype->type == CTYPE_FLOAT)
-            emit("cvtps2pd %%xmm0, %%xmm0");
-        break;
-    }
-    case AST_DECL: {
-        if (node->declinit) {
-            emit_zero_filler(node->declvar->loff,
-                             node->declvar->loff + node->declvar->ctype->size);
-            emit_decl_init(node->declinit, node->declvar->loff);
-        }
-        break;
-    }
-    case AST_ADDR:
-        emit_addr(node->operand);
-        break;
-    case AST_DEREF: {
-        emit_expr(node->operand);
-        emit_lload(node->operand->ctype->ptr, "rax", 0);
-        emit_load_convert(node->ctype, node->operand->ctype->ptr);
-        break;
-    }
+    case AST_FUNCPTR_CALL:
+        emit_func_call(node);
+        return;
+    case AST_DECL:    emit_decl(node); return;
+    case AST_ADDR:    emit_addr(node->operand); return;
+    case AST_DEREF:   emit_deref(node); return;
     case AST_IF:
-    case AST_TERNARY: {
-        emit_expr(node->cond);
-        char *ne = make_label();
-        emit_je(ne);
-        if (node->then)
-            emit_expr(node->then);
-        if (node->els) {
-            char *end = make_label();
-            emit_jmp(end);
-            emit_label(ne);
-            emit_expr(node->els);
-            emit_label(end);
-        } else {
-            emit_label(ne);
-        }
-        break;
-    }
-    case AST_FOR: {
-
-#define SET_JUMP_LABELS(brk, cont)              \
-        char *obreak = lbreak;                  \
-        char *ocontinue = lcontinue;            \
-        lbreak = brk;                           \
-        lcontinue = cont
-#define RESTORE_JUMP_LABELS()                   \
-        lbreak = obreak;                        \
-        lcontinue = ocontinue
-
-        if (node->forinit)
-            emit_expr(node->forinit);
-        char *begin = make_label();
-        char *step = make_label();
-        char *end = make_label();
-        SET_JUMP_LABELS(end, step);
-        emit_label(begin);
-        if (node->forcond) {
-            emit_expr(node->forcond);
-            emit_je(end);
-        }
-        if (node->forbody)
-            emit_expr(node->forbody);
-        emit_label(step);
-        if (node->forstep)
-            emit_expr(node->forstep);
-        emit_jmp(begin);
-        emit_label(end);
-        RESTORE_JUMP_LABELS();
-        break;
-    }
-    case AST_WHILE: {
-        char *begin = make_label();
-        char *end = make_label();
-        SET_JUMP_LABELS(end, begin);
-        emit_label(begin);
-        emit_expr(node->forcond);
-        emit_je(end);
-        if (node->forbody)
-            emit_expr(node->forbody);
-        emit_jmp(begin);
-        emit_label(end);
-        RESTORE_JUMP_LABELS();
-        break;
-    }
-    case AST_DO: {
-        char *begin = make_label();
-        char *end = make_label();
-        SET_JUMP_LABELS(end, begin);
-        emit_label(begin);
-        if (node->forbody)
-            emit_expr(node->forbody);
-        emit_expr(node->forcond);
-        emit_je(end);
-        emit_jmp(begin);
-        emit_label(end);
-        RESTORE_JUMP_LABELS();
-        break;
-#undef SET_JUMP_LABELS
-#undef RESTORE_JUMP_LABELS
-    }
-    case AST_SWITCH: {
-        char *oswitch = lswitch, *obreak = lbreak;
-        emit_expr(node->switchexpr);
-        lswitch = make_label();
-        lbreak = make_label();
-        emit_jmp(lswitch);
-        if (node->switchbody)
-            emit_expr(node->switchbody);
-        emit_label(lswitch);
-        emit_label(lbreak);
-        lswitch = oswitch;
-        lbreak = obreak;
-        break;
-    }
-    case AST_CASE: {
-        if (!lswitch)
-            error("stray case label");
-        char *skip = make_label();
-        emit_jmp(skip);
-        emit_label(lswitch);
-        lswitch = make_label();
-        emit("cmp $%d, %%eax", node->casebeg);
-        if (node->casebeg == node->caseend) {
-            emit("jne %s", lswitch);
-        } else {
-            emit("jl %s", lswitch);
-            emit("cmp $%d, %%eax", node->caseend);
-            emit("jg %s", lswitch);
-        }
-        emit_label(skip);
-        break;
-    }
-    case AST_DEFAULT:
-        if (!lswitch)
-            error("stray case label");
-        emit_label(lswitch);
-        lswitch = make_label();
-        break;
-    case AST_GOTO:
-        assert(node->newlabel);
-        emit_jmp(node->newlabel);
-        break;
+    case AST_TERNARY:
+        emit_ternary(node);
+        return;
+    case AST_FOR:     emit_for(node); return;
+    case AST_WHILE:   emit_while(node); return;
+    case AST_DO:      emit_do(node); return;
+    case AST_SWITCH:  emit_switch(node); return;
+    case AST_CASE:    emit_case(node); return;
+    case AST_DEFAULT: emit_default(node); return;
+    case AST_GOTO:    emit_goto(node); return;
     case AST_LABEL:
         if (node->newlabel)
             emit_label(node->newlabel);
-        break;
-    case AST_RETURN:
-        if (node->retval) {
-            emit_expr(node->retval);
-            emit_save_convert(node->ctype, node->retval->ctype);
-        }
-        emit_ret();
-        break;
-    case AST_BREAK:
-        if (!lbreak)
-            error("stray break statement");
-        emit_jmp(lbreak);
-        break;
-    case AST_CONTINUE:
-        if (!lcontinue)
-            error("stray continue statement");
-        emit_jmp(lcontinue);
-        break;
-    case AST_COMPOUND_STMT:
-        for (Iter *i = list_iter(node->stmts); !iter_end(i);)
-            emit_expr(iter_next(i));
-        break;
+        return;
+    case AST_RETURN:  emit_return(node); return;
+    case AST_BREAK:   emit_break(node); return;
+    case AST_CONTINUE: emit_continue(node); return;
+    case AST_COMPOUND_STMT: emit_compound_stmt(node); return;
     case AST_STRUCT_REF:
         emit_load_struct_ref(node->struc, node->ctype, 0);
-        break;
-    case AST_VA_START:
-        emit_expr(node->ap);
-        push("rcx");
-        emit("movl $%d, (%%rax)", numgp * 8);
-        emit("movl $%d, 4(%%rax)", 48 + numfp * 16);
-        emit("lea %d(%%rbp), %%rcx", -REGAREA_SIZE);
-        emit("mov %%rcx, 16(%%rax)");
-        pop("rcx");
-        break;
-    case AST_VA_ARG:
-        emit_expr(node->ap);
-        emit("nop");
-        push("rcx");
-        push("rbx");
-        emit("mov 16(%%rax), %%rcx");
-        if (is_flotype(node->ctype)) {
-            emit("mov 4(%%rax), %%ebx");
-            emit("add %%rbx, %%rcx");
-            emit("add $16, %%ebx");
-            emit("mov %%ebx, 4(%%rax)");
-            emit("movsd (%%rcx), %%xmm0");
-        } else {
-            emit("mov (%%rax), %%ebx");
-            emit("add %%rbx, %%rcx");
-            emit("add $8, %%ebx");
-            emit("mov %%rbx, (%%rax)");
-            emit("mov (%%rcx), %%rax");
-        }
-        pop("rbx");
-        pop("rcx");
-        break;
-    case OP_PRE_INC:
-        emit_pre_inc_dec(node, "add");
-        break;
-    case OP_PRE_DEC:
-        emit_pre_inc_dec(node, "sub");
-        break;
-    case OP_POST_INC:
-        emit_post_inc_dec(node, "add");
-        break;
-    case OP_POST_DEC:
-        emit_post_inc_dec(node, "sub");
-        break;
-    case '!':
-        emit_expr(node->operand);
-        emit("cmp $0, %%rax");
-        emit("sete %%al");
-        emit("movzb %%al, %%eax");
-        break;
-    case '&':
-        emit_expr(node->left);
-        push("rax");
-        emit_expr(node->right);
-        pop("rcx");
-        emit("and %%rcx, %%rax");
-        break;
-    case '|':
-        emit_expr(node->left);
-        push("rax");
-        emit_expr(node->right);
-        pop("rcx");
-        emit("or %%rcx, %%rax");
-        break;
-    case '~':
-        emit_expr(node->left);
-        emit("not %%rax");
-        break;
-    case OP_LOGAND: {
-        char *end = make_label();
-        emit_expr(node->left);
-        emit("test %%rax, %%rax");
-        emit("mov $0, %%rax");
-        emit("je %s", end);
-        emit_expr(node->right);
-        emit("test %%rax, %%rax");
-        emit("mov $0, %%rax");
-        emit("je %s", end);
-        emit("mov $1, %%rax");
-        emit_label(end);
-        break;
-    }
-    case OP_LOGOR: {
-        char *end = make_label();
-        emit_expr(node->left);
-        emit("test %%rax, %%rax");
-        emit("mov $1, %%rax");
-        emit("jne %s", end);
-        emit_expr(node->right);
-        emit("test %%rax, %%rax");
-        emit("mov $1, %%rax");
-        emit("jne %s", end);
-        emit("mov $0, %%rax");
-        emit_label(end);
-        break;
-    }
-    case OP_CAST: {
-        emit_expr(node->operand);
-        emit_load_convert(node->ctype, node->operand->ctype);
-        break;
-    }
-    case ',':
-        emit_expr(node->left);
-        emit_expr(node->right);
-        break;
-    case '=':
-        if (node->left->ctype->type == CTYPE_STRUCT &&
-            node->left->ctype->size > 8) {
-            emit_copy_struct(node->left, node->right);
-        } else {
-            emit_expr(node->right);
-            emit_load_convert(node->ctype, node->right->ctype);
-            emit_assign(node->left);
-        }
-        break;
+        return;
+    case AST_VA_START: emit_va_start(node); return;
+    case AST_VA_ARG:   emit_va_arg(node); return;
+    case OP_PRE_INC:   emit_pre_inc_dec(node, "add"); return;
+    case OP_PRE_DEC:   emit_pre_inc_dec(node, "sub"); return;
+    case OP_POST_INC:  emit_post_inc_dec(node, "add"); return;
+    case OP_POST_DEC:  emit_post_inc_dec(node, "sub"); return;
+    case '!': emit_lognot(node); return;
+    case '&': emit_bitand(node); return;
+    case '|': emit_bitor(node); return;
+    case '~': emit_bitnot(node); return;
+    case OP_LOGAND: emit_logand(node); return;
+    case OP_LOGOR:  emit_logor(node); return;
+    case OP_CAST:   emit_cast(node); return;
+    case ',': emit_comma(node); return;
+    case '=': emit_assign(node); return;
     default:
         emit_binop(node);
     }
