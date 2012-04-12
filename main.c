@@ -87,8 +87,6 @@ int main(int argc, char **argv) {
     if (wantast)
         suppress_warning = true;
     List *toplevels = read_toplevels();
-    if (!wantast)
-        emit_data_section();
     for (Iter *i = list_iter(toplevels); !iter_end(i);) {
         Node *v = iter_next(i);
         if (wantast)

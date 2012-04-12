@@ -300,10 +300,6 @@ extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
 extern Ctype *result_type(int op, Ctype *a, Ctype *b);
 
-extern void emit_data_section(void);
 extern void emit_toplevel(Node *v);
-
-extern List *strings;
-extern List *flonums;
 
 #endif /* EIGHTCC_H */

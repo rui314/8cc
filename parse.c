@@ -16,8 +16,6 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-List *strings = &EMPTY_LIST;
-List *flonums = &EMPTY_LIST;
 static Dict *globalenv = &EMPTY_DICT;
 static Dict *localenv;
 static Dict *struct_defs = &EMPTY_DICT;
@@ -110,9 +108,7 @@ static Node *ast_inttype(Ctype *ctype, long val) {
 }
 
 static Node *ast_floattype(Ctype *ctype, double val) {
-    Node *r = make_ast(&(Node){ AST_LITERAL, ctype, .fval = val });
-    list_push(flonums, r);
-    return r;
+    return make_ast(&(Node){ AST_LITERAL, ctype, .fval = val, .flabel = NULL });
 }
 
 static Node *ast_lvar(Ctype *ctype, char *name) {
@@ -135,7 +131,7 @@ static Node *ast_string(char *str) {
         .type = AST_STRING,
         .ctype = make_array_type(ctype_char, strlen(str) + 1),
         .sval = str,
-        .slabel = make_label() });
+        .slabel = NULL });
 }
 
 static Node *ast_funcall(Ctype *ftype, char *fname, List *args) {
@@ -770,11 +766,8 @@ static Node *read_primary_expr(void) {
         return read_number(tok->sval);
     case TTYPE_CHAR:
         return ast_inttype(ctype_char, tok->c);
-    case TTYPE_STRING: {
-        Node *r = ast_string(tok->sval);
-        list_push(strings, r);
-        return r;
-    }
+    case TTYPE_STRING:
+        return ast_string(tok->sval);
     case TTYPE_PUNCT:
         unget_token(tok);
         return NULL;
@@ -1637,11 +1630,7 @@ static Node *read_func_body(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
     localvars = make_list();
     current_func_type = functype;
-
-    Node *node = ast_string(fname);
-    dict_put(localenv, "__func__", node);
-    list_push(strings, node);
-
+    dict_put(localenv, "__func__", ast_string(fname));
     Node *body = read_compound_stmt();
     Node *r = ast_func(functype, fname, params, body, localvars);
     dict_put(globalenv, fname, r);

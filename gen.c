@@ -575,16 +575,34 @@ static void emit_expr(Node *node) {
         }
         case CTYPE_FLOAT:
         case CTYPE_DOUBLE:
-        case CTYPE_LDOUBLE:
+        case CTYPE_LDOUBLE: {
+            if (!node->flabel) {
+                node->flabel = make_label();
+                int *fval = (int*)&node->fval;
+                emit_noindent(".data");
+                emit_label(node->flabel);
+                emit(".long %d", fval[0]);
+                emit(".long %d", fval[1]);
+                emit_noindent(".text");
+            }
             emit("movsd %s(%%rip), %%xmm0", node->flabel);
             break;
+        }
         default:
             error("internal error");
         }
         break;
-    case AST_STRING:
+    case AST_STRING: {
+        if (!node->slabel) {
+            node->slabel = make_label();
+            emit_noindent(".data");
+            emit_label(node->slabel);
+            emit(".string \"%s\"", quote_cstring(node->sval));
+            emit_noindent(".text");
+        }
         emit("lea %s(%%rip), %%rax", node->slabel);
         break;
+    }
     case AST_LVAR:
         ensure_lvar_init(node);
         emit_lload(node->ctype, "rbp", node->loff);
@@ -1043,25 +1061,6 @@ static void emit_global_var(Node *v) {
         emit_data(v, 0, 0);
     else
         emit_bss(v);
-}
-
-void emit_data_section(void) {
-    SAVE;
-    emit(".data");
-    for (Iter *i = list_iter(strings); !iter_end(i);) {
-        Node *v = iter_next(i);
-        emit_noindent("%s:", v->slabel);
-        emit(".string \"%s\"", quote_cstring(v->sval));
-    }
-    for (Iter *i = list_iter(flonums); !iter_end(i);) {
-        Node *v = iter_next(i);
-        char *label = make_label();
-        v->flabel = label;
-        int *fval = (int*)&v->fval;
-        emit_noindent("%s:", label);
-        emit(".long %d", fval[0]);
-        emit(".long %d", fval[1]);
-    }
 }
 
 static int align(int n, int m) {
