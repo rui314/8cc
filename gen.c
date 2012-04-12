@@ -18,6 +18,7 @@ static int numfp;
 
 static void emit_expr(Node *node);
 static void emit_decl_init(List *inits, int off);
+static void emit_data(Node *v, int off, int depth);
 
 #define REGAREA_SIZE 304
 
@@ -942,110 +943,104 @@ static void emit_expr(Node *node) {
     }
 }
 
-static void emit_data_init_int(Dict *labels, char *data, Dict *literals, List *inits, int off) {
-    Iter *i = list_iter(inits);
-    while (!iter_end(i)) {
-        Node *node = iter_next(i);
-        if (node->initval->type == AST_ADDR &&
-            node->initval->operand->type == AST_LVAR &&
-            node->initval->operand->lvarinit) {
-            char *label = make_label();
-            dict_put(literals, label, node->initval->operand);
-            dict_put(labels, format("%d", node->initoff + off), label);
-            continue;
-        }
-        if (node->initval->ctype->type == CTYPE_ARRAY && node->initval->ctype->ptr->type == CTYPE_CHAR) {
-            char *label = make_label();
-            dict_put(literals, label, node->initval);
-            dict_put(labels, format("%d", node->initoff + off), label);
-            continue;
-        }
-        if (node->initval->type == AST_LVAR && node->initval->lvarinit) {
-            emit_data_init_int(labels, data, literals, node->initval->lvarinit, node->initoff + off);
-            continue;
-        }
-        if (node->totype->type == CTYPE_FLOAT)
-            *(float *)(data + node->initoff + off) = node->initval->fval;
-        else if (node->totype->type == CTYPE_FLOAT)
-            *(double *)(data + node->initoff + off) = node->initval->fval;
-        else if (node->totype->type == CTYPE_BOOL)
-            *(bool *)(data + node->initoff + off) = !!eval_intexpr(node->initval);
-        else if (node->totype->type == CTYPE_CHAR)
-            *(char *)(data + node->initoff + off) = eval_intexpr(node->initval);
-        else if (node->totype->type == CTYPE_SHORT)
-            *(short *)(data + node->initoff + off) = eval_intexpr(node->initval);
-        else if (node->totype->type == CTYPE_INT)
-            *(int *)(data + node->initoff + off) = eval_intexpr(node->initval);
-        else if (node->totype->type == CTYPE_LONG || node->totype->type == CTYPE_LLONG)
-            *(long *)(data + node->initoff + off) = eval_intexpr(node->initval);
-        else if (node->totype->type == CTYPE_PTR) {
-            *(long *)(data + node->initoff + off) = eval_intexpr(node->initval);
-        } else
-            error("don't know how to handle\n  <%s>\n  <%s>", c2s(node->totype), a2s(node->initval));
-    }
-}
-
-static void emit_data_init(Dict *literals, List *inits, int datasize) {
-    char *data = malloc(datasize);
-    memset(data, 0, datasize);
-    Dict *labels = make_dict(NULL);
-    emit_data_init_int(labels, data, literals, inits, 0);
-    int i = 0;
-    for (; i <= datasize - 4; i += 4) {
-        char *label = dict_get(labels, format("%d", i));
-        if (label) {
-            emit(".quad %s", label);
-            i += 4;
-        } else {
-            emit(".byte %d", data[i]);
-            emit(".byte %d", data[i+1]);
-            emit(".byte %d", data[i+2]);
-            emit(".byte %d", data[i+3]);
-        }
-    }
-    for (; i < datasize; i++)
-        emit(".byte %d", data[i]);
-    emit(".align 8");
-}
-
-static void emit_data_literals(char *label, Node *node) {
-    Dict *literals = make_dict(NULL);
-    emit_noindent("%s:", label);
-    if (node->ctype->type == CTYPE_ARRAY && node->ctype->ptr->type == CTYPE_CHAR) {
-        emit(".string \"%s\"", quote_cstring(node->sval));
-        return;
-    }
-    emit_data_init(literals, node->lvarinit, node->ctype->size);
-    for (Iter *i = list_iter(dict_keys(literals)); !iter_end(i);) {
-        char *label = iter_next(i);
-        Node *node2 = dict_get(literals, label);
-        emit_data_literals(label, node2);
-    }
-}
-
-static void emit_data(Node *v) {
+static void emit_zero(int size) {
     SAVE;
-    Dict *literals = make_dict(NULL);
+    for (; size >= 8; size -= 8) emit(".quad 0");
+    for (; size >= 4; size -= 4) emit(".long 0");
+    for (; size > 0; size--)     emit(".byte 0");
+}
+
+static void emit_padding(Node *node, int off) {
+    SAVE;
+    int diff = node->initoff - off;
+    assert(diff >= 0);
+    emit_zero(diff);
+}
+
+static void emit_data_int(List *inits, int size, int off, int depth) {
+    SAVE;
+    Iter *i = list_iter(inits);
+    while (!iter_end(i) && 0 < size) {
+        Node *node = iter_next(i);
+        Node *v = node->initval;
+        emit_padding(node, off);
+        off += node->totype->size;
+        size -= node->totype->size;
+        if (v->type == AST_ADDR) {
+            char *label = make_label();
+            emit(".data %d", depth + 1);
+            emit_label(label);
+            emit_data_int(v->operand->lvarinit, v->operand->ctype->size, 0, depth + 1);
+            emit(".data %d", depth);
+            emit(".quad %s", label);
+            continue;
+        }
+        if (v->type == AST_LVAR && v->lvarinit) {
+            emit_data_int(v->lvarinit, v->ctype->size, 0, depth);
+            continue;
+        }
+        bool is_char_ptr = (v->ctype->type == CTYPE_ARRAY && v->ctype->ptr->type == CTYPE_CHAR);
+        if (is_char_ptr) {
+            char *label = make_label();
+            emit(".data %d", depth + 1);
+            emit_label(label);
+            emit(".string \"%s\"", quote_cstring(v->sval));
+            emit(".data %d", depth);
+            emit(".quad %s", label);
+            continue;
+        }
+        switch (node->totype->type) {
+        case CTYPE_FLOAT: {
+            float v = node->initval->fval;
+            emit(".long %d", *(int *)&v);
+            break;
+        }
+        case CTYPE_DOUBLE:
+            emit(".quad %ld", *(long *)&node->initval->fval);
+            break;
+        case CTYPE_BOOL:
+            emit(".byte %d", !!eval_intexpr(node->initval));
+            break;
+        case CTYPE_CHAR:
+            emit(".byte %d", eval_intexpr(node->initval));
+            break;
+        case CTYPE_SHORT:
+            emit(".short %d", eval_intexpr(node->initval));
+            break;
+        case CTYPE_INT:
+            emit(".long %d", eval_intexpr(node->initval));
+            break;
+        case CTYPE_LONG:
+        case CTYPE_LLONG:
+        case CTYPE_PTR:
+            emit(".quad %d", eval_intexpr(node->initval));
+            break;
+        default:
+            error("don't know how to handle\n  <%s>\n  <%s>", c2s(node->totype), a2s(node->initval));
+        }
+    }
+    emit_zero(size);
+}
+
+static void emit_data(Node *v, int off, int depth) {
+    SAVE;
+    emit(".data %d", depth);
     if (!v->declvar->ctype->isstatic)
         emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
-    emit_data_init(literals, v->declinit, v->declvar->ctype->size);
-    for (Iter *i = list_iter(dict_keys(literals)); !iter_end(i);) {
-        char *label = iter_next(i);
-        Node *node = dict_get(literals, label);
-        emit_data_literals(label, node);
-    }
+    emit_data_int(v->declinit, v->declvar->ctype->size, off, depth);
 }
 
 static void emit_bss(Node *v) {
     SAVE;
+    emit(".data");
     emit(".lcomm %s, %d", v->declvar->varname, v->declvar->ctype->size);
 }
 
 static void emit_global_var(Node *v) {
     SAVE;
     if (v->declinit)
-        emit_data(v);
+        emit_data(v, 0, 0);
     else
         emit_bss(v);
 }
