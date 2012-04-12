@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "8cc.h"
 
 static char *file;
@@ -13,26 +14,33 @@ static bool cpponly;
 static void usage(void) {
     fprintf(stderr,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
-            "  -E    print preprocessed source code\n"
-            "  -a    print AST\n"
-            "  -h    print this help\n\n");
+            "  -E        print preprocessed source code\n"
+            "  -a        print AST\n"
+            "  -h        print this help\n\n");
     exit(1);
 }
 
 static void parseopt(int argc, char **argv) {
-    int i;
-    for (i = 1; argv[i]; i++) {
-        if (!strcmp(argv[i], "-a"))
-            wantast = true;
-        else if (!strcmp(argv[i], "-E"))
+    for (;;) {
+        int opt = getopt(argc, argv, "Eah");
+        if (opt == -1)
+            break;
+        switch (opt) {
+        case 'E':
             cpponly = true;
-        else if (!strcmp(argv[i], "-h"))
+            break;
+        case 'a':
+            wantast = true;
+            break;
+        case 'h':
             usage();
-        else break;
+        default:
+            usage();
+        }
     }
-    if (i != argc - 1)
+    if (optind != argc - 1)
         usage();
-    file = argv[i];
+    file = argv[optind];
 }
 
 static void preprocess(void) {
