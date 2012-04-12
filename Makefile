@@ -27,7 +27,7 @@ test/%.bin: test/%.s test/util/testmain.o 8cc
 
 $(SELF): 8cc
 	./8cc $(@:s=c) > $@
-	$(CC) -c $@
+	$(AS) -o $(@:s=o) -c $@
 
 self: $(SELF)
 	rm -f 8cc utiltest
