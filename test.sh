@@ -8,9 +8,6 @@ function fail {
 
 function compile {
     echo "$1" | ./8cc - > tmp.s || fail "Failed to compile $1"
-    if [ $? -ne 0 ]; then
-        fail "Failed to compile $1"
-    fi
     gcc -o tmp.out tmp.s
      [ $? -ne 0 ] && fail "GCC failed: $1"
 }
@@ -34,9 +31,16 @@ function testm {
     assertequal "$(./tmp.out)" "$1"
 }
 
+function testcpp {
+    echo "$2" | ./8cc -E $3 - > tmp.s || fail "Failed to compile $1"
+    assertequal "$(cat tmp.s)" "$1"
+}
+
+
 function testfail {
-    expr="int f(){$1}"
     echo "$expr" | ./8cc - > /dev/null 2>&1
+    expr="int f(){$1}"
+    echo "$expr" | ./8cc $OPTION - > /dev/null 2>&1
     [ $? -eq 0 ] && fail "Should fail to compile, but succeded: $expr"
 }
 
@@ -52,7 +56,7 @@ testast '(() -> int)f(){(/ (/ 24 2) 4);}' '24/2/4;'
 testast '(() -> int)f(){(decl int a 3@0);}' 'int a=3;'
 testast "(() -> int)f(){(decl char c 'a'@0);}" "char c='a';"
 testast '(() -> int)f(){(decl *char s "abcd"@0);}' 'char *s="abcd";'
-testast "(() -> int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[5]="asdf";'
+#testast "(() -> int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[5]="asdf";'
 testast "(() -> int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[]="asdf";'
 testast '(() -> int)f(){(decl [3]int a 1@0 2@4 3@8);}' 'int a[3]={1,2,3};'
 testast '(() -> int)f(){(decl [3]int a 1@0 2@4 3@8);}' 'int a[]={1,2,3};'
@@ -103,5 +107,8 @@ testfail '1=2;'
 testfail '&"a";'
 testfail '&1;'
 testfail '&a();'
+
+# -D command line options
+testcpp ' 77' 'foo' '-Dfoo=77'
 
 echo "All tests passed"

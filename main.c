@@ -10,30 +10,44 @@
 static char *file;
 static bool wantast;
 static bool cpponly;
+static String *cppdefs;
 
 static void usage(void) {
     fprintf(stderr,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
-            "  -E        print preprocessed source code\n"
-            "  -a        print AST\n"
-            "  -h        print this help\n\n");
+            "  -E                print preprocessed source code\n"
+            "  -D name           Predefine name as a macro\n"
+            "  -D name=def\n"
+            "  -U name           Undefine name\n"
+            "  -a                print AST\n"
+            "  -h                print this help\n\n");
     exit(1);
 }
 
 static void parseopt(int argc, char **argv) {
+    cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "Eah");
+        int opt = getopt(argc, argv, "ED:U:ah");
         if (opt == -1)
             break;
         switch (opt) {
         case 'E':
             cpponly = true;
             break;
+        case 'D': {
+            char *p = strchr(optarg, '=');
+            if (p)
+                *p = ' ';
+            string_appendf(cppdefs, "#define %s\n", optarg);
+            break;
+        }
+        case 'U':
+            string_appendf(cppdefs, "#undef %s\n", optarg);
+            break;
         case 'a':
             wantast = true;
             break;
         case 'h':
-            usage();
         default:
             usage();
         }
@@ -63,6 +77,8 @@ int main(int argc, char **argv) {
     parseopt(argc, argv);
 
     cpp_init();
+    if (string_len(cppdefs) > 0)
+        cpp_eval(get_cstring(cppdefs));
     lex_init(file);
 
     if (cpponly)

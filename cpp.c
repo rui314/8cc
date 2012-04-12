@@ -43,7 +43,7 @@ static void read_print(void);
  * Eval
  */
 
-static void eval(char *buf) {
+void cpp_eval(char *buf) {
     FILE *fp = fmemopen(buf, strlen(buf), "r");
     set_input_file("(eval)", NULL, fp);
     List *toplevels = read_toplevels();
@@ -791,9 +791,9 @@ void cpp_init(void) {
     define_obj_macro("__SIZEOF_PTRDIFF_T__", make_number("8"));
     define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));
 
-    eval("typedef long size_t;"
-         "typedef long ptrdiff_t;"
-         "typedef int wchar_t;");
+    cpp_eval("typedef long size_t;"
+             "typedef long ptrdiff_t;"
+             "typedef int wchar_t;");
 }
 
 /*----------------------------------------------------------------------
