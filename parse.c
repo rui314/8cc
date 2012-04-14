@@ -315,13 +315,22 @@ static Ctype *make_stub_type(void) {
  */
 
 bool is_inttype(Ctype *ctype) {
-    return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_SHORT ||
-        ctype->type == CTYPE_INT || ctype->type == CTYPE_LONG || ctype->type == CTYPE_LLONG;
+    switch (ctype->type) {
+    case CTYPE_BOOL: case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
+    case CTYPE_LONG: case CTYPE_LLONG:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool is_flotype(Ctype *ctype) {
-    return ctype->type == CTYPE_FLOAT || ctype->type == CTYPE_DOUBLE ||
-        ctype->type == CTYPE_LDOUBLE;
+    switch (ctype->type) {
+    case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
+        return true;
+    default:
+        return false;
+    }
 }
 
 static bool is_arithtype(Ctype *ctype) {
@@ -396,6 +405,7 @@ static int conversion_rank(Ctype *ctype) {
     case CTYPE_INT:     return 3;
     case CTYPE_SHORT:   return 2;
     case CTYPE_CHAR:    return 1;
+    case CTYPE_BOOL:    return 0;
     default:
         error("internal error: %s", c2s(ctype));
     }
@@ -457,6 +467,16 @@ static bool is_same_struct(Ctype *a, Ctype *b) {
     default:
         return true;
     }
+}
+
+static void ensure_assignable(Ctype *totype, Ctype *fromtype) {
+    fromtype = convert_array(fromtype);
+    if ((is_arithtype(totype) || totype->type == CTYPE_PTR) &&
+        (is_arithtype(fromtype) || fromtype->type == CTYPE_PTR))
+        return;
+    if (is_same_struct(totype, fromtype))
+        return;
+    error("incompatible type: <%s> <%s>", c2s(totype), c2s(fromtype));
 }
 
 static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
@@ -722,9 +742,7 @@ static void function_type_check(char *fname, List *params, List *args) {
         Node *node = iter_next(j);
         Ctype *arg = node->ctype;
         if (param)
-            result_type('=', param, arg);
-        else
-            result_type('=', arg, ctype_int);
+            ensure_assignable(param, arg);
     }
 }
 
@@ -1323,7 +1341,7 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
         read_initializer_list(inits, ctype, off);
     } else {
         Node *expr = read_assignment_expr();
-        result_type('=', ctype, expr->ctype);
+        ensure_assignable(ctype, expr->ctype);
         list_push(inits, ast_init(expr, ctype, off));
     }
 }
