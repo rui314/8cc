@@ -67,6 +67,7 @@ enum {
     AST_FUNC,
     AST_DECL,
     AST_INIT,
+    AST_CONV,
     AST_ADDR,
     AST_DEREF,
     AST_IF,

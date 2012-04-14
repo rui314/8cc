@@ -87,7 +87,7 @@ testast '(() -> int)f(){(or 1 2);}' '1||2;'
 testast '(() -> int)f(){(& 1 2);}' '1&2;'
 testast '(() -> int)f(){(| 1 2);}' '1|2;'
 testast '(() -> int)f(){1.200000;}' '1.2;'
-testast '(() -> int)f(){(+ 1.200000 1);}' '1.2+1;'
+testast '(() -> int)f(){(+ 1.200000 (conv 1 -> double));}' '1.2+1;'
 
 testastf '((int) -> int)f(int c){c;}' 'int f(int c){c;}'
 testastf '((int) -> int)f(int c){c;}((int) -> int)g(int d){d;}' 'int f(int c){c;} int g(int d){d;}'

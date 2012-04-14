@@ -154,6 +154,9 @@ static void a2s_int(String *buf, Node *node) {
     case AST_INIT:
         string_appendf(buf, "%s@%d", a2s(node->initval), node->initoff);
         break;
+    case AST_CONV:
+        string_appendf(buf, "(conv %s -> %s)", a2s(node->operand), c2s(node->ctype));
+        break;
     case AST_IF:
         string_appendf(buf, "(if %s %s",
                        a2s(node->cond),

@@ -688,6 +688,12 @@ static void emit_decl(Node *node) {
     emit_decl_init(node->declinit, node->declvar->loff);
 }
 
+static void emit_conv(Node *node) {
+    SAVE;
+    emit_expr(node->operand);
+    emit_load_convert(node->operand->ctype, node->ctype);
+}
+
 static void emit_deref(Node *node) {
     SAVE;
     emit_expr(node->operand);
@@ -989,6 +995,7 @@ static void emit_expr(Node *node) {
         emit_func_call(node);
         return;
     case AST_DECL:    emit_decl(node); return;
+    case AST_CONV:    emit_conv(node); return;
     case AST_ADDR:    emit_addr(node->operand); return;
     case AST_DEREF:   emit_deref(node); return;
     case AST_IF:

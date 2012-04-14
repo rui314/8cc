@@ -179,6 +179,10 @@ static Node *ast_init(Node *val, Ctype *totype, int off) {
     return make_ast(&(Node){ AST_INIT, .initval = val, .initoff = off, .totype = totype });
 }
 
+static Node *ast_conv(Ctype *totype, Node *val) {
+    return make_ast(&(Node){ AST_CONV, totype, .operand = val });
+}
+
 static Node *ast_if(Node *cond, Node *then, Node *els) {
     return make_ast(&(Node){ AST_IF, .cond = cond, .then = then, .els = els });
 }
@@ -320,6 +324,10 @@ bool is_flotype(Ctype *ctype) {
         ctype->type == CTYPE_LDOUBLE;
 }
 
+static bool is_arithtype(Ctype *ctype) {
+    return is_inttype(ctype) || is_flotype(ctype);
+}
+
 static void ensure_lvalue(Node *node) {
     switch (node->type) {
     case AST_LVAR: case AST_GVAR: case AST_DEREF: case AST_STRUCT_REF:
@@ -376,6 +384,34 @@ static bool next_token(int type) {
 /*----------------------------------------------------------------------
  * Type conversion
  */
+
+static int conversion_rank(Ctype *ctype) {
+    assert(is_arithtype(ctype));
+    switch (ctype->type) {
+    case CTYPE_LDOUBLE: return 8;
+    case CTYPE_DOUBLE:  return 7;
+    case CTYPE_FLOAT:   return 6;
+    case CTYPE_LLONG:   return 5;
+    case CTYPE_LONG:    return 4;
+    case CTYPE_INT:     return 3;
+    case CTYPE_SHORT:   return 2;
+    case CTYPE_CHAR:    return 1;
+    default:
+        error("internal error: %s", c2s(ctype));
+    }
+}
+
+static Node *usual_conv(int op, Node *left, Node *right) {
+    if (!is_arithtype(left->ctype) || !is_arithtype(right->ctype))
+        return ast_binop(op, left, right);
+    int rank1 = conversion_rank(left->ctype);
+    int rank2 = conversion_rank(right->ctype);
+    if (rank1 < rank2)
+        left = ast_conv(right->ctype, left);
+    else if (rank1 != rank2)
+        right = ast_conv(left->ctype, right);
+    return ast_binop(op, left, right);
+}
 
 static bool is_same_struct(Ctype *a, Ctype *b) {
     if (a->type != b->type)
@@ -507,6 +543,7 @@ int eval_intexpr(Node *node) {
     case '!': return !eval_intexpr(node->operand);
     case '~': return ~eval_intexpr(node->operand);
     case OP_CAST: return eval_intexpr(node->operand);
+    case AST_CONV: return eval_intexpr(node->operand);
     case AST_TERNARY:
         return eval_intexpr(node->cond) ? eval_intexpr(node->then) : eval_intexpr(node->els);
 #define L (eval_intexpr(node->left))
@@ -916,9 +953,9 @@ static Node *read_multiplicative_expr(void) {
     Node *node = read_cast_expr();
     node = convert_funcdesg(node);
     for (;;) {
-        if      (next_token('*')) node = ast_binop('*', node, convert_funcdesg(read_cast_expr()));
-        else if (next_token('/')) node = ast_binop('/', node, convert_funcdesg(read_cast_expr()));
-        else if (next_token('%')) node = ast_binop('%', node, convert_funcdesg(read_cast_expr()));
+        if      (next_token('*')) node = usual_conv('*', node, convert_funcdesg(read_cast_expr()));
+        else if (next_token('/')) node = usual_conv('/', node, convert_funcdesg(read_cast_expr()));
+        else if (next_token('%')) node = usual_conv('%', node, convert_funcdesg(read_cast_expr()));
         else break;
     }
     return node;
@@ -927,8 +964,8 @@ static Node *read_multiplicative_expr(void) {
 static Node *read_additive_expr(void) {
     Node *node = read_multiplicative_expr();
     for (;;) {
-        if      (next_token('+')) node = ast_binop('+', node, read_multiplicative_expr());
-        else if (next_token('-')) node = ast_binop('-', node, read_multiplicative_expr());
+        if      (next_token('+')) node = usual_conv('+', node, read_multiplicative_expr());
+        else if (next_token('-')) node = usual_conv('-', node, read_multiplicative_expr());
         else break;
     }
     return node;
@@ -947,10 +984,10 @@ static Node *read_shift_expr(void) {
 static Node *read_relational_expr(void) {
     Node *node = read_shift_expr();
     for (;;) {
-        if      (next_token('<'))   node = ast_binop('<',   node, read_shift_expr());
-        else if (next_token('>'))   node = ast_binop('>',   node, read_shift_expr());
-        else if (next_token(OP_LE)) node = ast_binop(OP_LE, node, read_shift_expr());
-        else if (next_token(OP_GE)) node = ast_binop(OP_GE, node, read_shift_expr());
+        if      (next_token('<'))   node = usual_conv('<',   node, read_shift_expr());
+        else if (next_token('>'))   node = usual_conv('>',   node, read_shift_expr());
+        else if (next_token(OP_LE)) node = usual_conv(OP_LE, node, read_shift_expr());
+        else if (next_token(OP_GE)) node = usual_conv(OP_GE, node, read_shift_expr());
         else break;
     }
     return node;
@@ -959,30 +996,30 @@ static Node *read_relational_expr(void) {
 static Node *read_equality_expr(void) {
     Node *node = read_relational_expr();
     if (next_token(OP_EQ))
-        return ast_binop(OP_EQ, node, read_equality_expr());
+        return usual_conv(OP_EQ, node, read_equality_expr());
     if (next_token(OP_NE))
-        return ast_binop(OP_NE, node, read_equality_expr());
+        return usual_conv(OP_NE, node, read_equality_expr());
     return node;
 }
 
 static Node *read_bitand_expr(void) {
     Node *node = read_equality_expr();
     while (next_token('&'))
-        node = ast_binop('&', node, read_equality_expr());
+        node = usual_conv('&', node, read_equality_expr());
     return node;
 }
 
 static Node *read_bitxor_expr(void) {
     Node *node = read_bitand_expr();
     while (next_token('^'))
-        node = ast_binop('^', node, read_bitand_expr());
+        node = usual_conv('^', node, read_bitand_expr());
     return node;
 }
 
 static Node *read_bitor_expr(void) {
     Node *node = read_bitxor_expr();
     while (next_token('|'))
-        node = ast_binop('|', node, read_bitxor_expr());
+        node = usual_conv('|', node, read_bitxor_expr());
     return node;
 }
 
