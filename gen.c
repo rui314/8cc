@@ -291,6 +291,21 @@ static void emit_store(Node *var) {
     }
 }
 
+static void emit_to_bool(Ctype *ctype) {
+    SAVE;
+    if (is_flotype(ctype)) {
+        push_xmm(1);
+        emit("xorpd %%xmm1, %%xmm1");
+        emit("ucomisd %%xmm1, %%xmm0");
+        emit("setne %%al");
+        pop_xmm(1);
+    } else {
+        emit("cmp $0, %%rax");
+        emit("setne %%al");
+    }
+    emit("movzb %%al, %%eax");
+}
+
 static void emit_comp(char *inst, Node *node) {
     SAVE;
     if (is_flotype(node->left->ctype) || is_flotype(node->right->ctype)) {
@@ -363,9 +378,10 @@ static void emit_load_convert(Ctype *to, Ctype *from) {
     SAVE;
     if (is_flotype(to)) {
         emit_todouble(from);
+    } else if (to->type == CTYPE_BOOL) {
+        emit_to_bool(from);
     } else {
         emit_toint(from);
-        maybe_convert_bool(to);
     }
 }
 
