@@ -330,7 +330,7 @@ static void emit_binop_int_arith(Node *node) {
     emit("mov %%rax, %%rcx");
     pop("rax");
     if (node->type == '/' || node->type == '%') {
-        emit("cqo");
+        emit("cqto");
         emit("idiv %%rcx");
         if (node->type == '%')
             emit("mov %%edx, %%eax");
