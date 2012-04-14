@@ -11,6 +11,7 @@
 #include <time.h>
 #include "8cc.h"
 
+bool debug_cpp;
 static Dict *macros = &EMPTY_DICT;
 static List *cond_incl_stack = &EMPTY_LIST;
 static List *std_include_path;
@@ -911,5 +912,8 @@ Token *read_token(void) {
         conc->sval = format("%s%s", tok->sval, tok2->sval);
         unget_token(conc);
     }
-    return maybe_convert_keyword(tok);
+    Token *r = maybe_convert_keyword(tok);
+    if (debug_cpp)
+        fprintf(stderr, "  token=%s\n", t2s(r));
+    return r;
 }

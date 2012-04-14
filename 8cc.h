@@ -305,4 +305,6 @@ extern Ctype *result_type(int op, Ctype *a, Ctype *b);
 
 extern void emit_toplevel(Node *v);
 
+extern bool debug_cpp;
+
 #endif /* EIGHTCC_H */

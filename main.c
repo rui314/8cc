@@ -20,14 +20,26 @@ static void usage(void) {
             "  -D name=def\n"
             "  -U name           Undefine name\n"
             "  -a                print AST\n"
+            "  -d cpp            print tokens for debugging\n"
             "  -h                print this help\n\n");
     exit(1);
+}
+
+static void parse_debug_arg(char *s) {
+    char *tok, *save;
+    while ((tok = strtok_r(s, ",", &save)) != NULL) {
+        s = NULL;
+        if (!strcmp(tok, "cpp"))
+            debug_cpp = true;
+        else
+            error("Unknown debug parameter: %s", tok);
+    }
 }
 
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "ED:U:ah");
+        int opt = getopt(argc, argv, "ED:U:ad:h");
         if (opt == -1)
             break;
         switch (opt) {
@@ -46,6 +58,9 @@ static void parseopt(int argc, char **argv) {
             break;
         case 'a':
             wantast = true;
+            break;
+        case 'd':
+            parse_debug_arg(optarg);
             break;
         case 'h':
         default:
