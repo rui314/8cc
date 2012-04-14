@@ -519,7 +519,7 @@ static List *get_arg_types(List *params, List *args) {
     while (!iter_end(i)) {
         Node *v = iter_next(i);
         Ctype *ptype = iter_next(j);
-        list_push(r, ptype ? ptype : result_type('=', v->ctype, ctype_int));
+        list_push(r, ptype ? ptype : v->ctype);
     }
     return r;
 }
@@ -683,7 +683,7 @@ static void emit_decl(Node *node) {
 static void emit_conv(Node *node) {
     SAVE;
     emit_expr(node->operand);
-    emit_load_convert(node->operand->ctype, node->ctype);
+    emit_load_convert(node->ctype, node->operand->ctype);
 }
 
 static void emit_deref(Node *node) {

@@ -304,7 +304,6 @@ extern Node *read_expr(void);
 extern int eval_intexpr(Node *node);
 extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
-extern Ctype *result_type(int op, Ctype *a, Ctype *b);
 
 extern void emit_toplevel(Node *v);
 

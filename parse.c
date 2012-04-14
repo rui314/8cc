@@ -415,19 +415,26 @@ static Ctype *larger_type(Ctype *a, Ctype *b) {
     return conversion_rank(a) < conversion_rank(b) ? b : a;
 }
 
-static Ctype *result_type2(int op, Ctype *ctype) {
+static Ctype *result_type(int op, Ctype *ctype) {
     switch (op) {
-    case OP_LE: case OP_GE: case OP_EQ: case OP_NE:
-    case '<': case '>':
+    case OP_LE: case OP_GE: case OP_EQ: case OP_NE: case '<': case '>':
         return ctype_int;
     default:
-        return result_type(op, ctype, ctype);
+        return larger_type(ctype, ctype);
     }
 }
 
 static Node *usual_conv(int op, Node *left, Node *right) {
     if (!is_arithtype(left->ctype) || !is_arithtype(right->ctype)) {
-        Ctype *resulttype = result_type(op, left->ctype, right->ctype);
+        Ctype *resulttype;
+        switch (op) {
+        case OP_LE: case OP_GE: case OP_EQ: case OP_NE: case '<': case '>':
+            resulttype = ctype_int;
+            break;
+        default:
+            resulttype = convert_array(left->ctype);
+            break;
+        }
         return ast_binop(resulttype, op, left, right);
     }
     int rank1 = conversion_rank(left->ctype);
@@ -436,7 +443,7 @@ static Node *usual_conv(int op, Node *left, Node *right) {
         left = ast_conv(right->ctype, left);
     else if (rank1 != rank2)
         right = ast_conv(left->ctype, right);
-    Ctype *resulttype = result_type2(op, left->ctype);
+    Ctype *resulttype = result_type(op, left->ctype);
     return ast_binop(resulttype, op, left, right);
 }
 
@@ -477,88 +484,6 @@ static void ensure_assignable(Ctype *totype, Ctype *fromtype) {
     if (is_same_struct(totype, fromtype))
         return;
     error("incompatible type: <%s> <%s>", c2s(totype), c2s(fromtype));
-}
-
-static Ctype *result_type_int(jmp_buf *jmpbuf, char op, Ctype *a, Ctype *b) {
-    if (op == ',')
-        return b;
-    if (a->type > b->type) {
-        Ctype *tmp = a;
-        a = b;
-        b = tmp;
-    }
-    if (b->type == CTYPE_PTR) {
-        if (op == '=')
-            return a;
-        if (op != '+' && op != '-')
-            goto err;
-        if (!is_inttype(a))
-            goto err;
-        return b;
-    }
-    switch (a->type) {
-    case CTYPE_VOID:
-        goto err;
-    case CTYPE_BOOL:
-    case CTYPE_CHAR:
-    case CTYPE_SHORT:
-    case CTYPE_INT:
-        switch (b->type) {
-        case CTYPE_BOOL: case CTYPE_CHAR: case CTYPE_SHORT: case CTYPE_INT:
-            return ctype_int;
-        case CTYPE_LONG: case CTYPE_LLONG:
-            return ctype_long;
-        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
-            return ctype_double;
-        case CTYPE_ARRAY: case CTYPE_PTR:
-            return b;
-        }
-        error("internal error: %s", c2s(b));
-    case CTYPE_LONG: case CTYPE_LLONG:
-        switch (b->type) {
-        case CTYPE_LONG: case CTYPE_LLONG:
-            return ctype_long;
-        case CTYPE_FLOAT: case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
-            return ctype_double;
-        case CTYPE_ARRAY: case CTYPE_PTR:
-            return b;
-        }
-        error("internal error");
-    case CTYPE_FLOAT:
-        if (b->type == CTYPE_FLOAT || b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
-            return ctype_double;
-        goto err;
-    case CTYPE_DOUBLE: case CTYPE_LDOUBLE:
-        if (b->type == CTYPE_DOUBLE || b->type == CTYPE_LDOUBLE)
-            return ctype_double;
-        goto err;
-    case CTYPE_ARRAY:
-        if (b->type != CTYPE_ARRAY)
-            goto err;
-        return result_type_int(jmpbuf, op, a->ptr, b->ptr);
-    case CTYPE_STRUCT:
-        if (!is_same_struct(a, b))
-            goto err;
-        return a;
-    default:
-        error("internal error: <%s>, <%s>", c2s(a), c2s(b));
-    }
- err:
-    longjmp(*jmpbuf, 1);
-}
-
-Ctype *result_type(int op, Ctype *a, Ctype *b) {
-    switch (op) {
-    case '!': case '~': case '<': case '>': case '&': case '%':
-    case OP_EQ: case OP_GE: case OP_LE: case OP_NE: case OP_LSH:
-    case OP_RSH: case OP_LOGAND: case OP_LOGOR: case AST_TERNARY:
-        return ctype_int;
-    }
-    jmp_buf jmpbuf;
-    if (setjmp(jmpbuf) == 0)
-        return result_type_int(&jmpbuf, op, convert_array(a), convert_array(b));
-    error("incompatible operands: %c: <%s> and <%s>",
-          op, c2s(a), c2s(b));
 }
 
 static Ctype *convert_array(Ctype *ctype) {
@@ -732,25 +657,22 @@ static Node *read_va_arg(void) {
  * Function arguments
  */
 
-static void function_type_check(char *fname, List *params, List *args) {
-    if (list_len(args) < list_len(params))
-        error("Too few arguments: %s", fname);
-    Iter *i = list_iter(params);
-    Iter *j = list_iter(args);
-    while (!iter_end(j)) {
-        Ctype *param = iter_next(i);
-        Node *node = iter_next(j);
-        Ctype *arg = node->ctype;
-        if (param)
-            ensure_assignable(param, arg);
-    }
-}
-
-static List *read_func_args(void) {
+static List *read_func_args(List *params) {
     List *args = make_list();
+    Iter *iter = list_iter(params);
     for (;;) {
         if (next_token(')')) break;
-        list_push(args, read_assignment_expr());
+        Node *arg = read_assignment_expr();
+        Ctype *paramtype = iter_next(iter);
+        if (!paramtype) {
+            paramtype = is_flotype(arg->ctype) ? ctype_double :
+                is_inttype(arg->ctype) ? ctype_int :
+                arg->ctype;
+        }
+        ensure_assignable(convert_array(paramtype), convert_array(arg->ctype));
+        if (paramtype->type != arg->ctype->type)
+            arg = ast_conv(paramtype, arg);
+        list_push(args, arg);
         Token *tok = read_token();
         if (is_punct(tok, ')')) break;
         if (!is_punct(tok, ','))
@@ -766,23 +688,20 @@ static Node *read_funcall(char *fname, Node *func) {
         return read_va_start();
     if (strcmp(fname, "__builtin_va_arg") == 0)
         return read_va_arg();
-    List *args = read_func_args();
     if (func) {
         Ctype *t = func->ctype;
         if (t->type != CTYPE_FUNC)
             error("%s is not a function, but %s", fname, c2s(t));
-        assert(t->params);
-        function_type_check(fname, t->params, args);
+        List *args = read_func_args(t->params);
         return ast_funcall(t, fname, args);
     }
     warn("assume returning int: %s()", fname);
+    List *args = read_func_args(&EMPTY_LIST);
     return ast_funcall(make_func_type(ctype_int, make_list(), true), fname, args);
 }
 
 static Node *read_funcptr_call(Node *fptr) {
-    List *args = read_func_args();
-    Ctype *t = fptr->ctype;
-    function_type_check(NULL, t->ptr->params, args);
+    List *args = read_func_args(fptr->ctype->ptr->params);
     return ast_funcptr_call(fptr, args);
 }
 
