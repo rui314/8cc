@@ -295,18 +295,14 @@ static void emit_comp(char *inst, Node *node) {
     SAVE;
     if (is_flotype(node->left->ctype) || is_flotype(node->right->ctype)) {
         emit_expr(node->left);
-        emit_todouble(node->left->ctype);
         push_xmm(0);
         emit_expr(node->right);
-        emit_todouble(node->right->ctype);
         pop_xmm(1);
         emit("ucomisd %%xmm0, %%xmm1");
     } else {
         emit_expr(node->left);
-        emit_toint(node->left->ctype);
         push("rax");
         emit_expr(node->right);
-        emit_toint(node->right->ctype);
         pop("rcx");
         emit("cmp %%rax, %%rcx");
     }
@@ -328,10 +324,8 @@ static void emit_binop_int_arith(Node *node) {
     default: error("invalid operator '%d'", node->type);
     }
     emit_expr(node->left);
-    emit_toint(node->left->ctype);
     push("rax");
     emit_expr(node->right);
-    emit_toint(node->right->ctype);
     emit("mov %%rax, %%rcx");
     pop("rax");
     if (node->type == '/' || node->type == '%') {
@@ -357,10 +351,8 @@ static void emit_binop_float_arith(Node *node) {
     default: error("invalid operator '%d'", node->type);
     }
     emit_expr(node->left);
-    emit_todouble(node->left->ctype);
     push_xmm(0);
     emit_expr(node->right);
-    emit_todouble(node->right->ctype);
     emit("movsd %%xmm0, %%xmm1");
     pop_xmm(0);
     emit("%s %%xmm1, %%xmm0", op);

@@ -103,6 +103,13 @@ static Node *ast_binop(int type, Node *left, Node *right) {
     return r;
 }
 
+static Node *ast_binop2(Ctype *ctype, int type, Node *left, Node *right) {
+    Node *r = make_ast(&(Node){ type, ctype });
+    r->left = left;
+    r->right = right;
+    return r;
+}
+
 static Node *ast_inttype(Ctype *ctype, long val) {
     return make_ast(&(Node){ AST_LITERAL, ctype, .ival = val });
 }
@@ -401,6 +408,16 @@ static int conversion_rank(Ctype *ctype) {
     }
 }
 
+static Ctype *result_type2(int op, Ctype *ctype) {
+    switch (op) {
+    case OP_LE: case OP_GE: case OP_EQ: case OP_NE:
+    case '<': case '>':
+        return ctype_int;
+    default:
+        return result_type(op, ctype, ctype);
+    }
+}
+
 static Node *usual_conv(int op, Node *left, Node *right) {
     if (!is_arithtype(left->ctype) || !is_arithtype(right->ctype))
         return ast_binop(op, left, right);
@@ -410,7 +427,8 @@ static Node *usual_conv(int op, Node *left, Node *right) {
         left = ast_conv(right->ctype, left);
     else if (rank1 != rank2)
         right = ast_conv(left->ctype, right);
-    return ast_binop(op, left, right);
+    Ctype *resulttype = result_type2(op, left->ctype);
+    return ast_binop2(resulttype, op, left, right);
 }
 
 static bool is_same_struct(Ctype *a, Ctype *b) {
