@@ -96,14 +96,7 @@ static Node *ast_uop(int type, Ctype *ctype, Node *operand) {
     return make_ast(&(Node){ type, ctype, .operand = operand });
 }
 
-static Node *ast_binop(int type, Node *left, Node *right) {
-    Node *r = make_ast(&(Node){ type, result_type(type, left->ctype, right->ctype) });
-    r->left = left;
-    r->right = right;
-    return r;
-}
-
-static Node *ast_binop2(Ctype *ctype, int type, Node *left, Node *right) {
+static Node *ast_binop(Ctype *ctype, int type, Node *left, Node *right) {
     Node *r = make_ast(&(Node){ type, ctype });
     r->left = left;
     r->right = right;
@@ -408,6 +401,10 @@ static int conversion_rank(Ctype *ctype) {
     }
 }
 
+static Ctype *larger_type(Ctype *a, Ctype *b) {
+    return conversion_rank(a) < conversion_rank(b) ? b : a;
+}
+
 static Ctype *result_type2(int op, Ctype *ctype) {
     switch (op) {
     case OP_LE: case OP_GE: case OP_EQ: case OP_NE:
@@ -419,8 +416,10 @@ static Ctype *result_type2(int op, Ctype *ctype) {
 }
 
 static Node *usual_conv(int op, Node *left, Node *right) {
-    if (!is_arithtype(left->ctype) || !is_arithtype(right->ctype))
-        return ast_binop(op, left, right);
+    if (!is_arithtype(left->ctype) || !is_arithtype(right->ctype)) {
+        Ctype *resulttype = result_type(op, left->ctype, right->ctype);
+        return ast_binop(resulttype, op, left, right);
+    }
     int rank1 = conversion_rank(left->ctype);
     int rank2 = conversion_rank(right->ctype);
     if (rank1 < rank2)
@@ -428,7 +427,7 @@ static Node *usual_conv(int op, Node *left, Node *right) {
     else if (rank1 != rank2)
         right = ast_conv(left->ctype, right);
     Ctype *resulttype = result_type2(op, left->ctype);
-    return ast_binop2(resulttype, op, left, right);
+    return ast_binop(resulttype, op, left, right);
 }
 
 static bool is_same_struct(Ctype *a, Ctype *b) {
@@ -836,7 +835,7 @@ static Node *read_subscript_expr(Node *node) {
     if (!sub)
         error("subscription expected");
     expect(']');
-    Node *t = ast_binop('+', node, sub);
+    Node *t = usual_conv('+', node, sub);
     return ast_uop(AST_DEREF, t->ctype->ptr, t);
 }
 
@@ -921,7 +920,7 @@ static Node *read_unary_expr(void) {
     if (next_token('-')) {
         Node *expr = read_cast_expr();
         expr = convert_funcdesg(expr);
-        return ast_binop('-', ast_inttype(ctype_int, 0), expr);
+        return usual_conv('-', ast_inttype(ctype_int, 0), expr);
     }
     if (next_token('~')) {
         Node *expr = read_cast_expr();
@@ -992,9 +991,21 @@ static Node *read_additive_expr(void) {
 static Node *read_shift_expr(void) {
     Node *node = read_additive_expr();
     for (;;) {
-        if      (next_token(OP_LSH)) node = ast_binop(OP_LSH, node, read_additive_expr());
-        else if (next_token(OP_RSH)) node = ast_binop(OP_RSH, node, read_additive_expr());
-        else break;
+        Token *tok = read_token();
+        int op;
+        if (is_punct(tok, OP_LSH)) {
+            op = OP_LSH;
+        } else if (is_punct(tok, OP_RSH)) {
+            op = OP_RSH;
+        } else {
+            unget_token(tok);
+            break;
+        }
+        Node *right = read_additive_expr();
+        ensure_inttype(node);
+        ensure_inttype(right);
+        Ctype *resulttype = larger_type(node->ctype, right->ctype);
+        node = ast_binop(resulttype, op, node, right);
     }
     return node;
 }
@@ -1044,14 +1055,14 @@ static Node *read_bitor_expr(void) {
 static Node *read_logand_expr(void) {
     Node *node = read_bitor_expr();
     while (next_token(OP_LOGAND))
-        node = ast_binop(OP_LOGAND, node, read_bitor_expr());
+        node = ast_binop(ctype_int, OP_LOGAND, node, read_bitor_expr());
     return node;
 }
 
 static Node *read_logor_expr(void) {
     Node *node = read_logand_expr();
     while (next_token(OP_LOGOR))
-        node = ast_binop(OP_LOGOR, node, read_logand_expr());
+        node = ast_binop(ctype_int, OP_LOGOR, node, read_logand_expr());
     return node;
 }
 
@@ -1071,7 +1082,10 @@ static Node *read_assignment_expr(void) {
         Node *value = read_assignment_expr();
         if (is_punct(tok, '=') || cop)
             ensure_lvalue(node);
-        return ast_binop('=', node, cop ? ast_binop(cop, node, value) : value);
+        Node *right = cop ? usual_conv(cop, node, value) : value;
+        if (is_arithtype(node->ctype) && node->ctype->type != right->ctype->type)
+            right = ast_conv(node->ctype, right);
+        return ast_binop(node->ctype, '=', node, right);
     }
     unget_token(tok);
     return node;
@@ -1079,8 +1093,10 @@ static Node *read_assignment_expr(void) {
 
 static Node *read_comma_expr(void) {
     Node *node = read_assignment_expr();
-    while (next_token(','))
-        node = ast_binop(',', node, read_assignment_expr());
+    while (next_token(',')) {
+        Node *expr = read_assignment_expr();
+        node = ast_binop(expr->ctype, ',', node, expr);
+    }
     return node;
 }
 
