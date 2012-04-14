@@ -650,7 +650,6 @@ static void emit_func_call(Node *node) {
             Node *v = iter_next(i);
             emit_expr(v);
             Ctype *ptype = iter_next(j);
-            emit_save_convert(ptype, v->ctype);
             if (is_flotype(ptype))
                 push_xmm(0);
             else
@@ -845,7 +844,8 @@ static void emit_return(Node *node) {
     SAVE;
     if (node->retval) {
         emit_expr(node->retval);
-        emit_save_convert(node->ctype, node->retval->ctype);
+        if (node->retval->ctype->type == CTYPE_FLOAT)
+            emit_save_convert(ctype_float, ctype_double);
     }
     emit_ret();
 }

@@ -73,7 +73,7 @@ testast '(() -> int)f(){"abcd";}' '"abcd";'
 testast "(() -> int)f(){'c';}" "'c';"
 testast '(() -> int)f(){(int)a();}' 'a();'
 testast '(() -> int)f(){(int)a(1,2,3,4,5,6);}' 'a(1,2,3,4,5,6);'
-testast '(() -> int)f(){(return 1);}' 'return 1;'
+testast '(() -> int)f(){(return (conv 1 -> int));}' 'return 1;'
 testast '(() -> int)f(){(< 1 2);}' '1<2;'
 testast '(() -> int)f(){(> 1 2);}' '1>2;'
 testast '(() -> int)f(){(== 1 2);}' '1==2;'

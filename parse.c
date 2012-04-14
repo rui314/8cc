@@ -213,8 +213,8 @@ static Node *ast_case(int begin, int end) {
     return make_ast(&(Node){ AST_CASE, .casebeg = begin, .caseend = end });
 }
 
-static Node *ast_return(Ctype *rettype, Node *retval) {
-    return make_ast(&(Node){ AST_RETURN, rettype, .retval = retval });
+static Node *ast_return(Node *retval) {
+    return make_ast(&(Node){ AST_RETURN, .retval = retval });
 }
 
 static Node *ast_compound_stmt(List *stmts) {
@@ -1862,7 +1862,9 @@ static Node *read_continue_stmt(void) {
 static Node *read_return_stmt(void) {
     Node *retval = read_expr_opt();
     expect(';');
-    return ast_return(current_func_type->rettype, retval);
+    if (retval)
+        return ast_return(ast_conv(current_func_type->rettype, retval));
+    return ast_return(NULL);
 }
 
 static Node *read_goto_stmt(void) {
