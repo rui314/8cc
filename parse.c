@@ -725,7 +725,7 @@ static Node *read_var_or_func(char *name) {
     return v;
 }
 
-static Node *maybe_convert_funcdesg(Node *node) {
+static Node *convert_funcdesg(Node *node) {
     if (!node)
         return NULL;
     if (node->type == AST_FUNCDESG)
@@ -799,7 +799,6 @@ static Node *read_postfix_expr_tail(Node *node) {
         }
         if (node->type == AST_FUNCDESG && !node->fptr)
             error("Undefined varaible: %s", node->fname);
-        node = maybe_convert_funcdesg(node);
         if (next_token('[')) {
             node = read_subscript_expr(node);
             continue;
@@ -827,7 +826,8 @@ static Node *read_postfix_expr_tail(Node *node) {
 }
 
 static Node *read_postfix_expr(void) {
-    return read_postfix_expr_tail(read_primary_expr());
+    Node *node = read_primary_expr();
+    return read_postfix_expr_tail(node);
 }
 
 static Node *read_unary_expr(void) {
@@ -838,19 +838,21 @@ static Node *read_unary_expr(void) {
     }
     if (next_token(OP_INC) || next_token(OP_DEC)) {
         Node *operand = read_unary_expr();
-        operand = maybe_convert_funcdesg(operand);
+        operand = convert_funcdesg(operand);
         ensure_lvalue(operand);
         int op = is_punct(tok, OP_INC) ? OP_PRE_INC : OP_PRE_DEC;
         return ast_uop(op, operand->ctype, operand);
     }
     if (next_token('&')) {
         Node *operand = read_cast_expr();
+        if (operand->type == AST_FUNCDESG)
+            return operand;
         ensure_lvalue(operand);
         return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
     }
     if (next_token('*')) {
         Node *operand = read_cast_expr();
-        operand = maybe_convert_funcdesg(operand);
+        operand = convert_funcdesg(operand);
         Ctype *ctype = convert_array(operand->ctype);
         if (ctype->type != CTYPE_PTR)
             error("pointer type expected, but got %s", a2s(operand));
@@ -863,22 +865,22 @@ static Node *read_unary_expr(void) {
     }
     if (next_token('-')) {
         Node *expr = read_cast_expr();
-        expr = maybe_convert_funcdesg(expr);
+        expr = convert_funcdesg(expr);
         return ast_binop('-', ast_inttype(ctype_int, 0), expr);
     }
     if (next_token('~')) {
         Node *expr = read_cast_expr();
-        expr = maybe_convert_funcdesg(expr);
+        expr = convert_funcdesg(expr);
         if (!is_inttype(expr->ctype))
             error("invalid use of ~: %s", a2s(expr));
         return ast_uop('~', expr->ctype, expr);
     }
     if (next_token('!')) {
         Node *operand = read_cast_expr();
-        operand = maybe_convert_funcdesg(operand);
+        operand = convert_funcdesg(operand);
         return ast_uop('!', ctype_int, operand);
     }
-    return maybe_convert_funcdesg(read_postfix_expr());
+    return read_postfix_expr();
 }
 
 static Node *read_compound_literal(Ctype *ctype) {
@@ -912,10 +914,11 @@ static Node *read_cast_expr(void) {
 
 static Node *read_multiplicative_expr(void) {
     Node *node = read_cast_expr();
+    node = convert_funcdesg(node);
     for (;;) {
-        if      (next_token('*')) node = ast_binop('*', node, read_cast_expr());
-        else if (next_token('/')) node = ast_binop('/', node, read_cast_expr());
-        else if (next_token('%')) node = ast_binop('%', node, read_cast_expr());
+        if      (next_token('*')) node = ast_binop('*', node, convert_funcdesg(read_cast_expr()));
+        else if (next_token('/')) node = ast_binop('/', node, convert_funcdesg(read_cast_expr()));
+        else if (next_token('%')) node = ast_binop('%', node, convert_funcdesg(read_cast_expr()));
         else break;
     }
     return node;
