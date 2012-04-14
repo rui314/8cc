@@ -523,8 +523,8 @@ int eval_intexpr(Node *node) {
     case OP_GE: return L >= R;
     case OP_LE: return L <= R;
     case OP_NE: return L != R;
-    case OP_LSH: return L << R;
-    case OP_RSH: return L >> R;
+    case OP_SAL: return L << R;
+    case OP_SAR: return L >> R;
     case OP_LOGAND: return L && R;
     case OP_LOGOR:  return L || R;
 #undef L
@@ -736,8 +736,8 @@ static int get_compound_assign_op(Token *tok) {
     case OP_A_AND: return '&';
     case OP_A_OR:  return '|';
     case OP_A_XOR: return '^';
-    case OP_A_LSH: return OP_LSH;
-    case OP_A_RSH: return OP_RSH;
+    case OP_A_SAL: return OP_SAL;
+    case OP_A_SAR: return OP_SAR;
     default: return 0;
     }
 }
@@ -930,10 +930,10 @@ static Node *read_shift_expr(void) {
     for (;;) {
         Token *tok = read_token();
         int op;
-        if (is_punct(tok, OP_LSH)) {
-            op = OP_LSH;
-        } else if (is_punct(tok, OP_RSH)) {
-            op = OP_RSH;
+        if (is_punct(tok, OP_SAL)) {
+            op = OP_SAL;
+        } else if (is_punct(tok, OP_SAR)) {
+            op = OP_SAR;
         } else {
             unget_token(tok);
             break;

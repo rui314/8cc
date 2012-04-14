@@ -450,7 +450,7 @@ static Token *read_token_int(void) {
         if (c == '=')
             return make_punct(OP_LE);
         if (c == '<')
-            return read_rep('=', OP_A_LSH, OP_LSH);
+            return read_rep('=', OP_A_SAL, OP_SAL);
         unget(c);
         return make_punct('<');
     }
@@ -459,7 +459,7 @@ static Token *read_token_int(void) {
         if (c == '=')
             return make_punct(OP_GE);
         if (c == '>')
-            return read_rep('=', OP_A_RSH, OP_RSH);
+            return read_rep('=', OP_A_SAR, OP_SAR);
         unget(c);
         return make_punct('>');
     }
