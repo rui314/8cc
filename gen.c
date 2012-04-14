@@ -1124,6 +1124,8 @@ static void emit_data(Node *v, int off, int depth) {
 static void emit_bss(Node *v) {
     SAVE;
     emit(".data");
+    if (!v->declvar->ctype->isstatic)
+        emit(".global %s", v->declvar->varname);
     emit(".lcomm %s, %d", v->declvar->varname, v->declvar->ctype->size);
 }
 
