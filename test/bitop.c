@@ -30,6 +30,8 @@ void test_shift(void) {
 
     expect(1, 15 >> 3);
     expect(2, 8 >> 2);
+
+    expect(1, ((unsigned)-1) >> 31);
 }
 
 void testmain(void) {

@@ -320,6 +320,7 @@ static void emit_binop_int_arith(Node *node) {
     case '^': op = "xor"; break;
     case OP_SAL: op = "sal"; break;
     case OP_SAR: op = "sar"; break;
+    case OP_SHR: op = "shr"; break;
     case '/': case '%': break;
     default: error("invalid operator '%d'", node->type);
     }
@@ -333,10 +334,10 @@ static void emit_binop_int_arith(Node *node) {
         emit("idiv %%rcx");
         if (node->type == '%')
             emit("mov %%edx, %%eax");
-    } else if (node->type == OP_SAL || node->type == OP_SAR) {
-        emit("%s %%cl, %%rax", op);
+    } else if (node->type == OP_SAL || node->type == OP_SAR || node->type == OP_SHR) {
+        emit("%s %%cl, %%%s", op, get_int_reg(node->left->ctype, 'a'));
     } else {
-        emit("%s %%rcx, %%rax", op);
+        emit("%s %%rcx, %rax", op);
     }
 }
 

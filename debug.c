@@ -208,7 +208,8 @@ static void a2s_int(String *buf, Node *node) {
     case AST_ADDR:  uop_to_string(buf, "addr", node); break;
     case AST_DEREF: uop_to_string(buf, "deref", node); break;
     case OP_SAL:  binop_to_string(buf, "<<", node); break;
-    case OP_SAR:  binop_to_string(buf, ">>", node); break;
+    case OP_SAR:
+    case OP_SHR:  binop_to_string(buf, ">>", node); break;
     case OP_GE:  binop_to_string(buf, ">=", node); break;
     case OP_LE:  binop_to_string(buf, "<=", node); break;
     case OP_NE:  binop_to_string(buf, "!=", node); break;
@@ -227,7 +228,8 @@ static void a2s_int(String *buf, Node *node) {
     case OP_A_OR:   binop_to_string(buf, "|=", node); break;
     case OP_A_XOR:  binop_to_string(buf, "^=", node); break;
     case OP_A_SAL:  binop_to_string(buf, "<<=", node); break;
-    case OP_A_SAR:  binop_to_string(buf, ">>=", node); break;
+    case OP_A_SAR:
+    case OP_A_SHR:  binop_to_string(buf, ">>=", node); break;
     case '!': uop_to_string(buf, "!", node); break;
     case '&': binop_to_string(buf, "&", node); break;
     case '|': binop_to_string(buf, "|", node); break;
