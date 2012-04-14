@@ -63,6 +63,7 @@ enum {
     AST_GVAR,
     AST_FUNCALL,
     AST_FUNCPTR_CALL,
+    AST_FUNCDESG,
     AST_FUNC,
     AST_DECL,
     AST_INIT,
@@ -196,7 +197,7 @@ typedef struct Node {
             // Function call
             struct List *args;
             struct Ctype *ftype;
-            // Functoin pointer call
+            // Functoin pointer or function designator
             struct Node *fptr;
             // Function declaration
             struct List *params;
@@ -284,6 +285,7 @@ extern void set_current_displayname(char *name);
 extern void set_current_line(int line);
 extern void cpp_eval(char *buf);
 
+extern void parse_init(void);
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
 extern Token *read_token(void);

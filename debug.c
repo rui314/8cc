@@ -125,6 +125,10 @@ static void a2s_int(String *buf, Node *node) {
         string_appendf(buf, ")");
         break;
     }
+    case AST_FUNCDESG: {
+        string_appendf(buf, "(funcdesg %s)", a2s(node->fptr));
+        break;
+    }
     case AST_FUNC: {
         string_appendf(buf, "(%s)%s(", c2s(node->ctype), node->fname);
         for (Iter *i = list_iter(node->params); !iter_end(i);) {

@@ -386,8 +386,7 @@ static Token *read_expand(void) {
         return read_expand();
     }
     case MACRO_SPECIAL: {
-        special_macro_handler *fn = macro->fn;
-        fn(tok);
+        macro->fn(tok);
         return read_expand();
     }
     default:

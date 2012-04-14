@@ -143,6 +143,14 @@ static Node *ast_funcall(Ctype *ftype, char *fname, List *args) {
         .ftype = ftype });
 }
 
+static Node *ast_funcdesg(char *fname, Node *func) {
+    return make_ast(&(Node){
+        .type = AST_FUNCDESG,
+        .ctype = ctype_void,
+        .fname = fname,
+        .fptr = func });
+}
+
 static Node *ast_funcptr_call(Node *fptr, List *args) {
     assert(fptr->ctype->type == CTYPE_PTR);
     assert(fptr->ctype->ptr->type == CTYPE_FUNC);
@@ -627,6 +635,26 @@ static Ctype *get_sizeof_ctype(bool allow_typename) {
 }
 
 /*----------------------------------------------------------------------
+ * Builtin functions for varargs
+ */
+
+static Node *read_va_start(void) {
+    // void __builtin_va_start(va_list ap)
+    Node *ap = read_assignment_expr();
+    expect(')');
+    return ast_va_start(ap);
+}
+
+static Node *read_va_arg(void) {
+    // <type> __builtin_va_arg(va_list ap, <type>)
+    Node *ap = read_assignment_expr();
+    expect(',');
+    Ctype *ctype = read_cast_type();
+    expect(')');
+    return ast_va_arg(ctype, ap);
+}
+
+/*----------------------------------------------------------------------
  * Function arguments
  */
 
@@ -661,15 +689,14 @@ static List *read_func_args(void) {
     return args;
 }
 
-static Node *read_funcall(char *fname) {
+static Node *read_funcall(char *fname, Node *func) {
+    if (strcmp(fname, "__builtin_va_start") == 0)
+        return read_va_start();
+    if (strcmp(fname, "__builtin_va_arg") == 0)
+        return read_va_arg();
     List *args = read_func_args();
-    Node *func = dict_get(localenv, fname);
     if (func) {
         Ctype *t = func->ctype;
-        if (t->type == CTYPE_PTR && t->ptr->type == CTYPE_FUNC) {
-            function_type_check(fname, t->ptr->params, args);
-            return ast_funcptr_call(func, args);
-        }
         if (t->type != CTYPE_FUNC)
             error("%s is not a function, but %s", fname, c2s(t));
         assert(t->params);
@@ -680,52 +707,29 @@ static Node *read_funcall(char *fname) {
     return ast_funcall(make_func_type(ctype_int, make_list(), true), fname, args);
 }
 
-/*----------------------------------------------------------------------
- * Builtin functions for varargs
- */
-
-static Node *read_va_start(void) {
-    // void __builtin_va_start(va_list ap)
-    Node *ap = read_assignment_expr();
-    expect(')');
-    return ast_va_start(ap);
+static Node *read_funcptr_call(Node *fptr) {
+    List *args = read_func_args();
+    Ctype *t = fptr->ctype;
+    function_type_check(NULL, t->ptr->params, args);
+    return ast_funcptr_call(fptr, args);
 }
-
-static Node *read_va_arg(void) {
-    // <type> __builtin_va_arg(va_list ap, <type>)
-    Node *ap = read_assignment_expr();
-    expect(',');
-    Ctype *ctype = read_cast_type();
-    expect(')');
-    return ast_va_arg(ctype, ap);
-}
-
 
 /*----------------------------------------------------------------------
  * Expression
  */
 
 static Node *read_var_or_func(char *name) {
-    Token *tok = read_token();
-    if (is_punct(tok, '(')) {
-        if (strcmp(name, "__builtin_va_start") == 0)
-            return read_va_start();
-        if (strcmp(name, "__builtin_va_arg") == 0)
-            return read_va_arg();
-        return read_funcall(name);
-    }
-    unget_token(tok);
     Node *v = dict_get(localenv ? localenv : globalenv, name);
-    if (!v)
-        error("Undefined varaible: %s", name);
+    if (!v || v->ctype->type == CTYPE_FUNC)
+        return ast_funcdesg(name, v);
     return v;
 }
 
-static Node *convert_func_ptr(Node *node) {
+static Node *maybe_convert_funcdesg(Node *node) {
     if (!node)
         return NULL;
-    if (node->ctype->type == CTYPE_FUNC)
-        return ast_uop(AST_ADDR, make_ptr_type(node->ctype), node);
+    if (node->type == AST_FUNCDESG)
+        return ast_uop(AST_ADDR, make_ptr_type(node->fptr->ftype), node->fptr);
     return node;
 }
 
@@ -784,6 +788,18 @@ static Node *read_subscript_expr(Node *node) {
 static Node *read_postfix_expr_tail(Node *node) {
     if (!node) return NULL;
     for (;;) {
+        if (next_token('(')) {
+            Ctype *t = node->ctype;
+            if (t->type == CTYPE_PTR && t->ptr->type == CTYPE_FUNC)
+                return read_funcptr_call(node);
+            if (node->type != AST_FUNCDESG)
+                error("function name expected, but got %s", a2s(node));
+            node = read_funcall(node->fname, node->fptr);
+            continue;
+        }
+        if (node->type == AST_FUNCDESG && !node->fptr)
+            error("Undefined varaible: %s", node->fname);
+        node = maybe_convert_funcdesg(node);
         if (next_token('[')) {
             node = read_subscript_expr(node);
             continue;
@@ -822,7 +838,7 @@ static Node *read_unary_expr(void) {
     }
     if (next_token(OP_INC) || next_token(OP_DEC)) {
         Node *operand = read_unary_expr();
-        operand = convert_func_ptr(operand);
+        operand = maybe_convert_funcdesg(operand);
         ensure_lvalue(operand);
         int op = is_punct(tok, OP_INC) ? OP_PRE_INC : OP_PRE_DEC;
         return ast_uop(op, operand->ctype, operand);
@@ -834,7 +850,7 @@ static Node *read_unary_expr(void) {
     }
     if (next_token('*')) {
         Node *operand = read_cast_expr();
-        operand = convert_func_ptr(operand);
+        operand = maybe_convert_funcdesg(operand);
         Ctype *ctype = convert_array(operand->ctype);
         if (ctype->type != CTYPE_PTR)
             error("pointer type expected, but got %s", a2s(operand));
@@ -847,22 +863,22 @@ static Node *read_unary_expr(void) {
     }
     if (next_token('-')) {
         Node *expr = read_cast_expr();
-        expr = convert_func_ptr(expr);
+        expr = maybe_convert_funcdesg(expr);
         return ast_binop('-', ast_inttype(ctype_int, 0), expr);
     }
     if (next_token('~')) {
         Node *expr = read_cast_expr();
-        expr = convert_func_ptr(expr);
+        expr = maybe_convert_funcdesg(expr);
         if (!is_inttype(expr->ctype))
             error("invalid use of ~: %s", a2s(expr));
         return ast_uop('~', expr->ctype, expr);
     }
     if (next_token('!')) {
         Node *operand = read_cast_expr();
-        operand = convert_func_ptr(operand);
+        operand = maybe_convert_funcdesg(operand);
         return ast_uop('!', ctype_int, operand);
     }
-    return convert_func_ptr(read_postfix_expr());
+    return maybe_convert_funcdesg(read_postfix_expr());
 }
 
 static Node *read_compound_literal(Ctype *ctype) {
@@ -1920,4 +1936,14 @@ List *read_toplevels(void) {
         else
             read_decl(r, ast_gvar);
     }
+}
+
+/*----------------------------------------------------------------------
+ * Initializer
+ */
+
+void parse_init(void) {
+    Ctype *t = make_func_type(ctype_void, make_list(), true);
+    dict_put(globalenv, "__builtin_va_start", ast_gvar(t, "__builtin_va_start"));
+    dict_put(globalenv, "__builtin_va_arg", ast_gvar(t, "__builtin_va_arg"));
 }

@@ -92,6 +92,7 @@ int main(int argc, char **argv) {
     parseopt(argc, argv);
 
     cpp_init();
+    parse_init();
     if (string_len(cppdefs) > 0)
         cpp_eval(get_cstring(cppdefs));
     lex_init(file);
