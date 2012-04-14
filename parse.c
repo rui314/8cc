@@ -27,6 +27,7 @@ static List *localvars;
 static Ctype *current_func_type;
 
 Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
+Ctype *ctype_bool = &(Ctype){ CTYPE_BOOL, 1, false };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
 Ctype *ctype_short = &(Ctype){ CTYPE_SHORT, 2, true };
 Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
@@ -1742,6 +1743,8 @@ static Node *read_funcdef(void) {
 static Node *read_if_stmt(void) {
     expect('(');
     Node *cond = read_expr();
+    if (is_flotype(cond->ctype))
+        cond = ast_conv(ctype_bool, cond);
     expect(')');
     Node *then = read_stmt();
     Token *tok = read_token();
