@@ -23,7 +23,7 @@ static List *file_stack = &EMPTY_LIST;
 static File *file;
 static int ungotten = -1;
 
-static Token *newline_token = &(Token){ .type = TTYPE_NEWLINE, .nspace = 0 };
+static Token *newline_token = &(Token){ .type = TNEWLINE, .nspace = 0 };
 
 static void skip_block_comment(void);
 
@@ -62,27 +62,27 @@ static Token *make_token(Token *tmpl) {
 }
 
 static Token *make_ident(char *p) {
-    return make_token(&(Token){ TTYPE_IDENT, .nspace = 0, .sval = p });
+    return make_token(&(Token){ TIDENT, .nspace = 0, .sval = p });
 }
 
 static Token *make_strtok(char *s) {
-    return make_token(&(Token){ TTYPE_STRING, .nspace = 0, .sval = s });
+    return make_token(&(Token){ TSTRING, .nspace = 0, .sval = s });
 }
 
 static Token *make_punct(int punct) {
-    return make_token(&(Token){ TTYPE_PUNCT, .nspace = 0, .punct = punct });
+    return make_token(&(Token){ TPUNCT, .nspace = 0, .punct = punct });
 }
 
 static Token *make_number(char *s) {
-    return make_token(&(Token){ TTYPE_NUMBER, .nspace = 0, .sval = s });
+    return make_token(&(Token){ TNUMBER, .nspace = 0, .sval = s });
 }
 
 static Token *make_char(char c) {
-    return make_token(&(Token){ TTYPE_CHAR, .nspace = 0, .c = c });
+    return make_token(&(Token){ TCHAR, .nspace = 0, .c = c });
 }
 
 static Token *make_space(int nspace) {
-    return make_token(&(Token){ TTYPE_SPACE, .nspace = nspace });
+    return make_token(&(Token){ TSPACE, .nspace = nspace });
 }
 
 void push_input_file(char *displayname, char *realname, FILE *fp) {
@@ -212,9 +212,9 @@ void skip_cond_incl(void) {
         }
         skip_space();
         Token *tok = read_cpp_token();
-        if (tok->type == TTYPE_NEWLINE)
+        if (tok->type == TNEWLINE)
             continue;
-        if (tok->type != TTYPE_IDENT) {
+        if (tok->type != TIDENT) {
             skip_line();
             continue;
         }
@@ -501,7 +501,7 @@ char *read_header_file_name(bool *std) {
 }
 
 bool is_punct(Token *tok, int c) {
-    return tok && (tok->type == TTYPE_PUNCT) && (tok->punct == c);
+    return tok && (tok->type == TPUNCT) && (tok->punct == c);
 }
 
 void set_input_buffer(List *tokens) {
@@ -547,7 +547,7 @@ static Token *read_cpp_token_int(void) {
         return list_pop(buffer);
     bool bol = at_bol;
     Token *tok = read_token_int();
-    while (tok && tok->type == TTYPE_SPACE) {
+    while (tok && tok->type == TSPACE) {
         Token *tok2 = read_token_int();
         if (tok2)
             tok2->nspace += tok->nspace;

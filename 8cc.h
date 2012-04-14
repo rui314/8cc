@@ -29,15 +29,15 @@ extern void string_appendf(String *s, char *fmt, ...);
     (String){ .body = (x), .nalloc = sizeof(x), .len = sizeof(x) + 1 }
 
 enum {
-    TTYPE_IDENT,
-    TTYPE_PUNCT,
-    TTYPE_NUMBER,
-    TTYPE_CHAR,
-    TTYPE_STRING,
+    TIDENT,
+    TPUNCT,
+    TNUMBER,
+    TCHAR,
+    TSTRING,
     // Only in CPP
-    TTYPE_NEWLINE,
-    TTYPE_SPACE,
-    TTYPE_MACRO_PARAM,
+    TNEWLINE,
+    TSPACE,
+    TMACRO_PARAM,
 };
 
 typedef struct {
@@ -112,6 +112,9 @@ enum {
     OP_PRE_DEC,
     OP_POST_INC,
     OP_POST_DEC,
+#define keyword(name, _1, _2) name,
+#include "keyword.h"
+#undef keyword
 };
 
 enum {

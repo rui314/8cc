@@ -302,10 +302,6 @@ static Ctype *make_stub_type(void) {
  * Predicates and type checking routines
  */
 
-bool is_ident(Token *tok, char *s) {
-    return tok->type == TTYPE_IDENT && !strcmp(tok->sval, s);
-}
-
 bool is_inttype(Ctype *ctype) {
     return ctype->type == CTYPE_CHAR || ctype->type == CTYPE_SHORT ||
         ctype->type == CTYPE_INT || ctype->type == CTYPE_LONG || ctype->type == CTYPE_LLONG;
@@ -347,18 +343,18 @@ static Ctype *copy_incomplete_type(Ctype *ctype) {
 }
 
 static bool is_type_keyword(Token *tok) {
-    if (tok->type != TTYPE_IDENT)
+    if (tok->type == TIDENT)
+        return dict_get(typedefs, tok->sval);
+    if (tok->type != TPUNCT)
         return false;
-    char *keyword[] = {
-        "char", "short", "int", "long", "float", "double", "struct",
-        "union", "signed", "unsigned", "enum", "void", "typedef", "extern",
-        "static", "auto", "register", "const", "volatile", "inline",
-        "restrict", "__signed__", "_Bool",
-    };
-    for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++)
-        if (!strcmp(keyword[i], tok->sval))
-            return true;
-    return dict_get(typedefs, tok->sval);
+    switch (tok->punct) {
+#define keyword(ident, _, istype)               \
+        case ident: return istype;
+#include "keyword.h"
+#undef keyword
+    default:
+        return false;
+    }
 }
 
 static bool next_token(int type) {
@@ -734,7 +730,7 @@ static Node *convert_func_ptr(Node *node) {
 }
 
 static int get_compound_assign_op(Token *tok) {
-    if (tok->type != TTYPE_PUNCT)
+    if (tok->type != TPUNCT)
         return 0;
     switch (tok->punct) {
     case OP_A_ADD: return '+';
@@ -760,15 +756,15 @@ static Node *read_primary_expr(void) {
         return r;
     }
     switch (tok->type) {
-    case TTYPE_IDENT:
+    case TIDENT:
         return read_var_or_func(tok->sval);
-    case TTYPE_NUMBER:
+    case TNUMBER:
         return read_number(tok->sval);
-    case TTYPE_CHAR:
+    case TCHAR:
         return ast_inttype(ctype_char, tok->c);
-    case TTYPE_STRING:
+    case TSTRING:
         return ast_string(tok->sval);
-    case TTYPE_PUNCT:
+    case TPUNCT:
         unget_token(tok);
         return NULL;
     default:
@@ -820,7 +816,7 @@ static Node *read_postfix_expr(void) {
 
 static Node *read_unary_expr(void) {
     Token *tok = peek_token();
-    if (is_ident(tok, "sizeof")) {
+    if (is_punct(tok, KSIZEOF)) {
         read_token();
         return ast_inttype(ctype_long, get_sizeof_ctype(false)->size);
     }
@@ -1033,7 +1029,7 @@ static Node *read_struct_field(Node *struc) {
     if (struc->ctype->type != CTYPE_STRUCT)
         error("struct expected, but got %s", a2s(struc));
     Token *name = read_token();
-    if (name->type != TTYPE_IDENT)
+    if (name->type != TIDENT)
         error("field name expected, but got %s", t2s(name));
     Ctype *field = dict_get(struc->ctype->fields, name->sval);
     if (!field)
@@ -1043,7 +1039,7 @@ static Node *read_struct_field(Node *struc) {
 
 static char *read_struct_union_tag(void) {
     Token *tok = read_token();
-    if (tok->type == TTYPE_IDENT)
+    if (tok->type == TIDENT)
         return tok->sval;
     unget_token(tok);
     return NULL;
@@ -1148,7 +1144,7 @@ static Ctype *read_union_def(void) {
 
 static Ctype *read_enum_def(void) {
     Token *tok = read_token();
-    if (tok->type == TTYPE_IDENT)
+    if (tok->type == TIDENT)
         tok = read_token();
     if (!is_punct(tok, '{')) {
         unget_token(tok);
@@ -1159,7 +1155,7 @@ static Ctype *read_enum_def(void) {
         tok = read_token();
         if (is_punct(tok, '}'))
             break;
-        if (tok->type != TTYPE_IDENT)
+        if (tok->type != TIDENT)
             error("Identifier expected, but got %s", t2s(tok));
         char *name = tok->sval;
 
@@ -1257,7 +1253,7 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
         Ctype *fieldtype;
         if (is_punct(tok, '.')) {
             tok = read_token();
-            if (!tok || tok->type != TTYPE_IDENT)
+            if (!tok || tok->type != TIDENT)
                 error("malformed desginated initializer: %s", t2s(tok));
             fieldname = tok->sval;
             fieldtype = dict_get(ctype->fields, fieldname);
@@ -1317,11 +1313,11 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
 static void read_initializer_list(List *inits, Ctype *ctype, int off) {
     Token *tok = read_token();
     if (ctype->type == CTYPE_ARRAY && ctype->ptr->type == CTYPE_CHAR) {
-        if (tok->type == TTYPE_STRING) {
+        if (tok->type == TSTRING) {
             assign_string(inits, ctype, tok->sval, off);
             return;
         }
-        if (is_punct(tok, '{') && peek_token()->type == TTYPE_STRING) {
+        if (is_punct(tok, '{') && peek_token()->type == TSTRING) {
             assign_string(inits, ctype, tok->sval, off);
             expect('}');
             return;
@@ -1360,7 +1356,7 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
     List *paramtypes = make_list();
     Token *tok = read_token();
     Token *tok2 = read_token();
-    if (is_ident(tok, "void") && is_punct(tok2, ')'))
+    if (is_punct(tok, KVOID) && is_punct(tok2, ')'))
         return make_func_type(rettype, paramtypes, false);
     unget_token(tok2);
     if (is_punct(tok, ')'))
@@ -1368,7 +1364,7 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
     unget_token(tok);
     for (;;) {
         tok = read_token();
-        if (is_ident(tok, "...")) {
+        if (is_punct(tok, THREEDOTS)) {
             if (list_len(paramtypes) == 0)
                 error("at least one parameter is required");
             expect(')');
@@ -1425,9 +1421,9 @@ static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
 static void skip_type_qualifiers(void) {
     for (;;) {
         Token *tok = read_token();
-        if (is_ident(tok, "const") ||
-            is_ident(tok, "volatile") ||
-            is_ident(tok, "restrict"))
+        if (is_punct(tok, KCONST) ||
+            is_punct(tok, KVOLATILE) ||
+            is_punct(tok, KRESTRICT))
             continue;
         unget_token(tok);
         return;
@@ -1451,7 +1447,7 @@ static Ctype *read_direct_declarator1(char **rname, Ctype *basetype, List *param
         *stub = *make_ptr_type(basetype);
         return t;
     }
-    if (tok->type == TTYPE_IDENT) {
+    if (tok->type == TIDENT) {
         if (ctx == DECL_CAST)
             error("identifier is NOT expected, but got %s", t2s(tok));
         *rname = tok->sval;
@@ -1488,13 +1484,13 @@ static Ctype *read_declarator(char **rname, Ctype *basetype, List *params, int c
 static Ctype *read_decl_spec(int *rsclass) {
     int sclass = 0;
     Token *tok = peek_token();
-    if (!tok || tok->type != TTYPE_IDENT)
+    if (!is_type_keyword(tok))
         error("internal error");
 
 #define unused __attribute__((unused))
     bool kconst unused = false, kvolatile unused = false, kinline unused = false;
 #undef unused
-    Ctype *usertype = NULL, *tmp = NULL;
+    Ctype *usertype = NULL;
     enum { kvoid = 1, kbool, kchar, kint, kfloat, kdouble } type = 0;
     enum { kshort = 1, klong, kllong } size = 0;
     enum { ksigned = 1, kunsigned } sig = 0;
@@ -1516,50 +1512,57 @@ static Ctype *read_decl_spec(int *rsclass) {
             goto err;                                                   \
         if (usertype && (type != 0 || size != 0 || sig != 0))           \
             goto err
-#define _(s) (!strcmp(tok->sval, s))
 
         tok = read_token();
         if (!tok)
             error("premature end of input");
-        if (tok->type != TTYPE_IDENT) {
+        if (tok->type == TIDENT) {
+            Ctype *def = dict_get(typedefs, tok->sval);
+            if (def) {
+                set(usertype, def);
+                continue;
+            }
+        }
+        if (tok->type != TPUNCT) {
             unget_token(tok);
             break;
         }
-        if (_("typedef"))       { setsclass(S_TYPEDEF); }
-        else if (_("extern"))   { setsclass(S_EXTERN); }
-        else if (_("static"))   { setsclass(S_STATIC); }
-        else if (_("auto"))     { setsclass(S_AUTO); }
-        else if (_("register")) { setsclass(S_REGISTER); }
-        else if (_("const"))    { kconst = 1; }
-        else if (_("volatile")) { kvolatile = 1; }
-        else if (_("inline"))   { kinline = 1; }
-        else if (_("void"))     { set(type, kvoid); }
-        else if (_("_Bool"))    { set(type, kbool); }
-        else if (_("char"))     { set(type, kchar); }
-        else if (_("int"))      { set(type, kint); }
-        else if (_("float"))    { set(type, kfloat); }
-        else if (_("double"))   { set(type, kdouble); }
-        else if (_("signed"))   { set(sig, ksigned); }
-        else if (_("__signed__")) { set(sig, ksigned); }
-        else if (_("unsigned")) { set(sig, kunsigned); }
-        else if (_("short"))    { set(size, kshort); }
-        else if (_("struct"))   { set(usertype, read_struct_def()); }
-        else if (_("union"))    { set(usertype, read_union_def()); }
-        else if (_("enum"))     { set(usertype, read_enum_def());
-        } else if ((tmp = dict_get(typedefs, tok->sval)) != NULL) {
-            set(usertype, tmp);
-        } else if (_("long")) {
+        switch (tok->punct) {
+        case KTYPEDEF:    { setsclass(S_TYPEDEF); } continue;
+        case KEXTERN:     { setsclass(S_EXTERN); } continue;
+        case KSTATIC:     { setsclass(S_STATIC); } continue;
+        case KAUTO:       { setsclass(S_AUTO); } continue;
+        case KREGISTER:   { setsclass(S_REGISTER); } continue;
+        case KCONST:      { kconst = 1; } continue;
+        case KVOLATILE:   { kvolatile = 1; } continue;
+        case KINLINE:     { kinline = 1; } continue;
+        case KVOID:       { set(type, kvoid); } continue;
+        case KBOOL:       { set(type, kbool); } continue;
+        case KCHAR:       { set(type, kchar); } continue;
+        case KINT:        { set(type, kint); } continue;
+        case KFLOAT:      { set(type, kfloat); } continue;
+        case KDOUBLE:     { set(type, kdouble); } continue;
+        case KSIGNED:     { set(sig, ksigned); } continue;
+        case K__SIGNED__: { set(sig, ksigned); } continue;
+        case KUNSIGNED:   { set(sig, kunsigned); } continue;
+        case KSHORT:      { set(size, kshort); } continue;
+        case KSTRUCT:     { set(usertype, read_struct_def()); } continue;
+        case KUNION:      { set(usertype, read_union_def()); } continue;
+        case KENUM:       { set(usertype, read_enum_def()); } continue;
+        case KLONG: {
             if (size == 0) set(size, klong);
             else if (size == klong) size = kllong;
             else goto err;
-        } else {
-            unget_token(tok);
-            break;
+            continue;
         }
-#undef _
+        default:
+            unget_token(tok);
+            goto done;
+        }
 #undef set
 #undef setsclass
     }
+ done:
     if (rsclass)
         *rsclass = sclass;
     if (usertype)
@@ -1713,7 +1716,7 @@ static Node *read_if_stmt(void) {
     expect(')');
     Node *then = read_stmt();
     Token *tok = read_token();
-    if (!tok || tok->type != TTYPE_IDENT || strcmp(tok->sval, "else")) {
+    if (!is_punct(tok, KELSE)) {
         unget_token(tok);
         return ast_if(cond, then, NULL);
     }
@@ -1767,7 +1770,7 @@ static Node *read_while_stmt(void) {
 static Node *read_do_stmt(void) {
     Node *body = read_stmt();
     Token *tok = read_token();
-    if (!is_ident(tok, "while"))
+    if (!is_punct(tok, KWHILE))
         error("'while' is expected, but got %s", t2s(tok));
     expect('(');
     Node *cond = read_expr();
@@ -1793,7 +1796,7 @@ static Node *read_case_label(void) {
     int beg = eval_intexpr(read_expr());
     int end;
     Token *tok = read_token();
-    if (is_ident(tok, "...")) {
+    if (is_punct(tok, THREEDOTS)) {
         end = eval_intexpr(read_expr());
     } else {
         end = beg;
@@ -1832,7 +1835,7 @@ static Node *read_return_stmt(void) {
 
 static Node *read_goto_stmt(void) {
     Token *tok = read_token();
-    if (!tok || tok->type != TTYPE_IDENT)
+    if (!tok || tok->type != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
     expect(';');
     Node *r = ast_goto(tok->sval);
@@ -1856,19 +1859,19 @@ static Node *read_label(Token *tok) {
 
 static Node *read_stmt(void) {
     Token *tok = read_token();
-    if (is_punct(tok, '{'))        return read_compound_stmt();
-    if (is_ident(tok, "if"))       return read_if_stmt();
-    if (is_ident(tok, "for"))      return read_for_stmt();
-    if (is_ident(tok, "while"))    return read_while_stmt();
-    if (is_ident(tok, "do"))       return read_do_stmt();
-    if (is_ident(tok, "return"))   return read_return_stmt();
-    if (is_ident(tok, "switch"))   return read_switch_stmt();
-    if (is_ident(tok, "case"))     return read_case_label();
-    if (is_ident(tok, "default"))  return read_default_label();
-    if (is_ident(tok, "break"))    return read_break_stmt();
-    if (is_ident(tok, "continue")) return read_continue_stmt();
-    if (is_ident(tok, "goto"))     return read_goto_stmt();
-    if (tok->type == TTYPE_IDENT && is_punct(peek_token(), ':'))
+    if (is_punct(tok, '{'))       return read_compound_stmt();
+    if (is_punct(tok, KIF))       return read_if_stmt();
+    if (is_punct(tok, KFOR))      return read_for_stmt();
+    if (is_punct(tok, KWHILE))    return read_while_stmt();
+    if (is_punct(tok, KDO))       return read_do_stmt();
+    if (is_punct(tok, KRETURN))   return read_return_stmt();
+    if (is_punct(tok, KSWITCH))   return read_switch_stmt();
+    if (is_punct(tok, KCASE))     return read_case_label();
+    if (is_punct(tok, KDEFAULT))  return read_default_label();
+    if (is_punct(tok, KBREAK))    return read_break_stmt();
+    if (is_punct(tok, KCONTINUE)) return read_continue_stmt();
+    if (is_punct(tok, KGOTO))     return read_goto_stmt();
+    if (tok->type == TIDENT && is_punct(peek_token(), ':'))
         return read_label(tok);
     unget_token(tok);
     Node *r = read_expr_opt();

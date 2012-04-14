@@ -253,9 +253,9 @@ char *t2s(Token *tok) {
     if (!tok)
         return "(null)";
     switch (tok->type) {
-    case TTYPE_IDENT:
+    case TIDENT:
         return tok->sval;
-    case TTYPE_PUNCT:
+    case TPUNCT:
         switch (tok->punct) {
         case OP_EQ:     return "==";
         case OP_NE:     return "!=";
@@ -276,19 +276,23 @@ char *t2s(Token *tok) {
         case OP_A_XOR:  return "^=";
         case OP_A_LSH:  return "<<=";
         case OP_A_RSH:  return ">>=";
+#define keyword(ident, str, _)                  \
+            case ident: return str;
+#include "keyword.h"
+#undef keyword
         default: return format("%c", tok->c);
         }
-    case TTYPE_CHAR:
+    case TCHAR:
         return quote_char(tok->c);
-    case TTYPE_NUMBER:
+    case TNUMBER:
         return tok->sval;
-    case TTYPE_STRING:
+    case TSTRING:
         return format("\"%s\"", quote_cstring(tok->sval));
-    case TTYPE_NEWLINE:
+    case TNEWLINE:
         return "(newline)";
-    case TTYPE_SPACE:
+    case TSPACE:
         return "(space)";
-    case TTYPE_MACRO_PARAM:
+    case TMACRO_PARAM:
         return "(macro-param)";
     }
     error("internal error: unknown token type: %d", tok->type);
