@@ -828,56 +828,68 @@ static Node *read_postfix_expr(void) {
     return read_postfix_expr_tail(node);
 }
 
+static Node *read_unary_incdec(int op) {
+    Node *operand = read_unary_expr();
+    operand = convert_funcdesg(operand);
+    ensure_lvalue(operand);
+    return ast_uop(op, operand->ctype, operand);
+}
+
+static Node *read_unary_addr(void) {
+    Node *operand = read_cast_expr();
+    if (operand->type == AST_FUNCDESG)
+        return operand;
+    ensure_lvalue(operand);
+    return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
+}
+
+static Node *read_unary_deref(void) {
+    Node *operand = read_cast_expr();
+    operand = convert_funcdesg(operand);
+    Ctype *ctype = convert_array(operand->ctype);
+    if (ctype->type != CTYPE_PTR)
+        error("pointer type expected, but got %s", a2s(operand));
+    if (ctype->ptr->type == CTYPE_FUNC)
+        return operand;
+    return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
+}
+
+static Node *read_unary_minus(void) {
+    Node *expr = read_cast_expr();
+    expr = convert_funcdesg(expr);
+    return usual_conv('-', ast_inttype(ctype_int, 0), expr);
+}
+
+static Node *read_unary_bitnot(void) {
+    Node *expr = read_cast_expr();
+    expr = convert_funcdesg(expr);
+    if (!is_inttype(expr->ctype))
+        error("invalid use of ~: %s", a2s(expr));
+    return ast_uop('~', expr->ctype, expr);
+}
+
+static Node *read_unary_lognot(void) {
+    Node *operand = read_cast_expr();
+    operand = convert_funcdesg(operand);
+    return ast_uop('!', ctype_int, operand);
+}
+
 static Node *read_unary_expr(void) {
-    Token *tok = peek_token();
-    if (is_punct(tok, KSIZEOF)) {
-        read_token();
-        return ast_inttype(ctype_long, get_sizeof_ctype(false)->size);
+    Token *tok = read_token();
+    if (tok->type == TPUNCT) {
+        switch (tok->punct) {
+        case KSIZEOF: return ast_inttype(ctype_long, get_sizeof_ctype(false)->size);
+        case OP_INC: return read_unary_incdec(OP_PRE_INC);
+        case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
+        case '&': return read_unary_addr();
+        case '*': return read_unary_deref();
+        case '+': return read_cast_expr();
+        case '-': return read_unary_minus();
+        case '~': return read_unary_bitnot();
+        case '!': return read_unary_lognot();
+        }
     }
-    if (next_token(OP_INC) || next_token(OP_DEC)) {
-        Node *operand = read_unary_expr();
-        operand = convert_funcdesg(operand);
-        ensure_lvalue(operand);
-        int op = is_punct(tok, OP_INC) ? OP_PRE_INC : OP_PRE_DEC;
-        return ast_uop(op, operand->ctype, operand);
-    }
-    if (next_token('&')) {
-        Node *operand = read_cast_expr();
-        if (operand->type == AST_FUNCDESG)
-            return operand;
-        ensure_lvalue(operand);
-        return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
-    }
-    if (next_token('*')) {
-        Node *operand = read_cast_expr();
-        operand = convert_funcdesg(operand);
-        Ctype *ctype = convert_array(operand->ctype);
-        if (ctype->type != CTYPE_PTR)
-            error("pointer type expected, but got %s", a2s(operand));
-        if (ctype->ptr->type == CTYPE_FUNC)
-            return operand;
-        return ast_uop(AST_DEREF, operand->ctype->ptr, operand);
-    }
-    if (next_token('+')) {
-        return read_cast_expr();
-    }
-    if (next_token('-')) {
-        Node *expr = read_cast_expr();
-        expr = convert_funcdesg(expr);
-        return usual_conv('-', ast_inttype(ctype_int, 0), expr);
-    }
-    if (next_token('~')) {
-        Node *expr = read_cast_expr();
-        expr = convert_funcdesg(expr);
-        if (!is_inttype(expr->ctype))
-            error("invalid use of ~: %s", a2s(expr));
-        return ast_uop('~', expr->ctype, expr);
-    }
-    if (next_token('!')) {
-        Node *operand = read_cast_expr();
-        operand = convert_funcdesg(operand);
-        return ast_uop('!', ctype_int, operand);
-    }
+    unget_token(tok);
     return read_postfix_expr();
 }
 
