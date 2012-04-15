@@ -14,8 +14,8 @@ utiltest: 8cc.h utiltest.o $(OBJS)
 test: utiltest $(TESTS)
 	@echo
 	./utiltest
-	@for test in $(TESTS); do \
-	    ./$$test;             \
+	@for test in $(TESTS); do  \
+	    ./$$test || exit;      \
 	done
 	./test.sh
 
