@@ -207,6 +207,7 @@ static void a2s_int(String *buf, Node *node) {
         break;
     case AST_ADDR:  uop_to_string(buf, "addr", node); break;
     case AST_DEREF: uop_to_string(buf, "deref", node); break;
+    case OP_UMINUS: uop_to_string(buf, "-", node); break;
     case OP_SAL:  binop_to_string(buf, "<<", node); break;
     case OP_SAR:
     case OP_SHR:  binop_to_string(buf, ">>", node); break;

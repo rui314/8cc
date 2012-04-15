@@ -87,6 +87,7 @@ enum {
     AST_LABEL,
     AST_VA_START,
     AST_VA_ARG,
+    OP_UMINUS,
     OP_EQ,
     OP_NE,
     OP_LE,

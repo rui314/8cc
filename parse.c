@@ -356,6 +356,11 @@ static void ensure_inttype(Node *node) {
         error("integer type expected, but got %s", a2s(node));
 }
 
+static void ensure_arithtype(Node *node) {
+    if (!is_arithtype(node->ctype))
+        error("arithmetic type expected, but got %s", a2s(node));
+}
+
 static void ensure_not_void(Ctype *ctype) {
     if (ctype->type == CTYPE_VOID)
         error("void is not allowed");
@@ -509,6 +514,7 @@ int eval_intexpr(Node *node) {
         error("Integer expression expected, but got %s", a2s(node));
     case '!': return !eval_intexpr(node->operand);
     case '~': return ~eval_intexpr(node->operand);
+    case OP_UMINUS: return -eval_intexpr(node->operand);
     case OP_CAST: return eval_intexpr(node->operand);
     case AST_CONV: return eval_intexpr(node->operand);
     case AST_TERNARY:
@@ -856,8 +862,8 @@ static Node *read_unary_deref(void) {
 
 static Node *read_unary_minus(void) {
     Node *expr = read_cast_expr();
-    expr = convert_funcdesg(expr);
-    return usual_conv('-', ast_inttype(ctype_int, 0), expr);
+    ensure_arithtype(expr);
+    return ast_uop(OP_UMINUS, expr->ctype, expr);
 }
 
 static Node *read_unary_bitnot(void) {
