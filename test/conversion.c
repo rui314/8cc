@@ -14,7 +14,14 @@ void test_bool(void) {
     expect(0, v);
 }
 
+void test_float(void) {
+    double a = 4.0;
+    float b = a;
+    expectf(4, b);
+}
+
 void testmain(void) {
     print("type conversion");
     test_bool();
+    test_float();
 }

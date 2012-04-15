@@ -126,16 +126,10 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
 
 static void emit_toint(Ctype *ctype) {
     SAVE;
-    if (!is_flotype(ctype))
-        return;
-    emit("cvttsd2si %%xmm0, %%eax");
-}
-
-static void emit_todouble(Ctype *ctype) {
-    SAVE;
-    if (is_flotype(ctype))
-        return;
-    emit("cvtsi2sd %%eax, %%xmm0");
+    if (ctype->type == CTYPE_FLOAT)
+        emit("cvttss2si %%xmm0, %%eax");
+    else if (ctype->type == CTYPE_FLOAT)
+        emit("cvttsd2si %%xmm0, %%eax");
 }
 
 static void emit_lload(Ctype *ctype, char *base, int off) {
@@ -143,7 +137,7 @@ static void emit_lload(Ctype *ctype, char *base, int off) {
     if (ctype->type == CTYPE_ARRAY) {
         emit("lea %d(%%%s), %%rax", off, base);
     } else if (ctype->type == CTYPE_FLOAT) {
-        emit("cvtps2pd %d(%%%s), %%xmm0", off, base);
+        emit("movss %d(%%%s), %%xmm0", off, base);
     } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
         emit("movsd %d(%%%s), %%xmm0", off, base);
     } else {
@@ -173,12 +167,8 @@ static void emit_gsave(char *varname, Ctype *ctype, int off) {
 static void emit_lsave(Ctype *ctype, int off) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT) {
-        push_xmm(0);
-        emit("unpcklpd %%xmm0, %%xmm0");
-        emit("cvtpd2ps %%xmm0, %%xmm0");
         emit("movss %%xmm0, %d(%%rbp)", off);
-        pop_xmm(0);
-    } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
+    } else if (ctype->type == CTYPE_DOUBLE) {
         emit("movsd %%xmm0, %d(%%rbp)", off);
     } else {
         maybe_convert_bool(ctype);
@@ -296,7 +286,7 @@ static void emit_to_bool(Ctype *ctype) {
     if (is_flotype(ctype)) {
         push_xmm(1);
         emit("xorpd %%xmm1, %%xmm1");
-        emit("ucomisd %%xmm1, %%xmm0");
+        emit("%s %%xmm1, %%xmm0", (ctype->type == CTYPE_FLOAT) ? "ucomiss" : "ucomisd");
         emit("setne %%al");
         pop_xmm(1);
     } else {
@@ -308,12 +298,15 @@ static void emit_to_bool(Ctype *ctype) {
 
 static void emit_comp(char *inst, Node *node) {
     SAVE;
-    if (is_flotype(node->left->ctype) || is_flotype(node->right->ctype)) {
+    if (is_flotype(node->left->ctype)) {
         emit_expr(node->left);
         push_xmm(0);
         emit_expr(node->right);
         pop_xmm(1);
-        emit("ucomisd %%xmm0, %%xmm1");
+        if (node->left->ctype->type == CTYPE_FLOAT)
+            emit("ucomiss %%xmm0, %%xmm1");
+        else
+            emit("ucomisd %%xmm0, %%xmm1");
     } else {
         emit_expr(node->left);
         push("rax");
@@ -359,42 +352,36 @@ static void emit_binop_int_arith(Node *node) {
 static void emit_binop_float_arith(Node *node) {
     SAVE;
     char *op;
+    bool isdouble = (node->ctype->type == CTYPE_DOUBLE);
     switch (node->type) {
-    case '+': op = "addsd"; break;
-    case '-': op = "subsd"; break;
-    case '*': op = "mulsd"; break;
-    case '/': op = "divsd"; break;
+    case '+': op = (isdouble ? "addsd" : "addss"); break;
+    case '-': op = (isdouble ? "subsd" : "subss"); break;
+    case '*': op = (isdouble ? "mulsd" : "mulss"); break;
+    case '/': op = (isdouble ? "divsd" : "divss"); break;
     default: error("invalid operator '%d'", node->type);
     }
     emit_expr(node->left);
     push_xmm(0);
     emit_expr(node->right);
-    emit("movsd %%xmm0, %%xmm1");
+    emit("%s %%xmm0, %%xmm1", (isdouble ? "movsd" : "movss"));
     pop_xmm(0);
     emit("%s %%xmm1, %%xmm0", op);
 }
 
 static void emit_load_convert(Ctype *to, Ctype *from) {
     SAVE;
-    if (is_flotype(to)) {
-        emit_todouble(from);
-    } else if (to->type == CTYPE_BOOL) {
-        emit_to_bool(from);
-    } else {
-        emit_toint(from);
-    }
-}
-
-static void emit_save_convert(Ctype *to, Ctype *from) {
-    SAVE;
     if (is_inttype(from) && to->type == CTYPE_FLOAT)
         emit("cvtsi2ss %%eax, %%xmm0");
-    else if (is_flotype(from) && to->type == CTYPE_FLOAT)
-        emit("cvtpd2ps %%xmm0, %%xmm0");
-    else if (is_inttype(from) && (to->type == CTYPE_DOUBLE || to->type == CTYPE_LDOUBLE))
+    else if (is_inttype(from) && to->type == CTYPE_DOUBLE)
         emit("cvtsi2sd %%eax, %%xmm0");
-    else if (!(is_flotype(from) && (to->type == CTYPE_DOUBLE || to->type == CTYPE_LDOUBLE)))
-        emit_load_convert(to, from);
+    else if (from->type == CTYPE_FLOAT && to->type == CTYPE_DOUBLE)
+        emit("cvtps2pd %%xmm0, %%xmm0");
+    else if (from->type == CTYPE_DOUBLE && to->type == CTYPE_FLOAT)
+        emit("cvtpd2ps %%xmm0, %%xmm0");
+    else if (to->type == CTYPE_BOOL)
+        emit_to_bool(from);
+    else if (is_inttype(to))
+        emit_toint(from);
 }
 
 static void emit_ret(void) {
@@ -440,7 +427,7 @@ static void emit_save_literal(Node *node, Ctype *totype, int off) {
         break;
     }
     case CTYPE_FLOAT: {
-        float fval = (float)node->fval;
+        float fval = node->fval;
         int *p = (int *)&fval;
         emit("movl $%u, %d(%%rbp)", *p, off);
         break;
@@ -580,12 +567,24 @@ static void emit_literal(Node *node) {
         emit("mov $%lu, %%rax", node->ival);
         break;
     }
-    case CTYPE_FLOAT:
+    case CTYPE_FLOAT: {
+        if (!node->flabel) {
+            node->flabel = make_label();
+            float fval = node->fval;
+            int *p = (int *)&fval;
+            emit_noindent(".data");
+            emit_label(node->flabel);
+            emit(".long %d", *p);
+            emit_noindent(".text");
+        }
+        emit("movss %s(%%rip), %%xmm0", node->flabel);
+        break;
+    }
     case CTYPE_DOUBLE:
     case CTYPE_LDOUBLE: {
         if (!node->flabel) {
             node->flabel = make_label();
-            int *fval = (int*)&node->fval;
+            int *fval = (int *)&node->fval;
             emit_noindent(".data");
             emit_label(node->flabel);
             emit(".long %d", fval[0]);
@@ -683,8 +682,6 @@ static void emit_func_call(Node *node) {
             pop(REGS[--ireg]);
         }
     }
-    if (node->ctype->type == CTYPE_FLOAT)
-        emit("cvtps2pd %%xmm0, %%xmm0");
 }
 
 static void emit_decl(Node *node) {
@@ -842,11 +839,8 @@ static void emit_goto(Node *node) {
 
 static void emit_return(Node *node) {
     SAVE;
-    if (node->retval) {
+    if (node->retval)
         emit_expr(node->retval);
-        if (node->retval->ctype->type == CTYPE_FLOAT)
-            emit_save_convert(ctype_float, ctype_double);
-    }
     emit_ret();
 }
 
@@ -894,6 +888,8 @@ static void emit_va_arg(Node *node) {
         emit("add $16, %%ebx");
         emit("mov %%ebx, 4(%%rax)");
         emit("movsd (%%rcx), %%xmm0");
+        if (node->ctype->type == CTYPE_FLOAT)
+            emit("cvtpd2ps %%xmm0, %%xmm0");
     } else {
         emit("mov (%%rax), %%ebx");
         emit("add %%rbx, %%rcx");

@@ -82,6 +82,7 @@ float ptrtest3(float a) {
 }
 
 void func_ptr_call(void) {
+    expectf(4, ptrtest3(2));
     int (*p1)(void) = ptrtest1;
     expect(55, p1());
     int (*p2)(int) = ptrtest2;

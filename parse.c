@@ -1364,10 +1364,14 @@ static void read_initializer_list(List *inits, Ctype *ctype, int off) {
 
 static List *read_decl_init(Ctype *ctype) {
     List *r = make_list();
-    if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT)
+    if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
         read_initializer_list(r, ctype, 0);
-    else
-        list_push(r, ast_init(read_assignment_expr(), ctype, 0));
+    } else {
+        Node *init = read_assignment_expr();
+        if (is_arithtype(init->ctype) && init->ctype->type != ctype->type)
+            init = ast_conv(ctype, init);
+        list_push(r, ast_init(init, ctype, 0));
+    }
     return r;
 }
 
