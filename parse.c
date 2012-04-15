@@ -1,6 +1,10 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+/*
+ * Recursive descendent parser for C.
+ */
+
 #include <ctype.h>
 #include <limits.h>
 #include <setjmp.h>

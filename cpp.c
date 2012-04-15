@@ -1,6 +1,11 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+/*
+ * This implements Dave Prosser's C Preprocessing algorithm, described
+ * in this document: https://github.com/rui314/8cc/wiki/cpp.algo.pdf
+ */
+
 // For fmemopen()
 #define _POSIX_C_SOURCE 200809L
 
