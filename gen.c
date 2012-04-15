@@ -637,11 +637,10 @@ static void emit_gvar(Node *node) {
 static void emit_func_call(Node *node) {
     SAVE;
     bool isptr = (node->type == AST_FUNCPTR_CALL);
+    Ctype *ftype = isptr ? node->fptr->ctype->ptr : node->ftype;
     int ireg = 0;
     int xreg = 0;
-    List *argtypes = isptr
-        ? get_arg_types(node->args, node->fptr->ctype->ptr->params)
-        : get_arg_types(node->args, node->ftype->params);
+    List *argtypes = get_arg_types(node->args, ftype->params);
     for (Iter *i = list_iter(argtypes); !iter_end(i);) {
         if (is_flotype(iter_next(i))) {
             if (xreg > 0) push_xmm(xreg);
@@ -676,7 +675,8 @@ static void emit_func_call(Node *node) {
             pop(REGS[--ir]);
     }
     if (isptr) pop("rbx");
-    emit("mov $%d, %%eax", xreg);
+    if (ftype->hasva)
+        emit("mov $%d, %%eax", xreg);
     if (stackpos % 16)
         emit("sub $8, %%rsp");
     if (isptr) {
