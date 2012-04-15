@@ -1760,11 +1760,14 @@ static Node *read_funcdef(void) {
  * If
  */
 
+static Node *read_cond_expr(void) {
+    Node *cond = read_expr();
+    return is_flotype(cond->ctype) ? ast_conv(ctype_bool, cond) : cond;
+}
+
 static Node *read_if_stmt(void) {
     expect('(');
-    Node *cond = read_expr();
-    if (is_flotype(cond->ctype))
-        cond = ast_conv(ctype_bool, cond);
+    Node *cond = read_cond_expr();
     expect(')');
     Node *then = read_stmt();
     Token *tok = read_token();
@@ -1795,6 +1798,8 @@ static Node *read_for_stmt(void) {
     localenv = make_dict(localenv);
     Node *init = read_opt_decl_or_stmt();
     Node *cond = read_expr_opt();
+    if (cond && is_flotype(cond->ctype))
+        cond = ast_conv(ctype_bool, cond);
     expect(';');
     Node *step = read_expr_opt();
     expect(')');
@@ -1809,7 +1814,7 @@ static Node *read_for_stmt(void) {
 
 static Node *read_while_stmt(void) {
     expect('(');
-    Node *cond = read_expr();
+    Node *cond = read_cond_expr();
     expect(')');
     Node *body = read_stmt();
     return ast_while(cond, body);
@@ -1825,7 +1830,7 @@ static Node *read_do_stmt(void) {
     if (!is_punct(tok, KWHILE))
         error("'while' is expected, but got %s", t2s(tok));
     expect('(');
-    Node *cond = read_expr();
+    Node *cond = read_cond_expr();
     expect(')');
     expect(';');
     return ast_do(cond, body);

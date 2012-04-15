@@ -55,6 +55,13 @@ void test_for(void) {
         break;
     for (i = 0; i < 100; i++)
         ;
+
+    i = 0;
+    for (; 0.5;) {
+        i = 68;
+        break;
+    }
+    expect(68, i);
 }
 
 void test_while(void) {
@@ -83,6 +90,13 @@ void test_while(void) {
     i = 0;
     while (i++ < 100)
         ;
+
+    i = 0;
+    while (0.5) {
+        i = 67;
+        break;
+    }
+    expect(67, i);
 }
 
 void test_do(void) {
@@ -111,6 +125,11 @@ void test_do(void) {
 
     i = 0;
     do; while (i++ < 100);
+
+    float v = 1;
+    i = 70;
+    do i++; while (v -= 0.5);
+    expect(72, i);
 }
 
 void test_switch(void) {
