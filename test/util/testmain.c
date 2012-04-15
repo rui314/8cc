@@ -17,7 +17,7 @@ void print(char *s) {
 }
 
 void printfail(void) {
-    printf(isatty(fileno(stderr)) ? "\e[1;31mFailed\e[0m" : "Failed");
+    printf(isatty(fileno(stdout)) ? "\e[1;31mFailed\e[0m" : "Failed");
 }
 
 void fail(char *msg) {
@@ -68,5 +68,5 @@ void expectl(long a, long b) {
 
 int main() {
     testmain();
-    printf("OK\n");
+    printf(isatty(fileno(stdout)) ? "\e[32mOK\e[0m\n" : "OK\n");
 }
