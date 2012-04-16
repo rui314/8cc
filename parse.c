@@ -1123,8 +1123,7 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
         if (!is_type_keyword(peek_token()))
             break;
         Ctype *basetype = read_decl_spec(NULL);
-        if (basetype->type == CTYPE_STRUCT && is_punct(peek_token(), ';')) {
-            read_token();
+        if (basetype->type == CTYPE_STRUCT && next_token(';')) {
             squash_unnamed_struct(r, basetype, offset);
             if (is_struct)
                 offset += basetype->size;
@@ -1145,11 +1144,12 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
                 fieldtype = make_struct_field_type(fieldtype, 0);
             }
             dict_put(r, name, fieldtype);
-            tok = read_token();
-            if (is_punct(tok, ','))
+            if (next_token(','))
                 continue;
-            unget_token(tok);
-            expect(';');
+            if (is_punct(peek_token(), '}'))
+                warn("missing ';' at the end of field list");
+            else
+                expect(';');
             break;
         }
     }
