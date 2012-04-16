@@ -21,6 +21,8 @@ static List *buffer = &EMPTY_LIST;
 static List *altbuffer = NULL;
 static List *file_stack = &EMPTY_LIST;
 static File *file;
+static int line_mark = -1;
+static int column_mark = -1;
 static int ungotten = -1;
 
 static Token *newline_token = &(Token){ .type = TNEWLINE, .nspace = 0 };
@@ -56,8 +58,10 @@ static Token *make_token(Token *tmpl) {
     *r = *tmpl;
     r->hideset = make_dict(NULL);
     r->file = file->displayname;
-    r->line = file->line;
-    r->column = file->column;
+    r->line = (line_mark < 0) ? file->line : line_mark;
+    r->column = (column_mark < 0) ? file->column : column_mark;
+    line_mark = -1;
+    column_mark = -1;
     return r;
 }
 
@@ -118,6 +122,11 @@ char *get_current_displayname(void) {
 
 void set_current_displayname(char *name) {
     file->displayname = name;
+}
+
+static void mark_input(void) {
+    line_mark = file->line;
+    column_mark = file->column;
 }
 
 static void unget(int c) {
@@ -374,6 +383,7 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
 }
 
 static Token *read_token_int(void) {
+    mark_input();
     int c = get();
     switch (c) {
     case ' ':
