@@ -1924,18 +1924,22 @@ static Node *read_label(Token *tok) {
 
 static Node *read_stmt(void) {
     Token *tok = read_token();
-    if (is_punct(tok, '{'))       return read_compound_stmt();
-    if (is_punct(tok, KIF))       return read_if_stmt();
-    if (is_punct(tok, KFOR))      return read_for_stmt();
-    if (is_punct(tok, KWHILE))    return read_while_stmt();
-    if (is_punct(tok, KDO))       return read_do_stmt();
-    if (is_punct(tok, KRETURN))   return read_return_stmt();
-    if (is_punct(tok, KSWITCH))   return read_switch_stmt();
-    if (is_punct(tok, KCASE))     return read_case_label();
-    if (is_punct(tok, KDEFAULT))  return read_default_label();
-    if (is_punct(tok, KBREAK))    return read_break_stmt();
-    if (is_punct(tok, KCONTINUE)) return read_continue_stmt();
-    if (is_punct(tok, KGOTO))     return read_goto_stmt();
+    if (tok->type == TPUNCT) {
+        switch (tok->punct) {
+        case '{':       return read_compound_stmt();
+        case KIF:       return read_if_stmt();
+        case KFOR:      return read_for_stmt();
+        case KWHILE:    return read_while_stmt();
+        case KDO:       return read_do_stmt();
+        case KRETURN:   return read_return_stmt();
+        case KSWITCH:   return read_switch_stmt();
+        case KCASE:     return read_case_label();
+        case KDEFAULT:  return read_default_label();
+        case KBREAK:    return read_break_stmt();
+        case KCONTINUE: return read_continue_stmt();
+        case KGOTO:     return read_goto_stmt();
+        }
+    }
     if (tok->type == TIDENT && is_punct(peek_token(), ':'))
         return read_label(tok);
     unget_token(tok);
