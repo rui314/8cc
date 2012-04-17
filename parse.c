@@ -13,7 +13,6 @@
 #include <strings.h>
 #include "8cc.h"
 
-#define MAX_ARGS 6
 #define MAX_OP_PRIO 16
 #define MAX_ALIGN 16
 
@@ -690,8 +689,6 @@ static List *read_func_args(List *params) {
         if (!is_punct(tok, ','))
             error("Unexpected token: '%s'", t2s(tok));
     }
-    if (MAX_ARGS < list_len(args))
-        error("Too many arguments");
     return args;
 }
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "8cc.h"
+#include "list.h"
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static int TAB = 8;
@@ -528,18 +529,6 @@ static void emit_post_inc_dec(Node *node, char *op) {
     pop("rax");
 }
 
-static List *get_arg_types(List *params, List *args) {
-    List *r = make_list();
-    Iter *i = list_iter(params);
-    Iter *j = list_iter(args);
-    while (!iter_end(i)) {
-        Node *v = iter_next(i);
-        Ctype *ptype = iter_next(j);
-        list_push(r, ptype ? ptype : v->ctype);
-    }
-    return r;
-}
-
 static void set_reg_nums(List *args) {
     numgp = numfp = 0;
     for (Iter *i = list_iter(args); !iter_end(i);) {
@@ -634,66 +623,104 @@ static void emit_gvar(Node *node) {
     emit_gload(node->ctype, node->glabel, 0);
 }
 
+static void classify_args(List *ints, List *floats, List *rest, List *args) {
+    SAVE;
+    int ireg = 0, xreg = 0;
+    int imax = 6, xmax = 8;
+    Iter *iter = list_iter(args);
+    while (!iter_end(iter)) {
+        Node *v = iter_next(iter);
+        if (is_flotype(v->ctype))
+            list_push((xreg++ < xmax) ? floats : rest, v);
+        else
+            list_push((ireg++ < imax) ? ints : rest, v);
+    }
+}
+
+static void save_arg_regs(int nints, int nfloats) {
+    SAVE;
+    assert(nints <= 6);
+    assert(nfloats <= 8);
+    for (int i = 0; i < nints; i++)
+        push(REGS[i]);
+    for (int i = 1; i < nfloats; i++)
+        push_xmm(i);
+}
+
+static void restore_arg_regs(int nints, int nfloats) {
+    SAVE;
+    for (int i = nfloats - 1; i > 0; i--)
+        pop_xmm(i);
+    for (int i = nints - 1; i >= 0; i--)
+        pop(REGS[i]);
+}
+
+static void emit_args(List *vals) {
+    SAVE;
+    Iter *iter = list_iter(vals);
+    while (!iter_end(iter)) {
+        Node *v = iter_next(iter);
+        emit_expr(v);
+        if (is_flotype(v->ctype))
+            push_xmm(0);
+        else
+            push("rax");
+    }
+}
+
+static void pop_int_args(int nints) {
+    SAVE;
+    for (int i = nints - 1; i >= 0; i--)
+        pop(REGS[i]);
+}
+
+static void pop_float_args(int nfloats) {
+    SAVE;
+    for (int i = nfloats - 1; i >= 0; i--)
+        pop_xmm(i);
+}
+
 static void emit_func_call(Node *node) {
     SAVE;
     bool isptr = (node->type == AST_FUNCPTR_CALL);
     Ctype *ftype = isptr ? node->fptr->ctype->ptr : node->ftype;
-    int ireg = 0;
-    int xreg = 0;
-    List *argtypes = get_arg_types(node->args, ftype->params);
-    for (Iter *i = list_iter(argtypes); !iter_end(i);) {
-        if (is_flotype(iter_next(i))) {
-            if (xreg > 0) push_xmm(xreg);
-            xreg++;
-        } else {
-            push(REGS[ireg++]);
-        }
-    }
+
+    List *ints = make_list();
+    List *floats = make_list();
+    List *rest = make_list();
+    classify_args(ints, floats, rest, node->args);
+    save_arg_regs(list_len(ints), list_len(floats));
+
+    emit_args(list_reverse(rest));
     if (isptr) {
         emit_expr(node->fptr);
         push("rax");
     }
-    {
-        Iter *i = list_iter(node->args);
-        Iter *j = list_iter(argtypes);
-        while (!iter_end(i)) {
-            Node *v = iter_next(i);
-            emit_expr(v);
-            Ctype *ptype = iter_next(j);
-            if (is_flotype(ptype))
-                push_xmm(0);
-            else
-                push("rax");
-        }
-    }
-    int ir = ireg;
-    int xr = xreg;
-    for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
-        if (is_flotype(iter_next(i)))
-            pop_xmm(--xr);
-        else
-            pop(REGS[--ir]);
-    }
-    if (isptr) pop("rbx");
+    emit_args(ints);
+    emit_args(floats);
+    pop_float_args(list_len(floats));
+    pop_int_args(list_len(ints));
+
+    if (isptr) pop("r10");
     if (ftype->hasva)
-        emit("mov $%d, %%eax", xreg);
-    if (stackpos % 16)
+        emit("mov $%d, %%eax", list_len(floats));
+
+    bool padding = stackpos % 16;
+    if (padding) {
         emit("sub $8, %%rsp");
-    if (isptr) {
-        emit("call *%%rbx");
-    } else {
-        emit("call %s", node->fname);
-    }
-    if (stackpos % 16)
-        emit("add $8, %%rsp");
-    for (Iter *i = list_iter(list_reverse(argtypes)); !iter_end(i);) {
-        if (is_flotype(iter_next(i))) {
-            if (xreg != 1)
-                pop_xmm(--xreg);
-        } else {
-            pop(REGS[--ireg]);
+        for (int i = 0; i < list_len(rest); i++) {
+            emit("mov %d(%%rsp), %%r11", (i + 1) * 8);
+            emit("mov %%r11, %d(%%rsp)", i * 8);
         }
     }
+    if (isptr)
+        emit("call *%%r10");
+    else
+        emit("call %s", node->fname);
+
+    if (padding)
+        emit("add $8, %%rsp");
+    restore_arg_regs(list_len(ints), list_len(floats));
 }
 
 static void emit_decl(Node *node) {
@@ -1187,6 +1214,32 @@ static int emit_regsave_area(void) {
     return REGAREA_SIZE;
 }
 
+static void push_func_params(List *params, int off) {
+    int ireg = 0;
+    int xreg = 0;
+    int arg = 2;
+    for (Iter *i = list_iter(params); !iter_end(i);) {
+        Node *v = iter_next(i);
+        if (is_flotype(v->ctype)) {
+            if (xreg >= 8) {
+                emit("mov %d(%%rbp), %%rax", arg++ * 8);
+                push("rax");
+            } else {
+                push_xmm(xreg++);
+            }
+        } else {
+            if (ireg >= 6) {
+                emit("mov %d(%%rbp), %%rax", arg++ * 8);
+                push("rax");
+            } else {
+                push(REGS[ireg++]);
+            }
+        }
+        off -= 8;
+        v->loff = off;
+    }
+}
+
 static void emit_func_prologue(Node *func) {
     SAVE;
     emit(".text");
@@ -1197,38 +1250,30 @@ static void emit_func_prologue(Node *func) {
     push("rbp");
     emit("mov %%rsp, %%rbp");
     int off = 0;
-    int ireg = 0;
-    int xreg = 0;
     if (func->ctype->hasva) {
         set_reg_nums(func->params);
         off -= emit_regsave_area();
     }
-    for (Iter *i = list_iter(func->params); !iter_end(i);) {
-        Node *v = iter_next(i);
-        if (v->ctype->type == CTYPE_FLOAT) {
-            push_xmm(xreg++);
-        } else if (v->ctype->type == CTYPE_DOUBLE || v->ctype->type == CTYPE_LDOUBLE) {
-            push_xmm(xreg++);
-        } else {
-            push(REGS[ireg++]);
-        }
-        off -= align(v->ctype->size, 8);
-        v->loff = off;
-    }
+    push_func_params(func->params, off);
+    off -= list_len(func->params) * 8;
+
     int localarea = 0;
     for (Iter *i = list_iter(func->localvars); !iter_end(i);) {
         Node *v = iter_next(i);
-        off -= align(v->ctype->size, 8);
+        int size = align(v->ctype->size, 8);
+        assert(size % 8 == 0);
+        off -= size;
         v->loff = off;
-        localarea += off;
+        localarea += size;
     }
-    if (localarea)
-        emit("sub $%d, %%rsp", -localarea);
-    stackpos += -(off - 8);
+    if (localarea) {
+        emit("sub $%d, %%rsp", localarea);
+        stackpos += localarea;
+    }
 }
 
 void emit_toplevel(Node *v) {
-    stackpos = 0;
+    stackpos = 8;
     if (v->type == AST_FUNC) {
         emit_func_prologue(v);
         emit_expr(v->body);
