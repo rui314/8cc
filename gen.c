@@ -690,6 +690,7 @@ static void maybe_booleanize_retval(Ctype *ctype) {
 
 static void emit_func_call(Node *node) {
     SAVE;
+    int opos = stackpos;
     bool isptr = (node->type == AST_FUNCPTR_CALL);
     Ctype *ftype = isptr ? node->fptr->ctype->ptr : node->ftype;
 
@@ -698,6 +699,12 @@ static void emit_func_call(Node *node) {
     List *rest = make_list();
     classify_args(ints, floats, rest, node->args);
     save_arg_regs(list_len(ints), list_len(floats));
+
+    bool padding = stackpos % 16;
+    if (padding) {
+        emit("sub $8, %%rsp");
+        stackpos += 8;
+    }
 
     emit_args(list_reverse(rest));
     if (isptr) {
@@ -709,26 +716,25 @@ static void emit_func_call(Node *node) {
     pop_float_args(list_len(floats));
     pop_int_args(list_len(ints));
 
-    if (isptr) pop("r10");
+    if (isptr) pop("r11");
     if (ftype->hasva)
         emit("mov $%d, %%eax", list_len(floats));
 
-    bool padding = stackpos % 16;
-    if (padding) {
-        emit("sub $8, %%rsp");
-        for (int i = 0; i < list_len(rest); i++) {
-            emit("mov %d(%%rsp), %%r11", (i + 1) * 8);
-            emit("mov %%r11, %d(%%rsp)", i * 8);
-        }
-    }
     if (isptr)
-        emit("call *%%r10");
+        emit("call *%%r11");
     else
         emit("call %s", node->fname);
     maybe_booleanize_retval(node->ctype);
-    if (padding)
+    if (list_len(rest) > 0) {
+        emit("add $%d, %%rsp", list_len(rest) * 8);
+        stackpos -= list_len(rest) * 8;
+    }
+    if (padding) {
         emit("add $8, %%rsp");
+        stackpos -= 8;
+    }
     restore_arg_regs(list_len(ints), list_len(floats));
+    assert(opos == stackpos);
 }
 
 static void emit_decl(Node *node) {
