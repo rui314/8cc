@@ -218,8 +218,10 @@ static void emit_zero_filler(int start, int end) {
 
 static void ensure_lvar_init(Node *node) {
     assert(node->type == AST_LVAR);
-    if (node->lvarinit)
+    if (node->lvarinit) {
+        emit_zero_filler(node->loff, node->loff + node->ctype->size);
         emit_decl_init(node->lvarinit, node->loff);
+    }
     node->lvarinit = NULL;
 }
 
