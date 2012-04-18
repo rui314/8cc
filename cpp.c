@@ -99,14 +99,14 @@ static Token *make_macro_token(int position) {
 
 static Token *copy_token(Token *tok) {
     Token *r = malloc(sizeof(Token));
-    memcpy(r, tok, sizeof(Token));
+    *r = *tok;
     return r;
 }
 
 static Token *make_number(char *s) {
-    Token *tok = malloc(sizeof(Token));
-    *tok = (Token){ TNUMBER, .sval = s };
-    return tok;
+    Token *r = malloc(sizeof(Token));
+    *r = (Token){ TNUMBER, .sval = s };
+    return r;
 }
 
 static void expect(char punct) {
