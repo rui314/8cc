@@ -680,6 +680,12 @@ static void pop_float_args(int nfloats) {
         pop_xmm(i);
 }
 
+static void maybe_booleanize_retval(Ctype *ctype) {
+    if (ctype->type == CTYPE_BOOL) {
+        emit("movzx %%al, %%rax");
+    }
+}
+
 static void emit_func_call(Node *node) {
     SAVE;
     bool isptr = (node->type == AST_FUNCPTR_CALL);
@@ -717,7 +723,7 @@ static void emit_func_call(Node *node) {
         emit("call *%%r10");
     else
         emit("call %s", node->fname);
-
+    maybe_booleanize_retval(node->ctype);
     if (padding)
         emit("add $8, %%rsp");
     restore_arg_regs(list_len(ints), list_len(floats));
