@@ -103,7 +103,7 @@ static void a2s_int(String *buf, Node *node) {
         string_appendf(buf, "\"%s\"", quote_cstring(node->sval));
         break;
     case AST_LVAR:
-        string_appendf(buf, "%s", node->varname);
+        string_appendf(buf, "lv=%s", node->varname);
         if (node->lvarinit) {
             string_appendf(buf, "(");
             a2s_declinit(buf, node->lvarinit);
@@ -111,7 +111,7 @@ static void a2s_int(String *buf, Node *node) {
         }
         break;
     case AST_GVAR:
-        string_appendf(buf, "%s", node->varname);
+        string_appendf(buf, "gv=%s", node->varname);
         break;
     case AST_FUNCALL:
     case AST_FUNCPTR_CALL: {

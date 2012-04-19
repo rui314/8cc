@@ -1123,13 +1123,22 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
         off += node->totype->size;
         size -= node->totype->size;
         if (v->type == AST_ADDR) {
-            char *label = make_label();
-            emit(".data %d", depth + 1);
-            emit_label(label);
-            emit_data_int(v->operand->lvarinit, v->operand->ctype->size, 0, depth + 1);
-            emit(".data %d", depth);
-            emit(".quad %s", label);
-            continue;
+            switch (v->operand->type) {
+            case AST_LVAR: {
+                char *label = make_label();
+                emit(".data %d", depth + 1);
+                emit_label(label);
+                emit_data_int(v->operand->lvarinit, v->operand->ctype->size, 0, depth + 1);
+                emit(".data %d", depth);
+                emit(".quad %s", label);
+                continue;
+            }
+            case AST_GVAR:
+                emit(".quad %s", v->operand->varname);
+                continue;
+            default:
+                error("internal error");
+            }
         }
         if (v->type == AST_LVAR && v->lvarinit) {
             emit_data_int(v->lvarinit, v->ctype->size, 0, depth);
@@ -1169,7 +1178,10 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
         case CTYPE_LONG:
         case CTYPE_LLONG:
         case CTYPE_PTR:
-            emit(".quad %d", eval_intexpr(node->initval));
+            if (node->initval->type == AST_GVAR)
+                emit(".quad %s", node->initval->varname);
+            else
+                emit(".quad %d", eval_intexpr(node->initval));
             break;
         default:
             error("don't know how to handle\n  <%s>\n  <%s>", c2s(node->totype), a2s(node->initval));

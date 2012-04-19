@@ -4,6 +4,8 @@
 #include "test.h"
 
 int val = 21;
+int *p1 = &val;
+
 int a1[3];
 int a2[3] = { 24, 25, 26 };
 int x1, x2;
@@ -21,6 +23,7 @@ void testmain(void) {
     expect(21, val);
     val = 22;
     expect(22, val);
+    expect(22, *p1);
 
     a1[1] = 23;
     expect(23, a1[1]);
