@@ -167,8 +167,12 @@ static int get(void) {
 static void skip_line(void) {
     for (;;) {
         int c = get();
-        if (c == EOF || c == '\n')
+        if (c == EOF)
             return;
+        if (c == '\n') {
+            unget(c);
+            return;
+        }
     }
 }
 
