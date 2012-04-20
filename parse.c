@@ -341,6 +341,10 @@ static bool is_arithtype(Ctype *ctype) {
     return is_inttype(ctype) || is_flotype(ctype);
 }
 
+static bool is_string(Ctype *ctype) {
+    return ctype->type == CTYPE_ARRAY && ctype->ptr->type == CTYPE_CHAR;
+}
+
 static void ensure_lvalue(Node *node) {
     switch (node->type) {
     case AST_LVAR: case AST_GVAR: case AST_DEREF: case AST_STRUCT_REF:
@@ -628,13 +632,8 @@ static Ctype *get_sizeof_ctype(bool allow_typename) {
     if (is_punct(tok, '(')) {
         Ctype *r = get_sizeof_ctype(true);
         expect(')');
-        tok = read_token();
-        if (is_punct(tok, '{')) {
+        if (is_punct(peek_token(), '{'))
             read_decl_init(r);
-            expect('}');
-        } else {
-            unget_token(tok);
-        }
         return r;
     }
     unget_token(tok);
@@ -899,7 +898,6 @@ static Node *read_unary_expr(void) {
 static Node *read_compound_literal(Ctype *ctype) {
     char *name = make_label();
     List *init = read_decl_init(ctype);
-    expect('}');
     Node *r = ast_lvar(ctype, name);
     r->lvarinit = init;
     return r;
@@ -915,7 +913,7 @@ static Node *read_cast_expr(void) {
     if (is_punct(tok, '(') && is_type_keyword(peek_token())) {
         Ctype *ctype = read_cast_type();
         expect(')');
-        if (next_token('{')) {
+        if (is_punct(peek_token(), '{')) {
             Node *node = read_compound_literal(ctype);
             return read_postfix_expr_tail(node);
         }
@@ -1361,7 +1359,7 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
 
 static void read_initializer_list(List *inits, Ctype *ctype, int off) {
     Token *tok = read_token();
-    if (ctype->type == CTYPE_ARRAY && ctype->ptr->type == CTYPE_CHAR) {
+    if (is_string(ctype)) {
         if (tok->type == TSTRING) {
             assign_string(inits, ctype, tok->sval, off);
             return;
@@ -1373,17 +1371,19 @@ static void read_initializer_list(List *inits, Ctype *ctype, int off) {
         }
     }
     unget_token(tok);
-    if (ctype->type == CTYPE_ARRAY)
+    if (ctype->type == CTYPE_ARRAY) {
         read_array_initializer(inits, ctype, off);
-    else if (ctype->type == CTYPE_STRUCT)
+    } else if (ctype->type == CTYPE_STRUCT) {
         read_struct_initializer(inits, ctype, off);
-    else
-        error("internal error: %s", c2s(ctype));
+    } else {
+        Ctype *arraytype = make_array_type(ctype, 1);
+        read_array_initializer(inits, arraytype, off);
+    }
 }
 
 static List *read_decl_init(Ctype *ctype) {
     List *r = make_list();
-    if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
+    if (is_punct(peek_token(), '{') || is_string(ctype)) {
         read_initializer_list(r, ctype, 0);
     } else {
         Node *init = read_assignment_expr();

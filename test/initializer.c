@@ -67,6 +67,11 @@ void test_designated(void) {
 }
 
 void test_zero(void) {
+    struct tag { int x, y; };
+    struct tag v0 = (struct tag){ 6 };
+    expect(6, v0.x);
+    expect(0, v0.y);
+
     struct { int x; int y; } v1 = { 6 };
     expect(6, v1.x);
     expect(0, v1.y);
