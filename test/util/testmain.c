@@ -1,6 +1,7 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,8 +9,14 @@
 
 void testmain(void);
 
+// For test/extern.c
 int externvar1 = 98;
 int externvar2 = 99;
+
+// For test/function.c
+int booltest1(bool x) {
+    return x;
+}
 
 void print(char *s) {
     printf("Testing %s ... ", s);

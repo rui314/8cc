@@ -8,6 +8,8 @@
 #include "list.h"
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static char *SREGS[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
+static char *MREGS[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static int TAB = 8;
 static List *functions = &EMPTY_LIST;
 static char *lbreak;
@@ -892,8 +894,10 @@ static void emit_goto(Node *node) {
 
 static void emit_return(Node *node) {
     SAVE;
-    if (node->retval)
+    if (node->retval) {
         emit_expr(node->retval);
+        maybe_booleanize_retval(node->retval->ctype);
+    }
     emit_ret();
 }
 
@@ -1255,9 +1259,16 @@ static void push_func_params(List *params, int off) {
             }
         } else {
             if (ireg >= 6) {
-                emit("mov %d(%%rbp), %%rax", arg++ * 8);
+                if (v->ctype->type == CTYPE_BOOL) {
+                    emit("mov %d(%%rbp), %%al", arg++ * 8);
+                    emit("movzb %%al, %%eax");
+                } else {
+                    emit("mov %d(%%rbp), %%rax", arg++ * 8);
+                }
                 push("rax");
             } else {
+                if (v->ctype->type == CTYPE_BOOL)
+                    emit("movzb %%%s, %%%s", SREGS[ireg], MREGS[ireg]);
                 push(REGS[ireg++]);
             }
         }

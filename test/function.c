@@ -2,6 +2,7 @@
 // This program is free software licensed under the MIT license.
 
 #include "test.h"
+#include <stdbool.h>
 
 int t1(void) {
     return 77;
@@ -105,6 +106,19 @@ void empty2(void) {
     ;;;
 }
 
+int booltest1(int x);
+
+bool booltest2(int x) {
+    return x;
+}
+
+void test_bool(void) {
+    expect(0, booltest1(256));
+    expect(1, booltest1(257));
+    expect(1, booltest2(512));
+    expect(1, booltest2(513));
+}
+
 void testmain(void) {
     print("function");
 
@@ -121,4 +135,5 @@ void testmain(void) {
     func_name();
     empty();
     empty2();
+    test_bool();
 }
