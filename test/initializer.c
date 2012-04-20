@@ -40,6 +40,11 @@ void test_struct(void) {
     verify(we, &w, 8);
 }
 
+void test_primitive(void) {
+    int a = { 59 };
+    expect(59, a);
+}
+
 void test_nested(void) {
     struct {
         struct {
@@ -98,6 +103,7 @@ void testmain(void) {
 
     test_array();
     test_struct();
+    test_primitive();
     test_nested();
     test_designated();
     test_zero();
