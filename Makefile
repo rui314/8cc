@@ -22,10 +22,10 @@ test: utiltest $(TESTS)
 test/%.s: test/%.c 8cc
 	./8cc $< > $@
 
-test/%.bin: test/%.s test/util/testmain.o 8cc
+test/%.bin: test/%.s test/util/testmain.s 8cc
 	$(CC) -o $@ $< test/util/testmain.o $(LDFLAGS)
 
-$(SELF): 8cc
+$(SELF) test/util/testmain.s: 8cc test/util/testmain.c
 	./8cc $(@:s=c) > $@
 	$(AS) -o $(@:s=o) -c $@
 

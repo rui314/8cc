@@ -69,4 +69,5 @@ void expectl(long a, long b) {
 int main() {
     testmain();
     printf(isatty(fileno(stdout)) ? "\e[32mOK\e[0m\n" : "OK\n");
+    return 0;
 }
