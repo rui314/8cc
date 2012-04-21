@@ -1107,6 +1107,17 @@ static void squash_unnamed_struct(Dict *dict, Ctype *unnamed, int offset) {
     }
 }
 
+static int maybe_read_bitsize(Ctype *ctype) {
+    if (!next_token(':'))
+        return -1;
+    if (!is_inttype(ctype))
+        error("non-integer type cannot be a bitfield: %s", c2s(ctype));
+    int r = eval_intexpr(read_expr());
+    if (r < 0 || ctype->size * 8 < r)
+        error("invalid bitfield size for %s: %d", c2s(ctype), r);
+    return r;
+}
+
 static List *read_struct_union_fields_sub(void) {
     List *r = make_list();
     for (;;) {
@@ -1121,6 +1132,8 @@ static List *read_struct_union_fields_sub(void) {
             char *name;
             Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
             ensure_not_void(fieldtype);
+            fieldtype = copy_type(fieldtype);
+            fieldtype->bitsize = maybe_read_bitsize(fieldtype);
             list_push(r, make_pair(name, fieldtype));
             if (next_token(','))
                 continue;
@@ -1135,8 +1148,13 @@ static List *read_struct_union_fields_sub(void) {
     return r;
 }
 
+static void finish_bitfield(int *off, int *bitoff) {
+    *off += (*bitoff + 8) / 8;
+    *bitoff = -1;
+}
+
 static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct) {
-    int offset = 0, maxsize = 0;
+    int off = 0, maxsize = 0, bitoff = -1;
     Iter *iter = list_iter(fields);
     Dict *r = make_dict(NULL);
     while (!iter_end(iter)) {
@@ -1145,24 +1163,42 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
         Ctype *fieldtype = pair->second;
         if (name == NULL) {
             assert(fieldtype->type == CTYPE_STRUCT);
-            squash_unnamed_struct(r, fieldtype, offset);
+            finish_bitfield(&off, &bitoff);
+            squash_unnamed_struct(r, fieldtype, off);
             if (is_struct)
-                offset += fieldtype->size;
+                off += fieldtype->size;
             else
                 maxsize = MAX(maxsize, fieldtype->size);
             continue;
         }
-        if (is_struct) {
-            offset += compute_padding(offset, fieldtype->size);
-            fieldtype->offset = offset;
-            offset += fieldtype->size;
-        } else {
+        if (!is_struct) {
             maxsize = MAX(maxsize, fieldtype->size);
             fieldtype->offset = 0;
         }
-        dict_put(r, name, copy_type(fieldtype));
+        if (fieldtype->bitsize >= 0) {
+            int room = fieldtype->size * 8 - bitoff;
+            if (0 <= bitoff && fieldtype->bitsize <= room) {
+                fieldtype->bitoff = bitoff;
+                fieldtype->offset = off;
+            } else {
+                finish_bitfield(&off, &bitoff);
+                off += compute_padding(off, fieldtype->size);
+                fieldtype->offset = off;
+                fieldtype->bitoff = 0;
+            }
+            bitoff = fieldtype->bitsize;
+            dict_put(r, name, fieldtype);
+            continue;
+        }
+        finish_bitfield(&off, &bitoff);
+        if (is_struct) {
+            off += compute_padding(off, fieldtype->size);
+            fieldtype->offset = off;
+            off += fieldtype->size;
+        }
+        dict_put(r, name, fieldtype);
     }
-    *rsize = is_struct ? offset : maxsize;
+    *rsize = is_struct ? off : maxsize;
     return r;
 }
 

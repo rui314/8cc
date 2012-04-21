@@ -155,6 +155,9 @@ typedef struct Ctype {
     Dict *fields;
     int offset;
     bool is_struct; // true if struct, false if union
+    // bitfield
+    int bitoff;
+    int bitsize;
     // function
     struct Ctype *rettype;
     List *params;

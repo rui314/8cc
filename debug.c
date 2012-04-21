@@ -27,8 +27,15 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
         dict_put(dict, format("%p", ctype), (void *)1);
         String *s = make_string();
         string_appendf(s, "(struct");
-        for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);)
-            string_appendf(s, " (%s)", c2s_int(dict, iter_next(i)));
+        for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
+            Ctype *fieldtype = iter_next(i);
+            if (fieldtype->bitsize < 0)
+                string_appendf(s, " (%s)", c2s_int(dict, fieldtype));
+            else
+                string_appendf(s, " (%s:%d:%d)", c2s_int(dict, fieldtype),
+                               fieldtype->bitoff,
+                               fieldtype->bitoff + fieldtype->bitsize);
+        }
         string_appendf(s, ")");
         return get_cstring(s);
     }

@@ -98,6 +98,7 @@ testastf '(decl (struct (int) (char)) a)' 'struct {int x; char y;} a;'
 testastf '(decl (struct ([3]int)) a)' 'struct {int x[3];} a;'
 testast '(() -> int)f(){(decl (struct (int)) a);(decl *(struct (int)) p);(deref lv=p).x;}' 'struct tag {int x;} a; struct tag *p; p->x;'
 testast '(() -> int)f(){(decl (struct (int)) a);lv=a.x;}' 'struct {int x;} a; a.x;'
+testast '(() -> int)f(){(decl (struct (int:0:5) (int:5:13)) x);}' 'struct { int a:5; int b:8; } x;'
 
 testfail '0abc;'
 # testfail '1+;'
