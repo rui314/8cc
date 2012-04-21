@@ -22,10 +22,10 @@ test: utiltest $(TESTS)
 test/%.s: test/%.c 8cc
 	./8cc $< > $@
 
-test/%.bin: test/%.s test/util/testmain.s 8cc
-	$(CC) -o $@ $< test/util/testmain.o $(LDFLAGS)
+test/%.bin: test/%.s test/main/testmain.s 8cc
+	$(CC) -o $@ $< test/main/testmain.o $(LDFLAGS)
 
-$(SELF) test/util/testmain.s: 8cc test/util/testmain.c
+$(SELF) test/main/testmain.s: 8cc test/main/testmain.c
 	./8cc $(@:s=c) > $@
 	$(AS) -o $(@:s=o) -c $@
 
@@ -49,7 +49,7 @@ fulltest:
 
 clean:
 	rm -f 8cc *.o *.s tmp.* test/*.s test/*.o sample/*.o
-	rm -f utiltest gen[1-9] test/util/testmain.o
+	rm -f utiltest gen[1-9] test/util/testmain.[os]
 	rm -f $(TESTS)
 
 all: 8cc
