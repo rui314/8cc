@@ -250,6 +250,10 @@ struct { char a:4; char b:4; } inittest = { 2, 4 };
 void bitfield_initializer(void) {
     expect(2, inittest.a);
     expect(4, inittest.b);
+
+    struct { char a:4; char b:4; } x = { 2, 4 };
+    expect(2, x.a);
+    expect(4, x.b);
 }
 
 void testmain(void) {

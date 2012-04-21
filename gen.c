@@ -529,7 +529,8 @@ static void emit_decl_init(List *inits, int off) {
     while (!iter_end(iter)) {
         Node *node = iter_next(iter);
         assert(node->type == AST_INIT);
-        if (node->initval->type == AST_LITERAL) {
+        if (node->initval->type == AST_LITERAL &&
+            node->totype->bitsize <= 0) {
             emit_save_literal(node->initval, node->totype, node->initoff + off);
         } else {
             emit_expr(node->initval);
