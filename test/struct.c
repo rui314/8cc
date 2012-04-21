@@ -210,6 +210,18 @@ void bitfield_basic(void) {
     expect(362, x.i); // 11 << 5 + 10 == 362
 }
 
+void bitfield_mix(void) {
+    union {
+        int i;
+        struct { char a:5; int b:5; };
+    } x;
+    x.a = 10;
+    x.b = 11;
+    expect(10, x.a);
+    expect(11, x.b);
+    expect(362, x.i);
+}
+
 void bitfield_unnamed(void) {
     union {
         int i;
@@ -254,5 +266,6 @@ void testmain(void) {
     arrow();
     incomplete();
     bitfield_basic();
+    bitfield_mix();
     bitfield_unnamed();
 }
