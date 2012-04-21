@@ -1156,8 +1156,8 @@ static void finish_bitfield(int *off, int *bitoff) {
     *bitoff = -1;
 }
 
-static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct) {
-    int off = 0, maxsize = 0, bitoff = -1;
+static Dict *update_struct_offset(List *fields, int *rsize) {
+    int off = 0, bitoff = -1;
     Iter *iter = list_iter(fields);
     Dict *r = make_dict(NULL);
     while (!iter_end(iter)) {
@@ -1167,15 +1167,8 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
         if (name == NULL && fieldtype->type == CTYPE_STRUCT) {
             finish_bitfield(&off, &bitoff);
             squash_unnamed_struct(r, fieldtype, off);
-            if (is_struct)
-                off += fieldtype->size;
-            else
-                maxsize = MAX(maxsize, fieldtype->size);
+            off += fieldtype->size;
             continue;
-        }
-        if (!is_struct) {
-            maxsize = MAX(maxsize, fieldtype->size);
-            fieldtype->offset = 0;
         }
         if (fieldtype->bitsize == 0) {
             finish_bitfield(&off, &bitoff);
@@ -1195,11 +1188,8 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
                 fieldtype->bitoff = 0;
             }
             bitoff = fieldtype->bitsize;
-            dict_put(r, name, fieldtype);
-            continue;
-        }
-        finish_bitfield(&off, &bitoff);
-        if (is_struct) {
+        } else {
+            finish_bitfield(&off, &bitoff);
             off += compute_padding(off, fieldtype->size);
             fieldtype->offset = off;
             off += fieldtype->size;
@@ -1207,7 +1197,29 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
         dict_put(r, name, fieldtype);
     }
     finish_bitfield(&off, &bitoff);
-    *rsize = is_struct ? off : maxsize;
+    *rsize = off;
+    return r;
+}
+
+static Dict *update_union_offset(List *fields, int *rsize) {
+    int maxsize = 0;
+    Iter *iter = list_iter(fields);
+    Dict *r = make_dict(NULL);
+    while (!iter_end(iter)) {
+        Pair *pair = iter_next(iter);
+        char *name = pair->first;
+        Ctype *fieldtype = pair->second;
+        maxsize = MAX(maxsize, fieldtype->size);
+        if (name == NULL && fieldtype->type == CTYPE_STRUCT) {
+            squash_unnamed_struct(r, fieldtype, 0);
+            continue;
+        }
+        fieldtype->offset = 0;
+        if (fieldtype->bitsize >= 0)
+            fieldtype->bitoff = 0;
+        dict_put(r, name, fieldtype);
+    }
+    *rsize = maxsize;
     return r;
 }
 
@@ -1215,7 +1227,9 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
     if (!next_token('{'))
         return NULL;
     List *fields = read_struct_union_fields_sub();
-    return update_struct_union_offset(fields, rsize, is_struct);
+    return is_struct
+        ? update_struct_offset(fields, rsize)
+        : update_union_offset(fields, rsize);
 }
 
 static Ctype *read_struct_union_def(Dict *env, bool is_struct) {

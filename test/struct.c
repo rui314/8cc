@@ -222,6 +222,14 @@ void bitfield_mix(void) {
     expect(362, x.i);
 }
 
+void bitfield_union(void) {
+    union { int a : 10; char b: 5; char c: 5; } x;
+    x.a = 2;
+    expect(2, x.a);
+    expect(2, x.b);
+    expect(2, x.c);
+}
+
 void bitfield_unnamed(void) {
     union {
         int i;
@@ -278,6 +286,7 @@ void testmain(void) {
     incomplete();
     bitfield_basic();
     bitfield_mix();
+    bitfield_union();
     bitfield_unnamed();
     bitfield_initializer();
 }
