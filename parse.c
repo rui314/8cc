@@ -1108,7 +1108,7 @@ static void squash_unnamed_struct(Dict *dict, Ctype *unnamed, int offset) {
     }
 }
 
-static int maybe_read_bitsize(Ctype *ctype) {
+static int maybe_read_bitsize(char *name, Ctype *ctype) {
     if (!next_token(':'))
         return -1;
     if (!is_inttype(ctype))
@@ -1116,6 +1116,8 @@ static int maybe_read_bitsize(Ctype *ctype) {
     int r = eval_intexpr(read_expr());
     if (r < 0 || ctype->size * 8 < r)
         error("invalid bitfield size for %s: %d", c2s(ctype), r);
+    if (r == 0 && name != NULL)
+        error("zero-width bitfield needs to be unnamed: %s", name);
     return r;
 }
 
@@ -1130,11 +1132,11 @@ static List *read_struct_union_fields_sub(void) {
             continue;
         }
         for (;;) {
-            char *name;
-            Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
+            char *name = NULL;
+            Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM_TYPEONLY);
             ensure_not_void(fieldtype);
             fieldtype = copy_type(fieldtype);
-            fieldtype->bitsize = maybe_read_bitsize(fieldtype);
+            fieldtype->bitsize = maybe_read_bitsize(name, fieldtype);
             list_push(r, make_pair(name, fieldtype));
             if (next_token(','))
                 continue;
@@ -1162,8 +1164,7 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
         Pair *pair = iter_next(iter);
         char *name = pair->first;
         Ctype *fieldtype = pair->second;
-        if (name == NULL) {
-            assert(fieldtype->type == CTYPE_STRUCT);
+        if (name == NULL && fieldtype->type == CTYPE_STRUCT) {
             finish_bitfield(&off, &bitoff);
             squash_unnamed_struct(r, fieldtype, off);
             if (is_struct)
@@ -1175,6 +1176,12 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
         if (!is_struct) {
             maxsize = MAX(maxsize, fieldtype->size);
             fieldtype->offset = 0;
+        }
+        if (fieldtype->bitsize == 0) {
+            finish_bitfield(&off, &bitoff);
+            off += compute_padding(off, fieldtype->size);
+            bitoff = 0;
+            continue;
         }
         if (fieldtype->bitsize >= 0) {
             int room = fieldtype->size * 8 - bitoff;

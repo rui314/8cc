@@ -198,7 +198,7 @@ void incomplete(void) {
     expect(3, v2.p->x);
 }
 
-void bitfield1(void) {
+void bitfield_basic(void) {
     union {
         int i;
         struct { int a:5; int b:5; };
@@ -208,6 +208,29 @@ void bitfield1(void) {
     expect(10, x.a);
     expect(11, x.b);
     expect(362, x.i); // 11 << 5 + 10 == 362
+}
+
+void bitfield_unnamed(void) {
+    union {
+        int i;
+        struct { char a:4; char b:4; };
+    } x = { 0 };
+    x.i = 0;
+    x.a = 2;
+    x.b = 4;
+    expect(2, x.a);
+    expect(4, x.b);
+    expect(66, x.i);
+
+    union {
+        int i;
+        struct { char a:4; char :0; char b:4; };
+    } y = { 0 };
+    y.a = 2;
+    y.b = 4;
+    expect(2, y.a);
+    expect(4, y.b);
+    expect(1026, y.i);
 }
 
 void testmain(void) {
@@ -230,4 +253,6 @@ void testmain(void) {
     assign();
     arrow();
     incomplete();
+    bitfield_basic();
+    bitfield_unnamed();
 }
