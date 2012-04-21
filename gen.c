@@ -21,6 +21,7 @@ static int numfp;
 
 static void emit_expr(Node *node);
 static void emit_decl_init(List *inits, int off);
+static void emit_data_int(List *inits, int size, int off, int depth);
 static void emit_data(Node *v, int off, int depth);
 
 #define REGAREA_SIZE 304
@@ -1148,6 +1149,69 @@ static void emit_padding(Node *node, int off) {
     emit_zero(diff);
 }
 
+static void emit_data_addr(Node *operand, int depth) {
+    switch (operand->type) {
+    case AST_LVAR: {
+        char *label = make_label();
+        emit(".data %d", depth + 1);
+        emit_label(label);
+        emit_data_int(operand->lvarinit, operand->ctype->size, 0, depth + 1);
+        emit(".data %d", depth);
+        emit(".quad %s", label);
+        return;
+    }
+    case AST_GVAR:
+        emit(".quad %s", operand->varname);
+        return;
+    default:
+        error("internal error");
+    }
+}
+
+static void emit_data_charptr(char *s, int depth) {
+    char *label = make_label();
+    emit(".data %d", depth + 1);
+    emit_label(label);
+    emit(".string \"%s\"", quote_cstring(s));
+    emit(".data %d", depth);
+    emit(".quad %s", label);
+}
+
+static void emit_data_primtype(Ctype *ctype, Node *val) {
+    switch (ctype->type) {
+    case CTYPE_FLOAT: {
+        float v = val->fval;
+        emit(".long %d", *(int *)&v);
+        break;
+    }
+    case CTYPE_DOUBLE:
+        emit(".quad %ld", *(long *)&val->fval);
+        break;
+    case CTYPE_BOOL:
+        emit(".byte %d", !!eval_intexpr(val));
+        break;
+    case CTYPE_CHAR:
+        emit(".byte %d", eval_intexpr(val));
+        break;
+    case CTYPE_SHORT:
+        emit(".short %d", eval_intexpr(val));
+        break;
+    case CTYPE_INT:
+        emit(".long %d", eval_intexpr(val));
+        break;
+    case CTYPE_LONG:
+    case CTYPE_LLONG:
+    case CTYPE_PTR:
+        if (val->type == AST_GVAR)
+            emit(".quad %s", val->varname);
+        else
+            emit(".quad %d", eval_intexpr(val));
+        break;
+    default:
+        error("don't know how to handle\n  <%s>\n  <%s>", c2s(ctype), a2s(val));
+    }
+}
+
 static void emit_data_int(List *inits, int size, int off, int depth) {
     SAVE;
     Iter *i = list_iter(inits);
@@ -1158,22 +1222,8 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
         off += node->totype->size;
         size -= node->totype->size;
         if (v->type == AST_ADDR) {
-            switch (v->operand->type) {
-            case AST_LVAR: {
-                char *label = make_label();
-                emit(".data %d", depth + 1);
-                emit_label(label);
-                emit_data_int(v->operand->lvarinit, v->operand->ctype->size, 0, depth + 1);
-                emit(".data %d", depth);
-                emit(".quad %s", label);
-                continue;
-            }
-            case AST_GVAR:
-                emit(".quad %s", v->operand->varname);
-                continue;
-            default:
-                error("internal error");
-            }
+            emit_data_addr(v->operand, depth);
+            continue;
         }
         if (v->type == AST_LVAR && v->lvarinit) {
             emit_data_int(v->lvarinit, v->ctype->size, 0, depth);
@@ -1181,46 +1231,10 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
         }
         bool is_char_ptr = (v->ctype->type == CTYPE_ARRAY && v->ctype->ptr->type == CTYPE_CHAR);
         if (is_char_ptr) {
-            char *label = make_label();
-            emit(".data %d", depth + 1);
-            emit_label(label);
-            emit(".string \"%s\"", quote_cstring(v->sval));
-            emit(".data %d", depth);
-            emit(".quad %s", label);
+            emit_data_charptr(v->sval, depth);
             continue;
         }
-        switch (node->totype->type) {
-        case CTYPE_FLOAT: {
-            float v = node->initval->fval;
-            emit(".long %d", *(int *)&v);
-            break;
-        }
-        case CTYPE_DOUBLE:
-            emit(".quad %ld", *(long *)&node->initval->fval);
-            break;
-        case CTYPE_BOOL:
-            emit(".byte %d", !!eval_intexpr(node->initval));
-            break;
-        case CTYPE_CHAR:
-            emit(".byte %d", eval_intexpr(node->initval));
-            break;
-        case CTYPE_SHORT:
-            emit(".short %d", eval_intexpr(node->initval));
-            break;
-        case CTYPE_INT:
-            emit(".long %d", eval_intexpr(node->initval));
-            break;
-        case CTYPE_LONG:
-        case CTYPE_LLONG:
-        case CTYPE_PTR:
-            if (node->initval->type == AST_GVAR)
-                emit(".quad %s", node->initval->varname);
-            else
-                emit(".quad %d", eval_intexpr(node->initval));
-            break;
-        default:
-            error("don't know how to handle\n  <%s>\n  <%s>", c2s(node->totype), a2s(node->initval));
-        }
+        emit_data_primtype(node->totype, node->initval);
     }
     emit_zero(size);
 }
