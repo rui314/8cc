@@ -291,12 +291,6 @@ static Ctype* make_array_type(Ctype *ctype, int len) {
         .len = len });
 }
 
-static Ctype* make_struct_field_type(Ctype *ctype, int offset) {
-    Ctype *r = copy_type(ctype);
-    r->offset = offset;
-    return r;
-}
-
 static Ctype* make_struct_type(Dict *fields, int size, bool is_struct) {
     return make_type(&(Ctype){
             CTYPE_STRUCT, .fields = fields, .size = size, .is_struct = is_struct });
@@ -1113,39 +1107,21 @@ static void squash_unnamed_struct(Dict *dict, Ctype *unnamed, int offset) {
     }
 }
 
-static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
-    Token *tok = read_token();
-    if (!is_punct(tok, '{')) {
-        unget_token(tok);
-        return NULL;
-    }
-    int offset = 0, maxsize = 0;
-    Dict *r = make_dict(NULL);
+static List *read_struct_union_fields_sub(void) {
+    List *r = make_list();
     for (;;) {
         if (!is_type_keyword(peek_token()))
             break;
         Ctype *basetype = read_decl_spec(NULL);
         if (basetype->type == CTYPE_STRUCT && next_token(';')) {
-            squash_unnamed_struct(r, basetype, offset);
-            if (is_struct)
-                offset += basetype->size;
-            else
-                maxsize = MAX(maxsize, basetype->size);
+            list_push(r, make_pair(NULL, basetype));
             continue;
         }
         for (;;) {
             char *name;
             Ctype *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM);
             ensure_not_void(fieldtype);
-            if (is_struct) {
-                offset += compute_padding(offset, fieldtype->size);
-                fieldtype = make_struct_field_type(fieldtype, offset);
-                offset += fieldtype->size;
-            } else {
-                maxsize = MAX(maxsize, fieldtype->size);
-                fieldtype = make_struct_field_type(fieldtype, 0);
-            }
-            dict_put(r, name, fieldtype);
+            list_push(r, make_pair(name, fieldtype));
             if (next_token(','))
                 continue;
             if (is_punct(peek_token(), '}'))
@@ -1156,8 +1132,45 @@ static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
         }
     }
     expect('}');
+    return r;
+}
+
+static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct) {
+    int offset = 0, maxsize = 0;
+    Iter *iter = list_iter(fields);
+    Dict *r = make_dict(NULL);
+    while (!iter_end(iter)) {
+        Pair *pair = iter_next(iter);
+        char *name = pair->first;
+        Ctype *fieldtype = pair->second;
+        if (name == NULL) {
+            assert(fieldtype->type == CTYPE_STRUCT);
+            squash_unnamed_struct(r, fieldtype, offset);
+            if (is_struct)
+                offset += fieldtype->size;
+            else
+                maxsize = MAX(maxsize, fieldtype->size);
+            continue;
+        }
+        if (is_struct) {
+            offset += compute_padding(offset, fieldtype->size);
+            fieldtype->offset = offset;
+            offset += fieldtype->size;
+        } else {
+            maxsize = MAX(maxsize, fieldtype->size);
+            fieldtype->offset = 0;
+        }
+        dict_put(r, name, copy_type(fieldtype));
+    }
     *rsize = is_struct ? offset : maxsize;
     return r;
+}
+
+static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
+    if (!next_token('{'))
+        return NULL;
+    List *fields = read_struct_union_fields_sub();
+    return update_struct_union_offset(fields, rsize, is_struct);
 }
 
 static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
