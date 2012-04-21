@@ -233,6 +233,7 @@ static void emit_assign_deref(Node *var) {
 static void emit_pointer_arith(char op, Node *left, Node *right) {
     SAVE;
     emit_expr(left);
+    push("rcx");
     push("rax");
     emit_expr(right);
     int size = left->ctype->ptr->size;
@@ -241,6 +242,7 @@ static void emit_pointer_arith(char op, Node *left, Node *right) {
     emit("mov %%rax, %%rcx");
     pop("rax");
     emit("add %%rcx, %%rax");
+    pop("rcx");
 }
 
 static void emit_zero_filler(int start, int end) {
