@@ -19,7 +19,7 @@ typedef struct {
 #define va_start(ap, last) __builtin_va_start(ap)
 #define va_arg(ap, type) __builtin_va_arg(ap, type)
 #define va_end(ap) 1
-#define va_copy(dest, src) ((dest) = (src))
+#define va_copy(dest, src) ((dest)[0] = (src)[0])
 
 // Workaround to load stdio.h properly
 #define __GNUC_VA_LIST 1
