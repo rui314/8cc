@@ -56,14 +56,14 @@ void string_appendf(String *s, char *fmt, ...) {
     }
 }
 
-char *format(char *fmt, ...) {
+char *vformat(char *fmt, va_list ap) {
     String *s = make_string();
-    va_list args;
+    va_list aq;
     for (;;) {
         int avail = s->nalloc - s->len;
-        va_start(args, fmt);
-        int written = vsnprintf(s->body + s->len, avail, fmt, args);
-        va_end(args);
+        va_copy(aq, ap);
+        int written = vsnprintf(s->body + s->len, avail, fmt, aq);
+        va_end(aq);
         if (avail <= written) {
             realloc_body(s);
             continue;
@@ -71,4 +71,12 @@ char *format(char *fmt, ...) {
         s->len += written;
         return get_cstring(s);
     }
+}
+
+char *format(char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    char *r = vformat(fmt, ap);
+    va_end(ap);
+    return r;
 }
