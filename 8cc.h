@@ -262,6 +262,13 @@ typedef struct Node {
     };
 } Node;
 
+typedef struct {
+    void *first;
+    void *second;
+} Pair;
+
+extern void *make_pair(void *first, void *second);
+
 extern Ctype *ctype_char;
 extern Ctype *ctype_short;
 extern Ctype *ctype_int;

@@ -403,6 +403,13 @@ static bool next_token(int type) {
     return false;
 }
 
+void *make_pair(void *first, void *second) {
+    Pair *r = malloc(sizeof(Pair));
+    r->first = first;
+    r->second = second;
+    return r;
+}
+
 /*----------------------------------------------------------------------
  * Type conversion
  */
