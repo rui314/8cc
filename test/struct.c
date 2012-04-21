@@ -245,6 +245,13 @@ void bitfield_unnamed(void) {
     expect(1026, y.i);
 }
 
+struct { char a:4; char b:4; } inittest = { 2, 4 };
+
+void bitfield_initializer(void) {
+    expect(2, inittest.a);
+    expect(4, inittest.b);
+}
+
 void testmain(void) {
     print("struct");
     t1();
@@ -268,4 +275,5 @@ void testmain(void) {
     bitfield_basic();
     bitfield_mix();
     bitfield_unnamed();
+    bitfield_initializer();
 }

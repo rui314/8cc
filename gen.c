@@ -1214,13 +1214,33 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
 
 static void emit_data_int(List *inits, int size, int off, int depth) {
     SAVE;
-    Iter *i = list_iter(inits);
-    while (!iter_end(i) && 0 < size) {
-        Node *node = iter_next(i);
+    Iter *iter = list_iter(inits);
+    while (!iter_end(iter) && 0 < size) {
+        Node *node = iter_next(iter);
         Node *v = node->initval;
         emit_padding(node, off);
-        off += node->totype->size;
-        size -= node->totype->size;
+        if (node->totype->bitsize > 0) {
+            assert(node->totype->bitoff == 0);
+            long data = eval_intexpr(v);
+            Ctype *totype = node->totype;
+            while (!iter_end(iter)) {
+                node = iter_next(iter);
+                if (node->totype->bitsize <= 0) {
+                    break;
+                }
+                v = node->initval;
+                totype = node->totype;
+                data |= ((((long)1 << totype->bitsize) - 1) & eval_intexpr(v)) << totype->bitoff;
+            }
+            emit_data_primtype(totype, &(Node){ AST_LITERAL, totype, .ival = data });
+            off += totype->size;
+            size -= totype->size;
+            if (iter_end(iter))
+                break;
+        } else {
+            off += node->totype->size;
+            size -= node->totype->size;
+        }
         if (v->type == AST_ADDR) {
             emit_data_addr(v->operand, depth);
             continue;
