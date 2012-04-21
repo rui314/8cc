@@ -28,11 +28,12 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
     case CTYPE_ARRAY:
         return format("[%d]%s", ctype->len, c2s_int(dict, ctype->ptr));
     case CTYPE_STRUCT: {
+        char *type = ctype->is_struct ? "struct" : "union";
         if (dict_get(dict, format("%p", ctype)))
-            return "(struct)";
+            return format("(%s)", type);
         dict_put(dict, format("%p", ctype), (void *)1);
         String *s = make_string();
-        string_appendf(s, "(struct");
+        string_appendf(s, "(%s", type);
         for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
             Ctype *fieldtype = iter_next(i);
             string_appendf(s, " (%s)", c2s_int(dict, fieldtype));
