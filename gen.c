@@ -114,6 +114,34 @@ static void pop(char *reg) {
     assert(stackpos >= 0);
 }
 
+static void maybe_emit_bitshift_load(Ctype *ctype) {
+    SAVE;
+    if (ctype->bitsize <= 0)
+        return;
+    emit("shr $%d, %%rax", ctype->bitoff);
+    push("rcx");
+    emit("mov $0x%lx, %%rcx", (1 << (long)ctype->bitsize) - 1);
+    emit("and %%rcx, %%rax");
+    pop("rcx");
+}
+
+static void maybe_emit_bitshift_save(Ctype *ctype, char *addr) {
+    SAVE;
+    if (ctype->bitsize <= 0)
+        return;
+    push("rcx");
+    push("rdi");
+    emit("mov $0x%lx, %%rdi", (1 << (long)ctype->bitsize) - 1);
+    emit("and %%rdi, %%rax");
+    emit("shl $%d, %%rax", ctype->bitoff);
+    emit("mov %s, %%%s", addr, get_int_reg(ctype, 'c'));
+    emit("mov $0x%lx, %%rdi", ~(((1 << (long)ctype->bitsize) - 1) << ctype->bitoff));
+    emit("and %%rdi, %%rcx");
+    emit("or %%rcx, %%rax");
+    pop("rdi");
+    pop("rcx");
+}
+
 static void emit_gload(Ctype *ctype, char *label, int off) {
     SAVE;
     if (ctype->type == CTYPE_ARRAY) {
@@ -125,6 +153,7 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
     }
     char *inst = get_load_inst(ctype);
     emit("%s %s+%d(%%rip), %%rax", inst, label, off);
+    maybe_emit_bitshift_load(ctype);
 }
 
 static void emit_toint(Ctype *ctype) {
@@ -146,6 +175,7 @@ static void emit_lload(Ctype *ctype, char *base, int off) {
     } else {
         char *inst = get_load_inst(ctype);
         emit("%s %d(%%%s), %%rax", inst, off, base);
+        maybe_emit_bitshift_load(ctype);
     }
 }
 
@@ -161,10 +191,9 @@ static void emit_gsave(char *varname, Ctype *ctype, int off) {
     assert(ctype->type != CTYPE_ARRAY);
     maybe_convert_bool(ctype);
     char *reg = get_int_reg(ctype, 'a');
-    if (off)
-        emit("mov %%%s, %s+%d(%%rip)", reg, varname, off);
-    else
-        emit("mov %%%s, %s(%%rip)", reg, varname);
+    char *addr = format("%s+%d(%%rip)", varname, off);
+    maybe_emit_bitshift_save(ctype, addr);
+    emit("mov %%%s, %s", reg, addr);
 }
 
 static void emit_lsave(Ctype *ctype, int off) {
@@ -176,7 +205,9 @@ static void emit_lsave(Ctype *ctype, int off) {
     } else {
         maybe_convert_bool(ctype);
         char *reg = get_int_reg(ctype, 'a');
-        emit("mov %%%s, %d(%%rbp)", reg, off);
+        char *addr = format("%d(%%rbp)", off);
+        maybe_emit_bitshift_save(ctype, addr);
+        emit("mov %%%s, %s", reg, addr);
     }
 }
 

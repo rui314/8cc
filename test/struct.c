@@ -198,6 +198,18 @@ void incomplete(void) {
     expect(3, v2.p->x);
 }
 
+void bitfield1(void) {
+    union {
+        int i;
+        struct { int a:5; int b:5; };
+    } x;
+    x.a = 10;
+    x.b = 11;
+    expect(10, x.a);
+    expect(11, x.b);
+    expect(362, x.i); // 11 << 5 + 10 == 362
+}
+
 void testmain(void) {
     print("struct");
     t1();

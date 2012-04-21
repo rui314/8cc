@@ -3,17 +3,23 @@
 
 #include "8cc.h"
 
+static char *maybe_add_bitfield(char *name, Ctype *ctype) {
+    if (ctype->bitsize > 0)
+        return format("%s:%d:%d", name, ctype->bitoff, ctype->bitoff + ctype->bitsize);
+    return name;
+}
+
 static char *c2s_int(Dict *dict, Ctype *ctype) {
     if (!ctype)
         return "(nil)";
     switch (ctype->type) {
     case CTYPE_VOID: return "void";
     case CTYPE_BOOL: return "_Bool";
-    case CTYPE_CHAR: return "char";
-    case CTYPE_SHORT: return "short";
-    case CTYPE_INT:  return "int";
-    case CTYPE_LONG: return "long";
-    case CTYPE_LLONG: return "long long";
+    case CTYPE_CHAR: return maybe_add_bitfield("char", ctype);
+    case CTYPE_SHORT: return maybe_add_bitfield("short", ctype);
+    case CTYPE_INT:  return maybe_add_bitfield("int", ctype);
+    case CTYPE_LONG: return maybe_add_bitfield("long", ctype);
+    case CTYPE_LLONG: return maybe_add_bitfield("long long", ctype);
     case CTYPE_FLOAT: return "float";
     case CTYPE_DOUBLE: return "double";
     case CTYPE_LDOUBLE: return "long double";
@@ -29,12 +35,7 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
         string_appendf(s, "(struct");
         for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
             Ctype *fieldtype = iter_next(i);
-            if (fieldtype->bitsize < 0)
-                string_appendf(s, " (%s)", c2s_int(dict, fieldtype));
-            else
-                string_appendf(s, " (%s:%d:%d)", c2s_int(dict, fieldtype),
-                               fieldtype->bitoff,
-                               fieldtype->bitoff + fieldtype->bitsize);
+            string_appendf(s, " (%s)", c2s_int(dict, fieldtype));
         }
         string_appendf(s, ")");
         return get_cstring(s);
@@ -159,7 +160,7 @@ static void a2s_int(String *buf, Node *node) {
         string_appendf(buf, ")");
         break;
     case AST_INIT:
-        string_appendf(buf, "%s@%d", a2s(node->initval), node->initoff);
+        string_appendf(buf, "%s@%d", a2s(node->initval), node->initoff, c2s(node->totype));
         break;
     case AST_CONV:
         string_appendf(buf, "(conv %s -> %s)", a2s(node->operand), c2s(node->ctype));

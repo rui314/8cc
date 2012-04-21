@@ -60,6 +60,7 @@ static void read_decl(List *toplevel, MakeVarFn *make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
+static void read_initializer_list(List *inits, Ctype *ctype, int off);
 static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
 static Node *read_expr_opt(void);
@@ -1198,6 +1199,7 @@ static Dict *update_struct_union_offset(List *fields, int *rsize, bool is_struct
         }
         dict_put(r, name, fieldtype);
     }
+    finish_bitfield(&off, &bitoff);
     *rsize = is_struct ? off : maxsize;
     return r;
 }
@@ -1328,8 +1330,6 @@ static void skip_to_brace(void) {
             unget_token(tok);
     }
 }
-
-static void read_initializer_list(List *inits, Ctype *ctype, int off);
 
 static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
     if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
