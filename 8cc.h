@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "dict.h"
 #include "list.h"
-#include "util.h"
+#include "error.h"
 
 typedef struct {
     char *body;

@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 #include "list.h"
-#include "util.h"
+#include "error.h"
 
 List *make_list(void) {
     List *r = malloc(sizeof(List));
