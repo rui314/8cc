@@ -1086,7 +1086,7 @@ static Node *read_struct_field(Node *struc) {
     return ast_struct_ref(field, struc, name->sval);
 }
 
-static char *read_struct_union_tag(void) {
+static char *read_rectype_tag(void) {
     Token *tok = read_token();
     if (tok->type == TIDENT)
         return tok->sval;
@@ -1121,7 +1121,7 @@ static int maybe_read_bitsize(char *name, Ctype *ctype) {
     return r;
 }
 
-static List *read_struct_union_fields_sub(void) {
+static List *read_rectype_fields_sub(void) {
     List *r = make_list();
     for (;;) {
         if (!is_type_keyword(peek_token()))
@@ -1223,17 +1223,17 @@ static Dict *update_union_offset(List *fields, int *rsize) {
     return r;
 }
 
-static Dict *read_struct_union_fields(int *rsize, bool is_struct) {
+static Dict *read_rectype_fields(int *rsize, bool is_struct) {
     if (!next_token('{'))
         return NULL;
-    List *fields = read_struct_union_fields_sub();
+    List *fields = read_rectype_fields_sub();
     return is_struct
         ? update_struct_offset(fields, rsize)
         : update_union_offset(fields, rsize);
 }
 
-static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
-    char *tag = read_struct_union_tag();
+static Ctype *read_rectype_def(Dict *env, bool is_struct) {
+    char *tag = read_rectype_tag();
     Ctype *r;
     if (tag) {
         r = dict_get(env, tag);
@@ -1245,7 +1245,7 @@ static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
         r = make_struct_type(NULL, 0, is_struct);
     }
     int size = 0;
-    Dict *fields = read_struct_union_fields(&size, is_struct);
+    Dict *fields = read_rectype_fields(&size, is_struct);
     if (r && !fields)
         return r;
     if (r && fields) {
@@ -1257,11 +1257,11 @@ static Ctype *read_struct_union_def(Dict *env, bool is_struct) {
 }
 
 static Ctype *read_struct_def(void) {
-    return read_struct_union_def(struct_defs, true);
+    return read_rectype_def(struct_defs, true);
 }
 
 static Ctype *read_union_def(void) {
-    return read_struct_union_def(union_defs, false);
+    return read_rectype_def(union_defs, false);
 }
 
 /*----------------------------------------------------------------------
