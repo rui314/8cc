@@ -1111,7 +1111,8 @@ static int maybe_read_bitsize(char *name, Ctype *ctype) {
     if (!is_inttype(ctype))
         error("non-integer type cannot be a bitfield: %s", c2s(ctype));
     int r = eval_intexpr(read_expr());
-    if (r < 0 || ctype->size * 8 < r)
+    int maxsize = ctype->type == CTYPE_BOOL ? 1 : ctype->size * 8;
+    if (r < 0 || maxsize < r)
         error("invalid bitfield size for %s: %d", c2s(ctype), r);
     if (r == 0 && name != NULL)
         error("zero-width bitfield needs to be unnamed: %s", name);
