@@ -20,7 +20,8 @@ form of `A = B op C` are executed in the following way.
  2. Apply op to yield a result
  3. Write the results back to A's location
 
-Producing optimization assembly is being planned.
+Producing optimized assembly is being planned.
+
 
 Build
 -----
@@ -42,6 +43,7 @@ are identical. The unit tests are run for each generation of binaries.
 8cc supports x86-64 Linux only. I'm using Ubuntu 11 as a development platform.
 It should work on other x86-64 Linux distributions.
 
+
 Author
 ------
 
@@ -51,23 +53,22 @@ Rui Ueyama <rui314@gmail.com>
 Links for C compiler development
 --------------------------------
 
-lcc: A Retargetable C Compiler: Design and Implementation
-Addison-Wesley, 1995, ISBN 0805316701, ISBN-13 9780805316704
-http://www.amazon.com/dp/0805316701
-https://github.com/drh/lcc
+-   lcc: A Retargetable C Compiler: Design and Implementation
+    http://www.amazon.com/dp/0805316701,
+    https://github.com/drh/lcc
 
-TCC: Tiny C Compiler
-http://bellard.org/tcc/
-http://repo.or.cz/w/tinycc.git/tree
+-   TCC: Tiny C Compiler
+    http://bellard.org/tcc/,
+    http://repo.or.cz/w/tinycc.git/tree
 
-C99 standard final draft
-http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
+-   C99 standard final draft
+    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
 
-C11 standard final draft
-http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
+-   C11 standard final draft
+    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
 
-Dave Prosser's C Preprocessing Algorithm
-http://www.spinellis.gr/blog/20060626/
+-   Dave Prosser's C Preprocessing Algorithm
+    http://www.spinellis.gr/blog/20060626/
 
-x86-64 ABI
-http://www.x86-64.org/documentation/abi.pdf
+-   x86-64 ABI
+    http://www.x86-64.org/documentation/abi.pdf
