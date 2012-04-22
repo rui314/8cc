@@ -950,16 +950,13 @@ static Node *read_additive_expr(void) {
 static Node *read_shift_expr(void) {
     Node *node = read_additive_expr();
     for (;;) {
-        Token *tok = read_token();
         int op;
-        if (is_punct(tok, OP_SAL)) {
+        if (next_token(OP_SAL))
             op = OP_SAL;
-        } else if (is_punct(tok, OP_SAR)) {
+        else if (next_token(OP_SAR))
             op = node->ctype->sig ? OP_SAR : OP_SHR;
-        } else {
-            unget_token(tok);
+        else
             break;
-        }
         Node *right = read_additive_expr();
         ensure_inttype(node);
         ensure_inttype(right);
@@ -1285,20 +1282,15 @@ static Ctype *read_enum_def(void) {
             error("Identifier expected, but got %s", t2s(tok));
         char *name = tok->sval;
 
-        tok = read_token();
-        if (is_punct(tok, '='))
+        if (next_token('='))
             val = eval_intexpr(read_assignment_expr());
-        else
-            unget_token(tok);
-
         Node *constval = ast_inttype(ctype_int, val++);
         dict_put(localenv ? localenv : globalenv, name, constval);
-        tok = read_token();
-        if (is_punct(tok, ','))
+        if (next_token(','))
             continue;
-        if (is_punct(tok, '}'))
+        if (next_token('}'))
             break;
-        error("',' or '}' expected, but got %s", t2s(tok));
+        error("',' or '}' expected, but got %s", t2s(read_token()));
     }
     return ctype_int;
 }
@@ -1318,37 +1310,26 @@ static void assign_string(List *inits, Ctype *ctype, char *p, int off) {
 }
 
 static bool maybe_read_brace(void) {
-    Token *tok = read_token();
-    if (is_punct(tok, '{'))
-        return true;
-    unget_token(tok);
-    return false;
+    return next_token('{');
 }
 
 static void maybe_skip_comma(void) {
-    Token *tok = read_token();
-    if (!is_punct(tok, ','))
-        unget_token(tok);
+    next_token(',');
 }
 
 static void skip_to_brace(void) {
     for (;;) {
-        Token *tok = read_token();
-        if (is_punct(tok, '}'))
+        if (next_token('}'))
             return;
-        if (is_punct(tok, '.')) {
+        if (next_token('.')) {
             read_token();
             expect('=');
-        } else {
-            unget_token(tok);
         }
         Node *ignore = read_assignment_expr();
         if (!ignore)
             return;
         warn("ignore excessive initializer: %s", a2s(ignore));
-        tok = read_token();
-        if (!is_punct(tok, ','))
-            unget_token(tok);
+        maybe_skip_comma();
     }
 }
 
@@ -1500,10 +1481,8 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
     bool typeonly = !paramvars;
     List *paramtypes = make_list();
     Token *tok = read_token();
-    Token *tok2 = read_token();
-    if (is_punct(tok, KVOID) && is_punct(tok2, ')'))
+    if (is_punct(tok, KVOID) && next_token(')'))
         return make_func_type(rettype, paramtypes, false);
-    unget_token(tok2);
     if (is_punct(tok, ')'))
         return make_func_type(rettype, paramtypes, true);
     unget_token(tok);
@@ -1725,15 +1704,13 @@ static Ctype *read_decl_spec(int *rsclass) {
 static void read_decl(List *block, MakeVarFn *make_var) {
     int sclass;
     Ctype *basetype = read_decl_spec(&sclass);
-    Token *tok = read_token();
-    if (is_punct(tok, ';'))
+    if (next_token(';'))
         return;
-    unget_token(tok);
     for (;;) {
         char *name = NULL;
         Ctype *ctype = read_declarator(&name, copy_incomplete_type(basetype), NULL, DECL_BODY);
         ctype->isstatic = (sclass == S_STATIC);
-        tok = read_token();
+        Token *tok = read_token();
         if (is_punct(tok, '=')) {
             if (sclass == S_TYPEDEF)
                 error("= after typedef");
@@ -1852,11 +1829,8 @@ static Node *read_if_stmt(void) {
     Node *cond = read_cond_expr();
     expect(')');
     Node *then = read_stmt();
-    Token *tok = read_token();
-    if (!is_punct(tok, KELSE)) {
-        unget_token(tok);
+    if (!next_token(KELSE))
         return ast_if(cond, then, NULL);
-    }
     Node *els = read_stmt();
     return ast_if(cond, then, els);
 }
@@ -1866,10 +1840,8 @@ static Node *read_if_stmt(void) {
  */
 
 static Node *read_opt_decl_or_stmt(void) {
-    Token *tok = read_token();
-    if (is_punct(tok, ';'))
+    if (next_token(';'))
         return NULL;
-    unget_token(tok);
     List *list = make_list();
     read_decl_or_stmt(list);
     return list_shift(list);
@@ -1934,13 +1906,10 @@ static Node *read_switch_stmt(void) {
 static Node *read_case_label(void) {
     int beg = eval_intexpr(read_expr());
     int end;
-    Token *tok = read_token();
-    if (is_punct(tok, THREEDOTS)) {
+    if (next_token(THREEDOTS))
         end = eval_intexpr(read_expr());
-    } else {
+    else
         end = beg;
-        unget_token(tok);
-    }
     expect(':');
     if (beg > end)
         error("case region is not in correct order: %d %d", beg, end);
@@ -2028,10 +1997,8 @@ static Node *read_compound_stmt(void) {
     localenv = make_dict(localenv);
     List *list = make_list();
     for (;;) {
-        Token *tok = read_token();
-        if (is_punct(tok, '}'))
+        if (next_token('}'))
             break;
-        unget_token(tok);
         read_decl_or_stmt(list);
     }
     localenv = dict_parent(localenv);
