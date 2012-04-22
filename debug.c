@@ -250,6 +250,9 @@ static void a2s_int(String *buf, Node *node) {
                        a2s(node->operand));
         break;
     }
+    case OP_LABEL_ADDR:
+        string_appendf(buf, "&&%s", node->label);
+        break;
     default: {
         char *left = a2s(node->left);
         char *right = a2s(node->right);

@@ -1080,6 +1080,17 @@ static void emit_assign(Node *node) {
     }
 }
 
+static void emit_label_addr(Node *node) {
+    SAVE;
+    emit("mov $%s, %%rax", node->newlabel);
+}
+
+static void emit_computed_goto(Node *node) {
+    SAVE;
+    emit_expr(node->operand);
+    emit("jmp *%%rax");
+}
+
 static void emit_expr(Node *node) {
     SAVE;
     switch (node->type) {
@@ -1133,6 +1144,8 @@ static void emit_expr(Node *node) {
     case OP_CAST:   emit_cast(node); return;
     case ',': emit_comma(node); return;
     case '=': emit_assign(node); return;
+    case OP_LABEL_ADDR: emit_label_addr(node); return;
+    case AST_COMPUTED_GOTO: emit_computed_goto(node); return;
     default:
         emit_binop(node);
     }

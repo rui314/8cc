@@ -233,6 +233,10 @@ static Node *ast_goto(char *label) {
     return make_ast(&(Node){ AST_GOTO, .label = label });
 }
 
+static Node *ast_computed_goto(Node *expr) {
+    return make_ast(&(Node){ AST_COMPUTED_GOTO, .operand = expr });
+}
+
 static Node *ast_label(char *label) {
     return make_ast(&(Node){ AST_LABEL, .label = label, .newlabel = NULL });
 }
@@ -243,6 +247,10 @@ static Node *ast_va_start(Node *ap) {
 
 static Node *ast_va_arg(Ctype *ctype, Node *ap) {
     return make_ast(&(Node){ AST_VA_ARG, ctype, .ap = ap });
+}
+
+static Node *ast_label_addr(char *label) {
+    return make_ast(&(Node){ OP_LABEL_ADDR, make_ptr_type(ctype_void), .label = label });
 }
 
 static Ctype *make_type(Ctype *tmpl) {
@@ -839,6 +847,15 @@ static Node *read_unary_incdec(int op) {
     return ast_uop(op, operand->ctype, operand);
 }
 
+static Node *read_label_addr(void) {
+    Token *tok = read_token();
+    if (tok->type != TIDENT)
+        error("Label name expected after &&, but got %s", t2s(tok));
+    Node *r = ast_label_addr(tok->sval);
+    list_push(gotos, r);
+    return r;
+}
+
 static Node *read_unary_addr(void) {
     Node *operand = read_cast_expr();
     if (operand->type == AST_FUNCDESG)
@@ -885,6 +902,7 @@ static Node *read_unary_expr(void) {
         case KSIZEOF: return ast_inttype(ctype_long, get_sizeof_ctype(false)->size);
         case OP_INC: return read_unary_incdec(OP_PRE_INC);
         case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
+        case OP_LOGAND: return read_label_addr();
         case '&': return read_unary_addr();
         case '*': return read_unary_deref();
         case '+': return read_cast_expr();
@@ -1790,7 +1808,7 @@ static void backfill_labels(void) {
         char *label = src->label;
         Node *dst = dict_get(labels, label);
         if (!dst)
-            error("stray goto: %s", label);
+            error("stray %s: %s", src->type == AST_GOTO ? "goto" : "unary &&", label);
         if (dst->newlabel)
             src->newlabel = dst->newlabel;
         else
@@ -1945,6 +1963,12 @@ static Node *read_return_stmt(void) {
 }
 
 static Node *read_goto_stmt(void) {
+    if (next_token('*')) {
+        Node *expr = read_cast_expr();
+        if (expr->ctype->type != CTYPE_PTR)
+            error("pointer expected for computed goto, but got %s", a2s(expr));
+        return ast_computed_goto(expr);
+    }
     Token *tok = read_token();
     if (!tok || tok->type != TIDENT)
         error("identifier expected, but got %s", t2s(tok));

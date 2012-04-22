@@ -213,6 +213,25 @@ void test_goto(void) {
  a:
 }
 
+void test_computed_goto(void) {
+    struct { void *x, *y, *z, *a; } t = { &&x, &&y, &&z, &&a };
+    int acc = 0;
+    goto *t.x;
+    acc = 5;
+ x: expect(0, acc);
+
+    int i = 0;
+    acc = 0;
+ y: if (i > 10) goto *t.z;
+    acc += i++;
+    goto *t.y;
+ z: if (i > 11) goto *t.a;
+    expect(55, acc);
+    i++;
+    goto *t.y;
+ a:
+}
+
 void test_logor(void) {
     expect(1, 0 || 3);
     expect(1, 5 || 0);
@@ -227,5 +246,6 @@ void testmain(void) {
     test_do();
     test_switch();
     test_goto();
+    test_computed_goto();
     test_logor();
 }

@@ -85,6 +85,7 @@ enum {
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
     AST_GOTO,
+    AST_COMPUTED_GOTO,
     AST_LABEL,
     AST_VA_START,
     AST_VA_ARG,
@@ -118,6 +119,7 @@ enum {
     OP_PRE_DEC,
     OP_POST_INC,
     OP_POST_DEC,
+    OP_LABEL_ADDR,
 #define keyword(name, _1, _2) name,
 #include "keyword.h"
 #undef keyword
