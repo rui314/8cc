@@ -138,6 +138,19 @@ static void unget(int c) {
     file->column--;
 }
 
+static bool skip_newline(int c) {
+    if (c == '\n')
+        return true;
+    if (c == '\r') {
+        int c2 = getc(file->fp);
+        if (c2 == '\n')
+            return true;
+        ungetc(c2, file->fp);
+        return true;
+    }
+    return false;
+}
+
 static int get(void) {
     int c = (ungotten >= 0) ? ungotten : getc(file->fp);
     file->column++;
@@ -145,7 +158,7 @@ static int get(void) {
     if (c == '\\') {
         c = getc(file->fp);
         file->column++;
-        if (c == '\n') {
+        if (skip_newline(c)) {
             file->line++;
             file->column = 1;
             return get();
@@ -154,7 +167,7 @@ static int get(void) {
         at_bol = false;
         return '\\';
     }
-    if (c == '\n') {
+    if (skip_newline(c)) {
         file->line++;
         file->column = 1;
         at_bol = true;
@@ -169,7 +182,7 @@ static void skip_line(void) {
         int c = get();
         if (c == EOF)
             return;
-        if (c == '\n') {
+        if (c == '\n' || c == '\r') {
             unget(c);
             return;
         }
@@ -217,7 +230,7 @@ void skip_cond_incl(void) {
         int c = get();
         if (c == EOF)
             return;
-        if (c == '\n')
+        if (c == '\n' || c == '\r')
             continue;
         if (c != '#') {
             skip_line();
@@ -394,7 +407,8 @@ static Token *read_token_int(void) {
         return make_space(skip_space() + 1);
     case '\t':
         return make_space(skip_space() + 4);
-    case '\n':
+    case '\n': case '\r':
+        skip_newline(c);
         return newline_token;
     case 'L':
         c = get();
@@ -507,7 +521,7 @@ char *read_header_file_name(bool *std) {
     String *s = make_string();
     for (;;) {
         c = get();
-        if (c == EOF || c == '\n')
+        if (c == EOF || c == '\n' || c == '\r')
             error("premature end of header name");
         if (c == close)
             break;
@@ -536,7 +550,7 @@ char *read_error_directive(void) {
     for (;;) {
         int c = get();
         if (c == EOF) break;
-        if (c == '\n') {
+        if (c == '\n' || c == '\r') {
             unget(c);
             break;
         }
