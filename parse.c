@@ -113,11 +113,11 @@ static Node *ast_inttype(Ctype *ctype, long val) {
 }
 
 static Node *ast_floattype(Ctype *ctype, double val) {
-    return make_ast(&(Node){ AST_LITERAL, ctype, .fval = val, .flabel = NULL });
+    return make_ast(&(Node){ AST_LITERAL, ctype, .fval = val });
 }
 
 static Node *ast_lvar(Ctype *ctype, char *name) {
-    Node *r = make_ast(&(Node){ AST_LVAR, ctype, .varname = name, .lvarinit = NULL });
+    Node *r = make_ast(&(Node){ AST_LVAR, ctype, .varname = name });
     if (localenv)
         dict_put(localenv, name, r);
     if (localvars)
@@ -135,8 +135,7 @@ static Node *ast_string(char *str) {
     return make_ast(&(Node){
         .type = AST_STRING,
         .ctype = make_array_type(ctype_char, strlen(str) + 1),
-        .sval = str,
-        .slabel = NULL });
+        .sval = str });
 }
 
 static Node *ast_funcall(Ctype *ftype, char *fname, List *args) {
@@ -238,7 +237,7 @@ static Node *ast_computed_goto(Node *expr) {
 }
 
 static Node *ast_label(char *label) {
-    return make_ast(&(Node){ AST_LABEL, .label = label, .newlabel = NULL });
+    return make_ast(&(Node){ AST_LABEL, .label = label });
 }
 
 static Node *ast_va_start(Node *ap) {
