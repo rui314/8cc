@@ -422,12 +422,16 @@ static Token *read_token_int(void) {
         return make_punct('/');
     }
     case '.': {
-        c = get();
-        if (c == '.') {
-            c = get();
-            return make_ident(format("..%c", c));
+        int c2 = get();
+        if (isdigit(c2)) {
+            unget(c2);
+            return read_number(c);
         }
-        unget(c);
+        if (c2 == '.') {
+            int c3 = get();
+            return make_ident(format("..%c", c3));
+        }
+        unget(c2);
         return make_punct('.');
     }
     case '(': case ')': case ',': case ';': case '[': case ']': case '{':
