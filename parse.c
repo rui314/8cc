@@ -1473,6 +1473,21 @@ static List *read_decl_init(Ctype *ctype) {
 
 /*----------------------------------------------------------------------
  * Declarator
+ *
+ * C's syntax for declaration is not only hard to read for humans but also
+ * hard to parse for hand-written parsers. Consider the following two cases:
+ *
+ *   (A) int *x;
+ *   (B) int *x();
+ *
+ * A is of type pointer to int, while B is not pointer type. B is of type
+ * function returning a pointer to an integer. The meaning of the first half
+ * of the declaration ("int *" part) is different among them.
+ *
+ * In 8cc, delcarations are parsed by two functions: read_direct_declarator1
+ * and read_direct_declarator2. The former function parses the first half of a
+ * declaration, and the latter parses the (possibly nonexistent) parentheses
+ * of a function or an array.
  */
 
 static void read_func_param(Ctype **rtype, char **name, bool optional) {
@@ -1493,14 +1508,12 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
         return make_func_type(rettype, paramtypes, true);
     unget_token(tok);
     for (;;) {
-        tok = read_token();
-        if (is_punct(tok, THREEDOTS)) {
+        if (next_token(THREEDOTS)) {
             if (list_len(paramtypes) == 0)
                 error("at least one parameter is required");
             expect(')');
             return make_func_type(rettype, paramtypes, true);
-        } else
-            unget_token(tok);
+        }
         Ctype *ptype;
         char *name;
         read_func_param(&ptype, &name, typeonly);
@@ -1521,14 +1534,11 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
 }
 
 static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
-    Token *tok = read_token();
-    if (is_punct(tok, '[')) {
+    if (next_token('[')) {
         int len;
-        tok = read_token();
-        if (is_punct(tok, ']')) {
+        if (next_token(']')) {
             len = -1;
         } else {
-            unget_token(tok);
             len = eval_intexpr(read_comma_expr());
             expect(']');
         }
@@ -1537,25 +1547,20 @@ static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
             error("array of functions");
         return make_array_type(t, len);
     }
-    if (is_punct(tok, '(')) {
+    if (next_token('(')) {
         if (basetype->type == CTYPE_FUNC)
             error("function returning an function");
         if (basetype->type == CTYPE_ARRAY)
             error("function returning an array");
         return read_func_param_list(params, basetype);
     }
-    unget_token(tok);
     return basetype;
 }
 
 static void skip_type_qualifiers(void) {
     for (;;) {
-        Token *tok = read_token();
-        if (is_punct(tok, KCONST) ||
-            is_punct(tok, KVOLATILE) ||
-            is_punct(tok, KRESTRICT))
+        if (next_token(KCONST) || next_token(KVOLATILE) || next_token(KRESTRICT))
             continue;
-        unget_token(tok);
         return;
     }
 }
@@ -1572,10 +1577,7 @@ static Ctype *read_direct_declarator1(char **rname, Ctype *basetype, List *param
     }
     if (is_punct(tok, '*')) {
         skip_type_qualifiers();
-        Ctype *stub = make_stub_type();
-        Ctype *t = read_direct_declarator1(rname, stub, params, ctx);
-        *stub = *make_ptr_type(basetype);
-        return t;
+        return read_direct_declarator1(rname, make_ptr_type(basetype), params, ctx);
     }
     if (tok->type == TIDENT) {
         if (ctx == DECL_CAST)
