@@ -63,6 +63,7 @@ static Node *read_struct_field(Node *struc);
 static void read_initializer_list(List *inits, Ctype *ctype, int off);
 static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
+static Node *read_cond_expr(void);
 static Node *read_expr_opt(void);
 static Node *read_assignment_expr(void);
 static Node *read_cast_expr(void);
@@ -777,6 +778,23 @@ static Node *read_generic(void) {
 }
 
 /*----------------------------------------------------------------------
+ * _Static_assert
+ */
+
+static void read_static_assert(void) {
+    expect('(');
+    int val = eval_intexpr(read_assignment_expr());
+    expect(',');
+    Token *tok = read_token();
+    if (tok->type != TSTRING)
+        error("String expected as the second argument for _Static_assert, but got %s", t2s(tok));
+    expect(')');
+    expect(';');
+    if (!val)
+        error("_Static_assert failure: %s", tok->sval);
+}
+
+/*----------------------------------------------------------------------
  * Expression
  */
 
@@ -1196,6 +1214,10 @@ static int maybe_read_bitsize(char *name, Ctype *ctype) {
 static List *read_rectype_fields_sub(void) {
     List *r = make_list();
     for (;;) {
+        if (next_token(KSTATIC_ASSERT)) {
+            read_static_assert();
+            continue;
+        }
         if (!is_type_keyword(peek_token()))
             break;
         Ctype *basetype = read_decl_spec(NULL);
@@ -2109,6 +2131,8 @@ static void read_decl_or_stmt(List *list) {
         error("premature end of input");
     if (is_type_keyword(tok)) {
         read_decl(list, ast_lvar);
+    } else if (next_token(KSTATIC_ASSERT)) {
+        read_static_assert();
     } else {
         Node *stmt = read_stmt();
         if (stmt)
