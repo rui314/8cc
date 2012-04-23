@@ -1664,6 +1664,19 @@ static Ctype *read_declarator(char **rname, Ctype *basetype, List *params, int c
 }
 
 /*----------------------------------------------------------------------
+ * typeof()
+ */
+
+static Ctype *read_typeof(void) {
+    expect('(');
+    Ctype *r = is_type_keyword(peek_token())
+        ? read_cast_type()
+        : read_comma_expr()->ctype;
+    expect(')');
+    return r;
+}
+
+/*----------------------------------------------------------------------
  * Declaration specifier
  */
 
@@ -1739,6 +1752,10 @@ static Ctype *read_decl_spec(int *rsclass) {
             if (size == 0) set(size, klong);
             else if (size == klong) size = kllong;
             else goto err;
+            continue;
+        }
+        case KTYPEOF: case K__TYPEOF__: {
+            set(usertype, read_typeof());
             continue;
         }
         default:
