@@ -230,7 +230,7 @@ static void emit_assign_deref(Node *var) {
     emit_assign_deref_int(var->operand->ctype->ptr, 0);
 }
 
-static void emit_pointer_arith(char op, Node *left, Node *right) {
+static void emit_pointer_arith(char type, Node *left, Node *right) {
     SAVE;
     emit_expr(left);
     push("rcx");
@@ -241,7 +241,13 @@ static void emit_pointer_arith(char op, Node *left, Node *right) {
         emit("imul $%d, %%rax", size);
     emit("mov %%rax, %%rcx");
     pop("rax");
-    emit("add %%rcx, %%rax");
+    char *op = NULL;
+    switch (type) {
+    case '+': op = "add"; break;
+    case '-': op = "sub"; break;
+    default: error("invalid operator '%d'", op);
+    }
+    emit("%s %%rcx, %%rax", op);
     pop("rcx");
 }
 
@@ -351,7 +357,10 @@ static void emit_comp(char *inst, Node *node) {
         push("rax");
         emit_expr(node->right);
         pop("rcx");
-        emit("cmp %%rax, %%rcx");
+        if (node->left->ctype->type == CTYPE_LLONG)
+          emit("cmp %%rax, %%rcx");
+        else
+          emit("cmp %%eax, %%ecx");
     }
     emit("%s %%al", inst);
     emit("movzb %%al, %%eax");
