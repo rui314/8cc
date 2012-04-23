@@ -723,6 +723,60 @@ static Node *read_funcptr_call(Node *fptr) {
 }
 
 /*----------------------------------------------------------------------
+ * _Generic
+ */
+
+static bool type_compatible(Ctype *a, Ctype *b) {
+    if (a->type == CTYPE_STRUCT)
+        return is_same_struct(a, b);
+    if (a->type != b->type)
+        return false;
+    if (a->ptr && b->ptr)
+        return type_compatible(a->ptr, b->ptr);
+    return true;
+}
+
+static List *read_generic_list(Node **defaultexpr) {
+    List *r = make_list();
+    for (;;) {
+        if (next_token(')'))
+            return r;
+        if (next_token(KDEFAULT)) {
+            if (*defaultexpr)
+                error("default expression specified twice");
+            expect(':');
+            *defaultexpr = read_assignment_expr();
+        } else {
+            Ctype *ctype = read_cast_type();
+            expect(':');
+            Node *expr = read_assignment_expr();
+            list_push(r, make_pair(ctype, expr));
+        }
+        next_token(',');
+    }
+}
+
+static Node *read_generic(void) {
+    expect('(');
+    Node *contexpr = read_assignment_expr();
+    Ctype *conttype = convert_array(contexpr->ctype);
+    expect(',');
+    Node *defaultexpr = NULL;
+    List *list = read_generic_list(&defaultexpr);
+    Iter *iter = list_iter(list);
+    while (!iter_end(iter)) {
+        Pair *pair = iter_next(iter);
+        Ctype *ctype = pair->first;
+        Node *expr = pair->second;
+        if (type_compatible(conttype, ctype))
+            return expr;
+    }
+   if (!defaultexpr)
+       error("no matching generic selection for %s", a2s(contexpr));
+   return defaultexpr;
+}
+
+/*----------------------------------------------------------------------
  * Expression
  */
 
@@ -767,6 +821,9 @@ static Node *read_primary_expr(void) {
         Node *r = read_expr();
         expect(')');
         return r;
+    }
+    if (is_punct(tok, KGENERIC)) {
+        return read_generic();
     }
     switch (tok->type) {
     case TIDENT:
