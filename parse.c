@@ -1562,7 +1562,7 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
         return make_func_type(rettype, paramtypes, true);
     unget_token(tok);
     for (;;) {
-        if (next_token(THREEDOTS)) {
+        if (next_token(KTHREEDOTS)) {
             if (list_len(paramtypes) == 0)
                 error("at least one parameter is required");
             expect(')');
@@ -1981,7 +1981,7 @@ static Node *read_switch_stmt(void) {
 static Node *read_case_label(void) {
     int beg = eval_intexpr(read_expr());
     int end;
-    if (next_token(THREEDOTS))
+    if (next_token(KTHREEDOTS))
         end = eval_intexpr(read_expr());
     else
         end = beg;
