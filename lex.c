@@ -177,6 +177,14 @@ static int get(void) {
     return c;
 }
 
+static bool next(int expect) {
+    int c = get();
+    if (c == expect)
+        return true;
+    unget(c);
+    return false;
+}
+
 static void skip_line(void) {
     for (;;) {
         int c = get();
@@ -382,20 +390,16 @@ static void skip_block_comment(void) {
 }
 
 static Token *read_rep(char expect, int t1, int els) {
-    int c = get();
-    if (c == expect)
+    if (next(expect))
         return make_punct(t1);
-    unget(c);
     return make_punct(els);
 }
 
 static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
-    int c = get();
-    if (c == expect1)
+    if (next(expect1))
         return make_punct(t1);
-    if (c == expect2)
+    if (next(expect2))
         return make_punct(t2);
-    unget(c);
     return make_punct(els);
 }
 
@@ -411,28 +415,24 @@ static Token *read_token_int(void) {
         skip_newline(c);
         return newline_token;
     case 'L':
-        c = get();
-        if (c == '"')  return read_string();
-        if (c == '\'') return read_char();
-        unget(c);
+        if (next('"'))  return read_string();
+        if (next('\'')) return read_char();
         return read_ident('L');
     case '0' ... '9':
         return read_number(c);
     case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_':
         return read_ident(c);
     case '/': {
-        c = get();
-        if (c == '/') {
+        if (next('/')) {
             skip_line();
             return make_space(1);
         }
-        if (c == '*') {
+        if (next('*')) {
             skip_block_comment();
             return make_space(1);
         }
-        if (c == '=')
+        if (next('='))
             return make_punct(OP_A_DIV);
-        unget(c);
         return make_punct('/');
     }
     case '.': {
@@ -452,45 +452,34 @@ static Token *read_token_int(void) {
     case '}': case '?': case '~':
         return make_punct(c);
     case ':':
-        c = get();
-        if (c == '>')
-            return make_punct(']');
-        unget(c);
-        return make_punct(':');
+        return make_punct(next('>') ? ']' : ':');
     case '#': {
-        c = get();
-        if (c == '#')
+        if (next('#'))
             return make_ident("##");
-        unget(c);
         return make_punct('#');
     }
     case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '-': {
-        int c = get();
-        if (c == '-')
+        if (next('-'))
             return make_punct(OP_DEC);
-        if (c == '>')
+        if (next('>'))
             return make_punct(OP_ARROW);
-        if (c == '=')
+        if (next('='))
             return make_punct(OP_A_SUB);
-        unget(c);
         return make_punct('-');
     }
     case '*': return read_rep('=', OP_A_MUL, '*');
     case '%':
-        c = get();
-        if (c == '>')
+        if (next('>'))
             return make_punct('}');
-        if (c == ':') {
-            if ((c = get()) == '%') {
+        if (next(':')) {
+            if (next('%')) {
                 if ((c = get()) != ':')
                     error(": expected for %:%:, but got %c", c);
                 return make_ident("##");
             }
-            unget(c);
             return make_punct('#');
         }
-        unget(c);
         return read_rep('=', OP_A_MOD, '%');
     case '=': return read_rep('=', OP_EQ, '=');
     case '!': return read_rep('=', OP_NE, '!');
@@ -498,21 +487,17 @@ static Token *read_token_int(void) {
     case '|': return read_rep2('|', OP_LOGOR, '=', OP_A_OR, '|');
     case '^': return read_rep('=', OP_A_XOR, '^');
     case '<': {
-        c = get();
-        if (c == '<') return read_rep('=', OP_A_SAL, OP_SAL);
-        if (c == '=') return make_punct(OP_LE);
-        if (c == ':') return make_punct('[');
-        if (c == '%') return make_punct('{');
-        unget(c);
+        if (next('<')) return read_rep('=', OP_A_SAL, OP_SAL);
+        if (next('=')) return make_punct(OP_LE);
+        if (next(':')) return make_punct('[');
+        if (next('%')) return make_punct('{');
         return make_punct('<');
     }
     case '>': {
-        c = get();
-        if (c == '=')
+        if (next('='))
             return make_punct(OP_GE);
-        if (c == '>')
+        if (next('>'))
             return read_rep('=', OP_A_SAR, OP_SAR);
-        unget(c);
         return make_punct('>');
     }
     case '"': return read_string();
@@ -527,20 +512,18 @@ static Token *read_token_int(void) {
 char *read_header_file_name(bool *std) {
     skip_space();
     char close;
-    int c = get();
-    if (c == '"') {
+    if (next('"')) {
         *std = false;
         close = '"';
-    } else if (c == '<') {
+    } else if (next('<')) {
         *std = true;
         close = '>';
     } else {
-        unget(c);
         return NULL;
     }
     String *s = make_string();
     for (;;) {
-        c = get();
+        int c = get();
         if (c == EOF || c == '\n' || c == '\r')
             error("premature end of header name");
         if (c == close)
