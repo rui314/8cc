@@ -381,6 +381,17 @@ void counter(void) {
     expect(2, __COUNTER__);
 }
 
+#define stringify(x) #x
+
+void digraph(void) {
+    expect_string("[", stringify(<:));
+    expect_string("]", stringify(:>));
+    expect_string("{", stringify(<%));
+    expect_string("}", stringify(%>));
+    expect_string("#", stringify(%:));
+    expect_string("##", stringify(%:%:));
+}
+
 void testmain(void) {
     print("macros");
 
@@ -400,4 +411,5 @@ void testmain(void) {
     line();
     null();
     counter();
+    digraph();
 }

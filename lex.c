@@ -449,8 +449,14 @@ static Token *read_token_int(void) {
         return make_punct('.');
     }
     case '(': case ')': case ',': case ';': case '[': case ']': case '{':
-    case '}': case '?': case ':': case '~':
+    case '}': case '?': case '~':
         return make_punct(c);
+    case ':':
+        c = get();
+        if (c == '>')
+            return make_punct(']');
+        unget(c);
+        return make_punct(':');
     case '#': {
         c = get();
         if (c == '#')
@@ -471,7 +477,21 @@ static Token *read_token_int(void) {
         return make_punct('-');
     }
     case '*': return read_rep('=', OP_A_MUL, '*');
-    case '%': return read_rep('=', OP_A_MOD, '%');
+    case '%':
+        c = get();
+        if (c == '>')
+            return make_punct('}');
+        if (c == ':') {
+            if ((c = get()) == '%') {
+                if ((c = get()) != ':')
+                    error(": expected for %:%:, but got %c", c);
+                return make_ident("##");
+            }
+            unget(c);
+            return make_punct('#');
+        }
+        unget(c);
+        return read_rep('=', OP_A_MOD, '%');
     case '=': return read_rep('=', OP_EQ, '=');
     case '!': return read_rep('=', OP_NE, '!');
     case '&': return read_rep2('&', OP_LOGAND, '=', OP_A_AND, '&');
@@ -479,10 +499,10 @@ static Token *read_token_int(void) {
     case '^': return read_rep('=', OP_A_XOR, '^');
     case '<': {
         c = get();
-        if (c == '=')
-            return make_punct(OP_LE);
-        if (c == '<')
-            return read_rep('=', OP_A_SAL, OP_SAL);
+        if (c == '<') return read_rep('=', OP_A_SAL, OP_SAL);
+        if (c == '=') return make_punct(OP_LE);
+        if (c == ':') return make_punct('[');
+        if (c == '%') return make_punct('{');
         unget(c);
         return make_punct('<');
     }
