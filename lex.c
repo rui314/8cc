@@ -474,9 +474,9 @@ static Token *read_token_int(void) {
             return make_punct('}');
         if (next(':')) {
             if (next('%')) {
-                if ((c = get()) != ':')
-                    error(": expected for %:%:, but got %c", c);
-                return make_ident("##");
+                if (next(':'))
+                    return make_ident("##");
+                unget('%');
             }
             return make_punct('#');
         }

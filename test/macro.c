@@ -390,6 +390,7 @@ void digraph(void) {
     expect_string("}", stringify(%>));
     expect_string("#", stringify(%:));
     expect_string("##", stringify(%:%:));
+    expect_string("#%", stringify(%:%));
 }
 
 void testmain(void) {
