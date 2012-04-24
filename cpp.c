@@ -768,11 +768,11 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
 
 void cpp_init(void) {
     std_include_path = make_list();
+    list_push(std_include_path, "./include");
     list_push(std_include_path, "/usr/local/include");
     list_push(std_include_path, "/usr/include");
     list_push(std_include_path, "/usr/include/linux");
     list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
-    list_push(std_include_path, "./include");
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);
@@ -800,10 +800,6 @@ void cpp_init(void) {
     define_obj_macro("__SIZEOF_POINTER__", make_number("8"));
     define_obj_macro("__SIZEOF_PTRDIFF_T__", make_number("8"));
     define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));
-
-    cpp_eval("typedef long size_t;"
-             "typedef long ptrdiff_t;"
-             "typedef char wchar_t;");
 }
 
 /*----------------------------------------------------------------------
