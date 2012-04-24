@@ -31,10 +31,20 @@ void newline(void) {
 #
 }
 
+void dollar(void) {
+    int $ = 1;
+    expect(1, $);
+    int $2 = 2;
+    expect(2, $2);
+    int a$ = 3;
+    expect(3, a$);
+}
+
 void testmain(void) {
     print("lexer");
     digraph();
     escape();
     whitespace();
     newline();
+    dollar();
 }

@@ -373,7 +373,7 @@ static Token *read_ident(char c) {
     string_append(s, c);
     for (;;) {
         int c2 = get();
-        if (isalnum(c2) || c2 == '_') {
+        if (isalnum(c2) || c2 == '_' || c2 == '$') {
             string_append(s, c2);
         } else {
             unget(c2);
@@ -428,7 +428,7 @@ static Token *read_token_int(void) {
         return read_ident('L');
     case '0' ... '9':
         return read_number(c);
-    case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_':
+    case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_': case '$':
         return read_ident(c);
     case '/': {
         if (next('/')) {
