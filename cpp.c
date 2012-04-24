@@ -803,7 +803,7 @@ void cpp_init(void) {
 
     cpp_eval("typedef long size_t;"
              "typedef long ptrdiff_t;"
-             "typedef int wchar_t;");
+             "typedef char wchar_t;");
 }
 
 /*----------------------------------------------------------------------
