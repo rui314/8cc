@@ -355,7 +355,8 @@ static void emit_comp(char *inst, Node *node) {
         push("rax");
         emit_expr(node->right);
         pop("rcx");
-        if (node->left->ctype->type == CTYPE_LLONG)
+        int type = node->left->ctype->type;
+        if (type == CTYPE_LONG || type == CTYPE_LLONG)
           emit("cmp %%rax, %%rcx");
         else
           emit("cmp %%eax, %%ecx");
