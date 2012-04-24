@@ -16,7 +16,14 @@ void digraph(void) {
     expect_string("#%", stringify(%:%));
 }
 
+void escape(void) {
+    int value = 10;
+    expect(10, val\
+ue);
+}
+
 void testmain(void) {
     print("lexer");
     digraph();
+    escape();
 }
