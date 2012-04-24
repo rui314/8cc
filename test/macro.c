@@ -28,6 +28,8 @@ void include(void) {
 #endif
 }
 
+#include "stdio.h"
+
 void predefined(void) {
     expect(1, __8cc__);
     expect(1, __amd64);
