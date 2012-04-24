@@ -54,7 +54,7 @@ testast '(()=>int)f(){(+ (* 1 2) (* 3 4));}' '1*2+3*4;'
 testast '(()=>int)f(){(+ (/ 4 2) (/ 6 3));}' '4/2+6/3;'
 testast '(()=>int)f(){(/ (/ 24 2) 4);}' '24/2/4;'
 testast '(()=>int)f(){(decl int a 3@0);}' 'int a=3;'
-testast "(()=>int)f(){(decl char c 'a'@0);}" "char c='a';"
+testast "(()=>int)f(){(decl char c (conv 97=>char)@0);}" "char c='a';"
 testast '(()=>int)f(){(decl *char s "abcd"@0);}' 'char *s="abcd";'
 #testast "(()=>int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[5]="asdf";'
 testast "(()=>int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[]="asdf";'
@@ -70,7 +70,7 @@ testast '(()=>int)f(){(if 1 {2;});}' 'if(1){2;}'
 testast '(()=>int)f(){(if 1 {2;} {3;});}' 'if(1){2;}else{3;}'
 testast '(()=>int)f(){(for (decl int a 1@0) 3 7 {5;});}' 'for(int a=1;3;7){5;}'
 testast '(()=>int)f(){"abcd";}' '"abcd";'
-testast "(()=>int)f(){'c';}" "'c';"
+testast "(()=>int)f(){99;}" "'c';"
 testast '(()=>int)f(){(int)a();}' 'a();'
 testast '(()=>int)f(){(int)a(1,2,3,4,5,6);}' 'a(1,2,3,4,5,6);'
 testast '(()=>int)f(){(return (conv 1=>int));}' 'return 1;'

@@ -855,7 +855,7 @@ static Node *read_primary_expr(void) {
     case TNUMBER:
         return read_number(tok->sval);
     case TCHAR:
-        return ast_inttype(ctype_char, tok->c);
+        return ast_inttype(ctype_int, tok->c);
     case TSTRING:
         return ast_string(tok->sval);
     case TPUNCT:

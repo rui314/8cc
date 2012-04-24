@@ -35,6 +35,12 @@ void testmain(void) {
     expect(30, sizeof(char[3][10]));
     expect(32, sizeof(int[4][2]));
 
+    expect(4, sizeof('a'));
+    expect(4, sizeof(1));
+    expect(8, sizeof(1L));
+    expect(4, sizeof(1.0f));
+    expect(8, sizeof(1.0));
+
     char a[] = { 1, 2, 3 };
     expect(3, sizeof(a));
     char b[] = "abc";
