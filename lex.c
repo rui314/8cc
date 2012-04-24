@@ -177,6 +177,12 @@ static int get(void) {
     return c;
 }
 
+static int peek(void) {
+    int r = get();
+    unget(r);
+    return r;
+}
+
 static bool next(int expect) {
     int c = get();
     if (c == expect)
@@ -215,17 +221,15 @@ static int skip_space(void) {
             continue;
         }
         if (c == '/') {
-            c = get();
-            if (c == '*') {
+            if (next('*')) {
                 skip_block_comment();
                 nspace++;
                 continue;
-            } else if (c == '/') {
+            } else if (next('/')) {
                 skip_line();
                 nspace++;
                 continue;
             }
-            unget(c);
             unget('/');
             break;
         }
@@ -439,19 +443,12 @@ static Token *read_token_int(void) {
             return make_punct(OP_A_DIV);
         return make_punct('/');
     }
-    case '.': {
-        int c2 = get();
-        if (isdigit(c2)) {
-            unget(c2);
+    case '.':
+        if (isdigit(peek()))
             return read_number(c);
-        }
-        if (c2 == '.') {
-            int c3 = get();
-            return make_ident(format("..%c", c3));
-        }
-        unget(c2);
+        if (next('.'))
+            return make_ident(format("..%c", get()));
         return make_punct('.');
-    }
     case '(': case ')': case ',': case ';': case '[': case ']': case '{':
     case '}': case '?': case '~':
         return make_punct(c);
