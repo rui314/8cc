@@ -631,13 +631,12 @@ static void read_include(void) {
     char *name = read_cpp_header_name(&std);
     expect_newline();
     List *paths;
-    if (std) {
-        paths = std_include_path;
-    } else if (get_current_file()) {
+    paths = list_copy(std_include_path);
+    if (!std && get_current_file()) {
         char *buf = format("%s", get_current_file());
-        paths = make_list1(dirname(buf));
-    } else {
-        paths = make_list1(".");
+        list_unshift(paths, dirname(buf));
+    } else if (!std) {
+        list_push(paths, ".");
     }
     for (Iter *i = list_iter(paths); !iter_end(i);) {
         char *path = format("%s/%s", iter_next(i), name);
