@@ -197,12 +197,16 @@ static void skip_line(void) {
     }
 }
 
+static bool iswhitespace(int c) {
+    return c == ' ' || c == '\t' || c == '\f' || c == '\v';
+}
+
 static int skip_space(void) {
     int nspace = 0;
     for (;;) {
         int c = get();
         if (c == EOF) break;
-        if (c == ' ') {
+        if (iswhitespace(c)) {
             nspace++;
             continue;
         }
@@ -407,7 +411,7 @@ static Token *read_token_int(void) {
     mark_input();
     int c = get();
     switch (c) {
-    case ' ':
+    case ' ': case '\v': case '\f':
         return make_space(skip_space() + 1);
     case '\t':
         return make_space(skip_space() + 4);
@@ -557,7 +561,7 @@ char *read_error_directive(void) {
             unget(c);
             break;
         }
-        if (bol && c == ' ') continue;
+        if (bol && iswhitespace(c)) continue;
         bol = false;
         string_append(s, c);
     }

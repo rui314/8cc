@@ -22,8 +22,13 @@ void escape(void) {
 ue);
 }
 
+void whitespace(void) {
+    expect_string("x y", stringify(xy));
+}
+
 void testmain(void) {
     print("lexer");
     digraph();
     escape();
+    whitespace();
 }
