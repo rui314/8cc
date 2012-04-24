@@ -648,13 +648,15 @@ static Ctype *read_sizeof_operand_sub(bool allow_typename) {
     }
     unget_token(tok);
     Node *expr = read_unary_expr();
-    if (expr->ctype->size == 0)
-        error("invalid operand for sizeof(): %s type=%s size=%d", a2s(expr), c2s(expr->ctype), expr->ctype->size);
-    return expr->ctype;
+    return (expr->type == AST_FUNCDESG) ? expr->fptr->ctype : expr->ctype;
 }
 
-static int read_sizeof_operand(void) {
-    return read_sizeof_operand_sub(false)->size;
+static Node *read_sizeof_operand(void) {
+    Ctype *ctype = read_sizeof_operand_sub(false);
+    // Sizeof on void or function type is GNU extension
+    int size = (ctype->type == CTYPE_VOID || ctype->type == CTYPE_FUNC) ? 1 : ctype->size;
+    assert(size > 0);
+    return ast_inttype(ctype_long, size);
 }
 
 /*----------------------------------------------------------------------
@@ -977,7 +979,7 @@ static Node *read_unary_expr(void) {
     Token *tok = read_token();
     if (tok->type == TPUNCT) {
         switch (tok->punct) {
-        case KSIZEOF: return ast_inttype(ctype_long, read_sizeof_operand());
+        case KSIZEOF: return read_sizeof_operand();
         case OP_INC: return read_unary_incdec(OP_PRE_INC);
         case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
         case OP_LOGAND: return read_label_addr();

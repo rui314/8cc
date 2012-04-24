@@ -7,6 +7,8 @@
 void testmain(void) {
     print("sizeof");
 
+    expect(1, sizeof(void));
+    expect(1, sizeof(testmain));
     expect(1, sizeof(char));
     expect(1, sizeof(_Bool));
     expect(1, sizeof(bool));
