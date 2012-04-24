@@ -241,13 +241,11 @@ static void emit_pointer_arith(char type, Node *left, Node *right) {
         emit("imul $%d, %%rax", size);
     emit("mov %%rax, %%rcx");
     pop("rax");
-    char *op = NULL;
     switch (type) {
-    case '+': op = "add"; break;
-    case '-': op = "sub"; break;
-    default: error("invalid operator '%d'", op);
+    case '+': emit("add %%rcx, %%rax"); break;
+    case '-': emit("sub %%rcx, %%rax"); break;
+    default: error("invalid operator '%d'", type);
     }
-    emit("%s %%rcx, %%rax", op);
     pop("rcx");
 }
 
