@@ -49,6 +49,7 @@ static void test_list(void) {
     assert_int(1, list_len(list));
     list_push(list, (void *)2);
     assert_int(2, list_len(list));
+
     Iter *iter = list_iter(list);
     assert_int(1, (long)iter_next(iter));
     assert_int(false, iter_end(iter));
@@ -56,6 +57,11 @@ static void test_list(void) {
     assert_int(true, iter_end(iter));
     assert_int(0, (long)iter_next(iter));
     assert_int(true, iter_end(iter));
+
+    List *copy = list_copy(list);
+    assert_int(2, list_len(copy));
+    assert_int(1, (long)list_get(copy, 0));
+    assert_int(2, (long)list_get(copy, 1));
 
     List *rev = list_reverse(list);
     iter = list_iter(rev);
