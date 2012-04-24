@@ -47,6 +47,12 @@ void t6(void) {
     expect(1, p->next->val);
 }
 
+void subtract(void) {
+    char *p = "abcdefg";
+    char *q = p + 5;
+    expect(5, q - p);
+}
+
 void testmain(void) {
     print("pointer");
     t1();
@@ -55,4 +61,5 @@ void testmain(void) {
     t4();
     t5();
     t6();
+    subtract();
 }
