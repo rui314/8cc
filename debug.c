@@ -50,7 +50,7 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
             if (!iter_end(i))
                 string_append(s, ',');
         }
-        string_appendf(s, ") -> %s", c2s_int(dict, ctype->rettype));
+        string_appendf(s, ")=>%s", c2s_int(dict, ctype->rettype));
         return get_cstring(s);
     }
     default:
@@ -164,7 +164,7 @@ static void a2s_int(String *buf, Node *node) {
         string_appendf(buf, "%s@%d", a2s(node->initval), node->initoff, c2s(node->totype));
         break;
     case AST_CONV:
-        string_appendf(buf, "(conv %s -> %s)", a2s(node->operand), c2s(node->ctype));
+        string_appendf(buf, "(conv %s=>%s)", a2s(node->operand), c2s(node->ctype));
         break;
     case AST_IF:
         string_appendf(buf, "(if %s %s",
@@ -244,7 +244,7 @@ static void a2s_int(String *buf, Node *node) {
     case '&': binop_to_string(buf, "&", node); break;
     case '|': binop_to_string(buf, "|", node); break;
     case OP_CAST: {
-        string_appendf(buf, "((%s) -> (%s) %s)",
+        string_appendf(buf, "((%s)=>(%s) %s)",
                        c2s(node->operand->ctype),
                        c2s(node->ctype),
                        a2s(node->operand));
