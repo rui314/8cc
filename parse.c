@@ -1712,7 +1712,7 @@ static Ctype *read_decl_spec(int *rsclass) {
     int sclass = 0;
     Token *tok = peek_token();
     if (!is_type_keyword(tok))
-        error("internal error");
+        error("type keyword expected, but got %s", t2s(tok));
 
 #define unused __attribute__((unused))
     bool kconst unused = false, kvolatile unused = false, kinline unused = false;
