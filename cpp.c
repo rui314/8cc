@@ -851,20 +851,27 @@ void cpp_init(void) {
  * Keyword
  */
 
+static Token *convert_punct(Token *tmpl, int punct) {
+    Token *r = copy_token(tmpl);
+    r->type = TPUNCT;
+    r->punct = punct;
+    return r;
+}
+
 static Token *maybe_convert_keyword(Token *tok) {
     if (!tok)
         return NULL;
     if (tok->type != TIDENT)
         return tok;
+#define punct(ident, str)                       \
+    if (!strcmp(str, tok->sval))                \
+        return convert_punct(tok, ident);
 #define keyword(ident, str, _)                  \
-    if (!strcmp(str, tok->sval)) {              \
-        Token *r = copy_token(tok);             \
-        r->type = TPUNCT;                  \
-        r->punct = ident;                       \
-        return r;                               \
-    }
+    if (!strcmp(str, tok->sval))                \
+        return convert_punct(tok, ident);
 #include "keyword.h"
 #undef keyword
+#undef punct
     return tok;
 }
 

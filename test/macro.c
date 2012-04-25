@@ -352,6 +352,11 @@ void funclike(void) {
 #define m14(x) x
     expect(67, m14);
     expect(67, m14(m14));
+
+    int a = 68;
+#define glue(x, y) x ## y
+    glue(a+, +);
+    expect(69, a);
 }
 
 void empty(void) {

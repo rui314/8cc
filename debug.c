@@ -279,29 +279,13 @@ char *t2s(Token *tok) {
         return tok->sval;
     case TPUNCT:
         switch (tok->punct) {
-        case OP_EQ:     return "==";
-        case OP_NE:     return "!=";
-        case OP_GE:     return ">=";
-        case OP_LE:     return "<=";
-        case OP_INC:    return "++";
-        case OP_DEC:    return "--";
-        case OP_ARROW:  return "->";
-        case OP_LOGAND: return "&&";
-        case OP_LOGOR:  return "or";
-        case OP_A_ADD:  return "+=";
-        case OP_A_SUB:  return "-=";
-        case OP_A_MUL:  return "*=";
-        case OP_A_DIV:  return "/=";
-        case OP_A_MOD:  return "%=";
-        case OP_A_AND:  return "&=";
-        case OP_A_OR:   return "|=";
-        case OP_A_XOR:  return "^=";
-        case OP_A_SAL:  return "<<=";
-        case OP_A_SAR:  return ">>=";
+#define punct(ident, str)                       \
+            case ident: return str;
 #define keyword(ident, str, _)                  \
             case ident: return str;
 #include "keyword.h"
 #undef keyword
+#undef punct
         default: return format("%c", tok->c);
         }
     case TCHAR:

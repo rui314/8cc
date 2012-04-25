@@ -389,10 +389,12 @@ static bool is_type_keyword(Token *tok) {
     if (tok->type != TPUNCT)
         return false;
     switch (tok->punct) {
+#define punct(x, y)
 #define keyword(ident, _, istype)               \
         case ident: return istype;
 #include "keyword.h"
 #undef keyword
+#undef punct
     default:
         return false;
     }
