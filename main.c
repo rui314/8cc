@@ -15,6 +15,7 @@ static String *cppdefs;
 static void usage(void) {
     fprintf(stderr,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
+            "  -I<path>          add to include path\n"
             "  -E                print preprocessed source code\n"
             "  -D name           Predefine name as a macro\n"
             "  -D name=def\n"
@@ -39,10 +40,13 @@ static void parse_debug_arg(char *s) {
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "ED:U:ad:h");
+        int opt = getopt(argc, argv, "I:ED:U:ad:h");
         if (opt == -1)
             break;
         switch (opt) {
+        case 'I':
+            add_include_path(optarg);
+            break;
         case 'E':
             cpponly = true;
             break;
@@ -89,10 +93,9 @@ static void preprocess(void) {
 
 int main(int argc, char **argv) {
     setbuf(stdout, NULL);
-    parseopt(argc, argv);
-
     cpp_init();
     parse_init();
+    parseopt(argc, argv);
     if (string_len(cppdefs) > 0)
         cpp_eval(get_cstring(cppdefs));
     lex_init(file);

@@ -19,7 +19,7 @@
 bool debug_cpp;
 static Dict *macros = &EMPTY_DICT;
 static List *cond_incl_stack = &EMPTY_LIST;
-static List *std_include_path;
+static List *std_include_path = &EMPTY_LIST;
 static Token *cpp_token_zero = &(Token){ .type = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TNUMBER, .sval = "1" };
 static struct tm *current_time;
@@ -626,27 +626,33 @@ static char *read_cpp_header_name(bool *std) {
     return join_tokens(tokens, false);
 }
 
+static bool try_include(char *dir, char *filename) {
+    char *path = format("%s/%s", dir, filename);
+    FILE *fp = fopen(path, "r");
+    if (!fp)
+        return false;
+    push_input_file(path, path, fp);
+    return true;
+}
+
 static void read_include(void) {
     bool std;
-    char *name = read_cpp_header_name(&std);
+    char *filename = read_cpp_header_name(&std);
     expect_newline();
-    List *paths;
-    paths = list_copy(std_include_path);
-    if (!std && get_current_file()) {
-        char *buf = format("%s", get_current_file());
-        list_unshift(paths, dirname(buf));
-    } else if (!std) {
-        list_push(paths, ".");
-    }
-    for (Iter *i = list_iter(paths); !iter_end(i);) {
-        char *path = format("%s/%s", iter_next(i), name);
-        FILE *fp = fopen(path, "r");
-        if (fp) {
-            push_input_file(path, path, fp);
+    if (!std) {
+        if (get_current_file()) {
+            char *buf = format("%s", get_current_file());
+            if (try_include(dirname(buf), filename))
+                return;
+        } else if (try_include(".", filename)) {
             return;
         }
     }
-    error("Cannot find header file: %s", name);
+    for (Iter *i = list_iter(std_include_path); !iter_end(i);) {
+        if (try_include(iter_next(i), filename))
+            return;
+    }
+    error("Cannot find header file: %s", filename);
 }
 
 /*----------------------------------------------------------------------
@@ -758,6 +764,22 @@ static void handle_counter_macro(Token *tmpl) {
  * Initializer
  */
 
+static char *drop_last_slash(char *s) {
+    char *r = format("%s", s);
+    char *p = r + strlen(r) - 1;
+    if (*p == '/')
+        *p = '\0';
+    return r;
+}
+
+void add_include_path(char *path) {
+    list_unshift(std_include_path, drop_last_slash(path));
+}
+
+/*----------------------------------------------------------------------
+ * Initializer
+ */
+
 static void define_obj_macro(char *name, Token *value) {
     dict_put(macros, name, make_obj_macro(make_list1(value)));
 }
@@ -767,12 +789,11 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
 }
 
 void cpp_init(void) {
-    std_include_path = make_list();
-    list_push(std_include_path, "./include");
-    list_push(std_include_path, "/usr/local/include");
-    list_push(std_include_path, "/usr/include");
-    list_push(std_include_path, "/usr/include/linux");
-    list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
+    list_unshift(std_include_path, "/usr/include/x86_64-linux-gnu");
+    list_unshift(std_include_path, "/usr/include/linux");
+    list_unshift(std_include_path, "/usr/include");
+    list_unshift(std_include_path, "/usr/local/include");
+    list_unshift(std_include_path, "./include");
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);

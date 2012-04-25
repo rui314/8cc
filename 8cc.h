@@ -301,6 +301,7 @@ extern char *get_current_displayname(void);
 extern void set_current_displayname(char *name);
 extern void set_current_line(int line);
 extern void cpp_eval(char *buf);
+extern void add_include_path(char *path);
 
 extern void parse_init(void);
 extern void unget_token(Token *tok);
