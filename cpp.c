@@ -180,8 +180,13 @@ static List *read_args_int(Macro *macro) {
 static List *read_args(Macro *macro) {
     List *args = read_args_int(macro);
     if (!args) return NULL;
-    if (macro->is_varg && list_len(args) < macro->nargs)
-        error("Macro argument number is less than expected");
+    if (macro->is_varg) {
+        if (list_len(args) == macro->nargs - 1)
+            list_push(args, make_list());
+        else if (list_len(args) < macro->nargs)
+            error("Macro argument number is less than expected");
+        return args;
+    }
     if (!macro->is_varg && list_len(args) != macro->nargs) {
         if (macro->nargs == 0 &&
             list_len(args) == 1 &&
