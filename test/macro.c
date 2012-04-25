@@ -284,6 +284,19 @@ int minus(int a, int b) {
 }
 
 void funclike(void) {
+#define stringify(x) #x
+    expect_string("5", stringify(5));
+    expect_string("x", stringify(x));
+    expect_string("x y", stringify(x y));
+    expect_string("x y", stringify( x y ));
+    expect_string("x + y", stringify( x + y ));
+    expect_string("x + y", stringify(/**/x/**/+/**//**/ /**/y/**/));
+    expect_string("x+y", stringify( x+y ));
+    expect_string("'a'", stringify('a'));
+    expect_string("'\\''", stringify('\''));
+    expect_string("\"abc\"", stringify("abc"));
+    expect_string("ZERO", stringify(ZERO));
+
 #define m1(x) x
     expect(5, m1(5));
     expect(7, m1((5 + 2)));
@@ -302,27 +315,9 @@ void funclike(void) {
 #define m4(x, y) x + y + TWO
     expect(17, m4(5, 10));
 
-#define m5(x) #x
-    expect_string("5", m5(5));
-    expect_string("x", m5(x));
-    expect_string("x y", m5(x y));
-    expect_string("x y", m5( x y ));
-    expect_string("x + y", m5( x + y ));
-    expect_string("x + y", m5(/**/x/**/+/**//**/ /**/y/**/));
-    expect_string("x+y", m5( x+y ));
-    expect_string("'a'", m5('a'));
-    expect_string("'\\''", m5('\''));
-    expect_string("\"abc\"", m5("abc"));
-    expect_string("ZERO", m5(ZERO));
-
 #define m6(x, ...) x + __VA_ARGS__
     expect(20, m6(2, 18));
     expect(25, plus(m6(2, 18, 5)));
-
-#define m11(x, y...) x + y
-    expect(20, m11(2, 18));
-    expect(25, plus(m11(2, 18, 5)));
-    expect(7, m11(2) 5);
 
 #define plus(x, y) x * y + plus(x, y)
     expect(11, plus(2, 3));
@@ -386,6 +381,20 @@ void counter(void) {
     expect(2, __COUNTER__);
 }
 
+void gnuext(void) {
+#define m11(x, y...) stringify(x + y)
+    expect_string("2 + 18", m11(2, 18));
+    expect_string("2 +", m11(2));
+
+#define m12(x, y...) stringify((x, ## y))
+    expect_string("(1)", m12(1));
+    expect_string("(1,2)", m12(1, 2));
+
+#define m13(x, y) stringify((x, ## y))
+    expect_string("(1,)", m13(1,));
+    expect_string("(1,2)", m13(1, 2));
+}
+
 void testmain(void) {
     print("macros");
 
@@ -405,4 +414,5 @@ void testmain(void) {
     line();
     null();
     counter();
+    gnuext();
 }

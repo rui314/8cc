@@ -45,6 +45,7 @@ typedef struct {
     int type;
     int nspace;
     bool bol;
+    bool is_vararg;
     char *file;
     int line;
     int column;

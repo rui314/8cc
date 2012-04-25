@@ -86,9 +86,10 @@ static Macro *make_special_macro(special_macro_handler *fn) {
     return make_macro(&(Macro){ MACRO_SPECIAL, .fn = fn });
 }
 
-static Token *make_macro_token(int position) {
+static Token *make_macro_token(int position, bool is_vararg) {
     Token *r = malloc(sizeof(Token));
     r->type = TMACRO_PARAM;
+    r->is_vararg = is_vararg;
     r->hideset = make_dict(NULL);
     r->position = position;
     r->nspace = 0;
@@ -332,6 +333,10 @@ static List *subst(Macro *macro, List *args, Dict *hideset) {
                 List *tmp = list_copy(arg);
                 list_shift(tmp);
                 list_append(r, expand_all(tmp));
+            } else if (t1->is_vararg &&
+                       list_len(r) > 0 &&
+                       is_punct(list_tail(r), ',')) {
+                list_pop(r);
             }
             i++;
             continue;
@@ -410,10 +415,6 @@ static bool read_funclike_macro_params(Dict *param) {
         if (is_punct(tok, ')'))
             return false;
         if (pos) {
-            if (is_ident(tok, "...")) {
-                expect(')');
-                return true;
-            }
             if (!is_punct(tok, ','))
                 error("',' expected, but got '%s'", t2s(tok));
             tok = read_cpp_token();
@@ -421,13 +422,21 @@ static bool read_funclike_macro_params(Dict *param) {
         if (!tok || tok->type == TNEWLINE)
             error("missing ')' in macro parameter list");
         if (is_ident(tok, "...")) {
-            dict_put(param, "__VA_ARGS__", make_macro_token(pos++));
+            dict_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
             expect(')');
             return true;
         }
         if (tok->type != TIDENT)
             error("identifier expected, but got '%s'", t2s(tok));
-        dict_put(param, tok->sval, make_macro_token(pos++));
+        char *arg = tok->sval;
+        tok = read_cpp_token();
+        if (is_ident(tok, "...")) {
+            expect(')');
+            dict_put(param, arg, make_macro_token(pos++, true));
+            return true;
+        }
+        unget_token(tok);
+        dict_put(param, arg, make_macro_token(pos++, false));
     }
 }
 
