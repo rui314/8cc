@@ -398,13 +398,17 @@ static Token *read_expand(void) {
     }
 }
 
-static bool read_funclike_macro_args(Dict *param) {
+static bool read_funclike_macro_params(Dict *param) {
     int pos = 0;
     for (;;) {
         Token *tok = read_cpp_token();
         if (is_punct(tok, ')'))
             return false;
         if (pos) {
+            if (is_ident(tok, "...")) {
+                expect(')');
+                return true;
+            }
             if (!is_punct(tok, ','))
                 error("',' expected, but got '%s'", t2s(tok));
             tok = read_cpp_token();
@@ -442,9 +446,9 @@ static List *read_funclike_macro_body(Dict *param) {
 
 static void read_funclike_macro(char *name) {
     Dict *param = make_dict(NULL);
-    bool varg = read_funclike_macro_args(param);
+    bool is_varg = read_funclike_macro_params(param);
     List *body = read_funclike_macro_body(param);
-    Macro *macro = make_func_macro(body, list_len(dict_keys(param)), varg);
+    Macro *macro = make_func_macro(body, list_len(dict_keys(param)), is_varg);
     dict_put(macros, name, macro);
 }
 

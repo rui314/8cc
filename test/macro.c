@@ -319,6 +319,10 @@ void funclike(void) {
     expect(20, m6(2, 18));
     expect(25, plus(m6(2, 18, 5)));
 
+#define m11(x, y...) x + y
+    expect(20, m11(2, 18));
+    expect(25, plus(m11(2, 18, 5)));
+
 #define plus(x, y) x * y + plus(x, y)
     expect(11, plus(2, 3));
 #undef plus
