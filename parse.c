@@ -1862,7 +1862,9 @@ static Node *read_func_body(Ctype *functype, char *fname, List *params) {
     localenv = make_dict(localenv);
     localvars = make_list();
     current_func_type = functype;
-    dict_put(localenv, "__func__", ast_string(fname));
+    Node *funcname = ast_string(fname);
+    dict_put(localenv, "__func__", funcname);
+    dict_put(localenv, "__FUNCTION__", funcname);
     Node *body = read_compound_stmt();
     Node *r = ast_func(functype, fname, params, body, localvars);
     dict_put(globalenv, fname, r);

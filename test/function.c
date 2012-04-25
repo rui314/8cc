@@ -97,6 +97,7 @@ void func_ptr_call(void) {
 
 void func_name(void) {
     expect_string("func_name", __func__);
+    expect_string("func_name", __FUNCTION__);
 }
 
 void empty(void) {
