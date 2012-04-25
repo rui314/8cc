@@ -123,6 +123,14 @@ bool is_ident(Token *tok, char *s) {
     return tok->type == TIDENT && !strcmp(tok->sval, s);
 }
 
+static bool next(int punct) {
+    Token *tok = read_cpp_token();
+    if (is_punct(tok, punct))
+        return true;
+    unget_token(tok);
+    return false;
+}
+
 /*----------------------------------------------------------------------
  * Macro expander
  */
@@ -141,16 +149,11 @@ void expect_newline(void) {
 }
 
 static List *read_args_int(Macro *macro) {
-    Token *tok = read_cpp_token();
-    if (!tok || !is_punct(tok, '(')) {
-        unget_token(tok);
-        return NULL;
-    }
     List *r = make_list();
     List *arg = make_list();
     int depth = 0;
     for (;;) {
-        tok = read_cpp_token();
+        Token *tok = read_cpp_token();
         if (!tok)
             error("unterminated macro argument list");
         if (tok->type == TNEWLINE)
@@ -180,7 +183,6 @@ static List *read_args_int(Macro *macro) {
 
 static List *read_args(Macro *macro) {
     List *args = read_args_int(macro);
-    if (!args) return NULL;
     if (macro->is_varg) {
         if (list_len(args) == macro->nargs - 1)
             list_push(args, make_list());
@@ -391,9 +393,12 @@ static Token *read_expand(void) {
         return read_expand();
     }
     case MACRO_FUNC: {
+        if (!next('('))
+            return tok;
         List *args = read_args(macro);
         Token *rparen = read_cpp_token();
-        assert(is_punct(rparen, ')'));
+        if (!is_punct(rparen, ')'))
+            error("internal error: %s", t2s(rparen));
         Dict *hideset = dict_append(dict_intersection(tok->hideset, rparen->hideset), name);
         List *tokens = subst(macro, args, hideset);
         unget_all(tokens);

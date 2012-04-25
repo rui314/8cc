@@ -347,6 +347,11 @@ void funclike(void) {
 #define in_between(a) mkstr(a)
 #define join(c, d) in_between(c hash_hash d)
     expect_string("x ## y", join(x, y));
+
+    int m14 = 67;
+#define m14(x) x
+    expect(67, m14);
+    expect(67, m14(m14));
 }
 
 void empty(void) {
