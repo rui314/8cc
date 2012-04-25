@@ -393,7 +393,7 @@ void gnuext(void) {
 
 #define m12(x, y...) stringify((x, ## y))
     expect_string("(1)", m12(1));
-    expect_string("(1,2)", m12(1, 2));
+    expect_string("(1, 2)", m12(1, 2));
 
 #define m13(x, y) stringify((x, ## y))
     expect_string("(1,)", m13(1,));
