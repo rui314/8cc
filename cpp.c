@@ -131,6 +131,13 @@ static bool next(int punct) {
     return false;
 }
 
+static void set_list_nspace(List *tokens, Token *tmpl) {
+    if (list_len(tokens) == 0)
+        return;
+    Token *tok = list_head(tokens);
+    tok->nspace = tmpl->nspace;
+}
+
 /*----------------------------------------------------------------------
  * Macro expander
  */
@@ -303,13 +310,14 @@ static Token *stringize(Token *tmpl, List *args) {
     return r;
 }
 
-static List *expand_all(List *tokens) {
+static List *expand_all(List *tokens, Token *tmpl) {
     List *r = make_list();
     List *orig = get_input_buffer();
     set_input_buffer(tokens);
     Token *tok;
     while ((tok = read_expand()) != NULL)
         list_push(r, tok);
+    set_list_nspace(r, tmpl);
     set_input_buffer(orig ? list_reverse(orig) : NULL);
     return r;
 }
@@ -332,14 +340,14 @@ static List *subst(Macro *macro, List *args, Dict *hideset) {
             List *arg = list_get(args, t1->position);
             if (t1->is_vararg && list_len(r) > 0 && is_punct(list_tail(r), ',')) {
                 if (list_len(arg) > 0)
-                    list_append(r, expand_all(arg));
+                    list_append(r, expand_all(arg, t1));
                 else
                     list_pop(r);
             } else if (list_len(arg) > 0) {
                 glue_push(r, list_head(arg));
                 List *tmp = list_copy(arg);
                 list_shift(tmp);
-                list_append(r, expand_all(tmp));
+                list_append(r, expand_all(tmp, t1));
             }
             i++;
             continue;
@@ -361,7 +369,7 @@ static List *subst(Macro *macro, List *args, Dict *hideset) {
         }
         if (t0_param) {
             List *arg = list_get(args, t0->position);
-            list_append(r, expand_all(arg));
+            list_append(r, expand_all(arg, t0));
             continue;
         }
         list_push(r, t0);
@@ -372,13 +380,6 @@ static List *subst(Macro *macro, List *args, Dict *hideset) {
 static void unget_all(List *tokens) {
     for (Iter *i = list_iter(list_reverse(tokens)); !iter_end(i);)
         unget_token(iter_next(i));
-}
-
-static void copy_space(List *tokens, Token *tmpl) {
-    if (list_len(tokens) == 0)
-        return;
-    Token *tok = list_head(tokens);
-    tok->nspace = tmpl->nspace;
 }
 
 static Token *read_expand(void) {
@@ -397,7 +398,7 @@ static Token *read_expand(void) {
     case MACRO_OBJ: {
         Dict *hideset = dict_append(tok->hideset, name);
         List *tokens = subst(macro, make_list(), hideset);
-        copy_space(tokens, tok);
+        set_list_nspace(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
@@ -410,7 +411,7 @@ static Token *read_expand(void) {
             error("internal error: %s", t2s(rparen));
         Dict *hideset = dict_append(dict_intersection(tok->hideset, rparen->hideset), name);
         List *tokens = subst(macro, args, hideset);
-        copy_space(tokens, tok);
+        set_list_nspace(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
@@ -464,6 +465,8 @@ static List *read_funclike_macro_body(Dict *param) {
         if (tok->type == TIDENT) {
             Token *subst = dict_get(param, tok->sval);
             if (subst) {
+                subst = copy_token(subst);
+                subst->nspace = tok->nspace;
                 list_push(r, subst);
                 continue;
             }

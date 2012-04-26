@@ -363,6 +363,12 @@ void funclike(void) {
 
 #define identity2(x) stringify(z ## x)
     expect_string("zA aa A B aa C", identity2(A m10(a) A B m10(a) C));
+
+#define m15(x) x x
+    expect_string("a a", identity(m15(a)));
+
+#define m16(x) (x,x)
+    expect_string("(a,a)", identity(m16(a)));
 }
 
 void empty(void) {
