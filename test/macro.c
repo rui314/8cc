@@ -360,6 +360,9 @@ void funclike(void) {
 
 #define identity(x) stringify(x)
     expect_string("aa A B aa C", identity(m10(a) A B m10(a) C));
+
+#define identity2(x) stringify(z ## x)
+    expect_string("zA aa A B aa C", identity2(A m10(a) A B m10(a) C));
 }
 
 void empty(void) {
