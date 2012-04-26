@@ -374,6 +374,13 @@ static void unget_all(List *tokens) {
         unget_token(iter_next(i));
 }
 
+static void copy_space(Token *tmpl, List *tokens) {
+    if (list_len(tokens) == 0)
+        return;
+    Token *tok = list_head(tokens);
+    tok->nspace = tmpl->nspace;
+}
+
 static Token *read_expand(void) {
     Token *tok = read_cpp_token();
     if (!tok) return NULL;
@@ -390,6 +397,7 @@ static Token *read_expand(void) {
     case MACRO_OBJ: {
         Dict *hideset = dict_append(tok->hideset, name);
         List *tokens = subst(macro, make_list(), hideset);
+        copy_space(tok, tokens);
         unget_all(tokens);
         return read_expand();
     }
@@ -402,6 +410,7 @@ static Token *read_expand(void) {
             error("internal error: %s", t2s(rparen));
         Dict *hideset = dict_append(dict_intersection(tok->hideset, rparen->hideset), name);
         List *tokens = subst(macro, args, hideset);
+        copy_space(tok, tokens);
         unget_all(tokens);
         return read_expand();
     }

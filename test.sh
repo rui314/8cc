@@ -110,6 +110,6 @@ testfail '&1;'
 testfail '&a();'
 
 # -D command line options
-testcpp ' 77' 'foo' '-Dfoo=77'
+testcpp '77' 'foo' '-Dfoo=77'
 
 echo "All tests passed"
