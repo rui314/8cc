@@ -357,6 +357,9 @@ void funclike(void) {
 #define glue(x, y) x ## y
     glue(a+, +);
     expect(69, a);
+
+#define identity(x) stringify(x)
+    expect_string("aa A B aa C", identity(m10(a) A B m10(a) C));
 }
 
 void empty(void) {

@@ -332,14 +332,14 @@ static List *subst(Macro *macro, List *args, Dict *hideset) {
             List *arg = list_get(args, t1->position);
             if (t1->is_vararg && list_len(r) > 0 && is_punct(list_tail(r), ',')) {
                 if (list_len(arg) > 0)
-                    list_append(r, expand_all(list_copy(arg)));
+                    list_append(r, list_copy(arg));
                 else
                     list_pop(r);
             } else if (list_len(arg) > 0) {
                 glue_push(r, list_head(arg));
                 List *tmp = list_copy(arg);
                 list_shift(tmp);
-                list_append(r, expand_all(tmp));
+                list_append(r, tmp);
             }
             i++;
             continue;
