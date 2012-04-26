@@ -63,6 +63,7 @@ enum {
     AST_STRING,
     AST_LVAR,
     AST_GVAR,
+    AST_TYPEDEF,
     AST_FUNCALL,
     AST_FUNCPTR_CALL,
     AST_FUNCDESG,
@@ -176,6 +177,8 @@ typedef struct Node {
             // global
             char *glabel;
         };
+        // Typedef
+        char *typedefname;
         // Binary operator
         struct {
             struct Node *left;

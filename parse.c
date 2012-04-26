@@ -23,7 +23,6 @@ static Dict *globalenv = &EMPTY_DICT;
 static Dict *localenv;
 static Dict *struct_defs = &EMPTY_DICT;
 static Dict *union_defs = &EMPTY_DICT;
-static Dict *typedefs = &EMPTY_DICT;
 static List *gotos;
 static Dict *labels;
 static List *localvars;
@@ -129,6 +128,12 @@ static Node *ast_lvar(Ctype *ctype, char *name) {
 static Node *ast_gvar(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_GVAR, ctype, .varname = name, .glabel = name });
     dict_put(globalenv, name, r);
+    return r;
+}
+
+static Node *ast_typedef(Ctype *ctype, char *name) {
+    Node *r = make_ast(&(Node){ AST_TYPEDEF, ctype, .typedefname = name });
+    dict_put(localenv ? localenv : globalenv, name, r);
     return r;
 }
 
@@ -383,9 +388,14 @@ static Ctype *copy_incomplete_type(Ctype *ctype) {
     return (ctype->len == -1) ? copy_type(ctype) : ctype;
 }
 
+static Ctype *get_typedef(char *name) {
+    Node *node = dict_get(localenv ? localenv : globalenv, name);
+    return (node && node->type == AST_TYPEDEF) ? node->ctype : NULL;
+}
+
 static bool is_type_keyword(Token *tok) {
     if (tok->type == TIDENT)
-        return dict_get(typedefs, tok->sval);
+        return get_typedef(tok->sval);
     if (tok->type != TPUNCT)
         return false;
     switch (tok->punct) {
@@ -1746,7 +1756,7 @@ static Ctype *read_decl_spec(int *rsclass) {
         if (!tok)
             error("premature end of input");
         if (tok->type == TIDENT) {
-            Ctype *def = dict_get(typedefs, tok->sval);
+            Ctype *def = get_typedef(tok->sval);
             if (def) {
                 set(usertype, def);
                 continue;
@@ -1841,7 +1851,7 @@ static void read_decl(List *block, MakeVarFn *make_var) {
             list_push(block, ast_decl(var, read_decl_init(var->ctype)));
             tok = read_token();
         } else if (sclass == S_TYPEDEF) {
-            dict_put(typedefs, name, ctype);
+            ast_typedef(ctype, name);
         } else if (ctype->type == CTYPE_FUNC) {
             make_var(ctype, name);
         } else {
