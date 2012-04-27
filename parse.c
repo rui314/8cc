@@ -36,7 +36,7 @@ Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
 Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, true };
 Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, true };
 Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, true };
-Ctype *ctype_ldouble = &(Ctype){ CTYPE_LDOUBLE, 8, true };
+Ctype *ctype_ldouble = &(Ctype){ CTYPE_LDOUBLE, 16, true };
 static Ctype *ctype_uint = &(Ctype){ CTYPE_INT, 4, false };
 static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
 static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, true };
@@ -283,7 +283,7 @@ static Ctype *make_numtype(int type, bool sig) {
     else if (type == CTYPE_LLONG)   r->size = 8;
     else if (type == CTYPE_FLOAT)   r->size = 4;
     else if (type == CTYPE_DOUBLE)  r->size = 8;
-    else if (type == CTYPE_LDOUBLE) r->size = 8;
+    else if (type == CTYPE_LDOUBLE) r->size = 16;
     else error("internal error");
     return r;
 }
