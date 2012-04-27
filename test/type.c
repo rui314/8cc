@@ -3,6 +3,7 @@
 
 #include "test.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 void test_type(void) {
     char a;
@@ -85,6 +86,10 @@ void test_typedef(void) {
     expect(3, mytype2);
 }
 
+void test_align(void) {
+    expect(16, sizeof(max_align_t));
+}
+
 void testmain(void) {
     print("type system");
     test_type();
@@ -94,4 +99,5 @@ void testmain(void) {
     test_pointer();
     test_unusual_order();
     test_typedef();
+    test_align();
 }

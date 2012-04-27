@@ -9,6 +9,7 @@
 typedef unsigned long size_t;
 typedef long ptrdiff_t;
 typedef char wchar_t;
+typedef long double max_align_t;
 
 #define offsetof(type, member)                  \
     ((size_t)&(((type *)NULL)->member))
