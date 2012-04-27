@@ -1756,21 +1756,25 @@ static Ctype *read_decl_spec(int *rsclass) {
 
     for (;;) {
 #define setsclass(val)                          \
-        if (sclass != 0) goto err;              \
-        sclass = val
+        do {                                    \
+            if (sclass != 0) goto err;          \
+            sclass = val;                       \
+        } while (0)
 #define set(var, val)                                                   \
-        if (var != 0) goto err;                                         \
-        var = val;                                                      \
-        if (type == kbool && (size != 0 && sig != 0))                   \
-            goto err;                                                   \
-        if (size == kshort && (type != 0 && type != kint))              \
-            goto err;                                                   \
-        if (size == klong && (type != 0 && type != kint && type != kdouble)) \
-            goto err;                                                   \
-        if (sig != 0 && (type == kvoid || type == kfloat || type == kdouble)) \
-            goto err;                                                   \
-        if (usertype && (type != 0 || size != 0 || sig != 0))           \
-            goto err
+        do {                                                            \
+            if (var != 0) goto err;                                     \
+            var = val;                                                  \
+            if (type == kbool && (size != 0 && sig != 0))               \
+                goto err;                                               \
+            if (size == kshort && (type != 0 && type != kint))          \
+                goto err;                                               \
+            if (size == klong && (type != 0 && type != kint && type != kdouble)) \
+                goto err;                                               \
+            if (sig != 0 && (type == kvoid || type == kfloat || type == kdouble)) \
+                goto err;                                               \
+            if (usertype && (type != 0 || size != 0 || sig != 0))       \
+                goto err;                                               \
+        } while (0)
 
         tok = read_token();
         if (!tok)
@@ -1787,27 +1791,27 @@ static Ctype *read_decl_spec(int *rsclass) {
             break;
         }
         switch (tok->punct) {
-        case KTYPEDEF:    { setsclass(S_TYPEDEF); } continue;
-        case KEXTERN:     { setsclass(S_EXTERN); } continue;
-        case KSTATIC:     { setsclass(S_STATIC); } continue;
-        case KAUTO:       { setsclass(S_AUTO); } continue;
-        case KREGISTER:   { setsclass(S_REGISTER); } continue;
-        case KCONST:      { kconst = 1; } continue;
-        case KVOLATILE:   { kvolatile = 1; } continue;
-        case KINLINE:     { kinline = 1; } continue;
-        case KVOID:       { set(type, kvoid); } continue;
-        case KBOOL:       { set(type, kbool); } continue;
-        case KCHAR:       { set(type, kchar); } continue;
-        case KINT:        { set(type, kint); } continue;
-        case KFLOAT:      { set(type, kfloat); } continue;
-        case KDOUBLE:     { set(type, kdouble); } continue;
-        case KSIGNED:     { set(sig, ksigned); } continue;
-        case K__SIGNED__: { set(sig, ksigned); } continue;
-        case KUNSIGNED:   { set(sig, kunsigned); } continue;
-        case KSHORT:      { set(size, kshort); } continue;
-        case KSTRUCT:     { set(usertype, read_struct_def()); } continue;
-        case KUNION:      { set(usertype, read_union_def()); } continue;
-        case KENUM:       { set(usertype, read_enum_def()); } continue;
+        case KTYPEDEF:    setsclass(S_TYPEDEF); continue;
+        case KEXTERN:     setsclass(S_EXTERN); continue;
+        case KSTATIC:     setsclass(S_STATIC); continue;
+        case KAUTO:       setsclass(S_AUTO); continue;
+        case KREGISTER:   setsclass(S_REGISTER); continue;
+        case KCONST:      kconst = 1; continue;
+        case KVOLATILE:   kvolatile = 1; continue;
+        case KINLINE:     kinline = 1; continue;
+        case KVOID:       set(type, kvoid); continue;
+        case KBOOL:       set(type, kbool); continue;
+        case KCHAR:       set(type, kchar); continue;
+        case KINT:        set(type, kint); continue;
+        case KFLOAT:      set(type, kfloat); continue;
+        case KDOUBLE:     set(type, kdouble); continue;
+        case KSIGNED:     set(sig, ksigned); continue;
+        case K__SIGNED__: set(sig, ksigned); continue;
+        case KUNSIGNED:   set(sig, kunsigned); continue;
+        case KSHORT:      set(size, kshort); continue;
+        case KSTRUCT:     set(usertype, read_struct_def()); continue;
+        case KUNION:      set(usertype, read_union_def()); continue;
+        case KENUM:       set(usertype, read_enum_def()); continue;
         case KLONG: {
             if (size == 0) set(size, klong);
             else if (size == klong) size = kllong;
