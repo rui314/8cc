@@ -32,7 +32,7 @@ void dict_put(Dict *dict, char *key, void *val) {
     DictEntry *e = malloc(sizeof(DictEntry));
     e->key = key;
     e->val = val;
-    list_push(dict->list, e);
+    list_unshift(dict->list, e);
 }
 
 void dict_remove(Dict *dict, char *key) {
@@ -53,7 +53,7 @@ List *dict_keys(Dict *dict) {
     List *r = make_list();
     for (; dict; dict = dict->parent)
         for (Iter *i = list_iter(dict->list); !iter_end(i);)
-            list_push(r, ((DictEntry *)iter_next(i))->key);
+            list_unshift(r, ((DictEntry *)iter_next(i))->key);
     return r;
 }
 
@@ -61,7 +61,7 @@ List *dict_values(Dict *dict) {
     List *r = make_list();
     for (; dict; dict = dict->parent)
         for (Iter *i = list_iter(dict->list); !iter_end(i);)
-            list_push(r, ((DictEntry *)iter_next(i))->val);
+            list_unshift(r, ((DictEntry *)iter_next(i))->val);
     return r;
 }
 

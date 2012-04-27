@@ -128,6 +128,11 @@ static void test_dict(void) {
     assert_int(10, (long)dict_get(dict3, "abc"));
     dict_remove(dict3, "abc");
     assert_int(0, (long)dict_get(dict3, "abc"));
+
+    Dict *dict4 = make_dict(NULL);
+    dict_put(dict4, "abc", (void *)50);
+    dict_put(dict4, "abc", (void *)60);
+    assert_int(60, (long)dict_get(dict4, "abc"));
 }
 
 int main(int argc, char **argv) {
