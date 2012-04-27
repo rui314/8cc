@@ -10,4 +10,7 @@ typedef unsigned long size_t;
 typedef unsigned long ptrdiff_t;
 typedef char wchar_t;
 
+#define offsetof(type, member)                  \
+    ((size_t)&(((type *)NULL)->member))
+
 #endif /* __STDDEF_H */

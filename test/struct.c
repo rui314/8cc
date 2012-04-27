@@ -264,6 +264,12 @@ void bitfield_initializer(void) {
     expect(4, x.b);
 }
 
+void test_offsetof(void) {
+    struct tag10 { int a, b; };
+    expect(0, offsetof(struct tag10, a));
+    expect(4, offsetof(struct tag10, b));
+}
+
 void testmain(void) {
     print("struct");
     t1();
@@ -289,4 +295,5 @@ void testmain(void) {
     bitfield_union();
     bitfield_unnamed();
     bitfield_initializer();
+    test_offsetof();
 }
