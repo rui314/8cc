@@ -666,7 +666,7 @@ static Node *read_sizeof_operand(void) {
     // Sizeof on void or function type is GNU extension
     int size = (ctype->type == CTYPE_VOID || ctype->type == CTYPE_FUNC) ? 1 : ctype->size;
     assert(0 <= size);
-    return ast_inttype(ctype_long, size);
+    return ast_inttype(ctype_ulong, size);
 }
 
 /*----------------------------------------------------------------------
