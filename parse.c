@@ -54,7 +54,7 @@ static Ctype *convert_array(Ctype *ctype);
 static Node *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Node *read_unary_expr(void);
-static void read_func_param(Ctype **rtype, char **name, bool optional);
+static Ctype *read_func_param(char **name, bool optional);
 static void read_decl(List *toplevel, MakeVarFn *make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
@@ -647,9 +647,7 @@ static Ctype *read_sizeof_operand_sub(bool allow_typename) {
     Token *tok = read_token();
     if (allow_typename && is_type_keyword(tok)) {
         unget_token(tok);
-        Ctype *ctype;
-        read_func_param(&ctype, NULL, true);
-        return ctype;
+        return read_func_param(NULL, true);
     }
     if (is_punct(tok, '(')) {
         Ctype *r = read_sizeof_operand_sub(true);
@@ -1606,10 +1604,10 @@ static List *read_decl_init(Ctype *ctype) {
  * of a function or an array.
  */
 
-static void read_func_param(Ctype **rtype, char **name, bool optional) {
+static Ctype *read_func_param(char **name, bool optional) {
     int sclass;
     Ctype *basetype = read_decl_spec(&sclass);
-    *rtype = read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
+    return read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
 }
 
 static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
@@ -1628,9 +1626,8 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
             expect(')');
             return make_func_type(rettype, paramtypes, true);
         }
-        Ctype *ptype;
         char *name;
-        read_func_param(&ptype, &name, typeonly);
+        Ctype *ptype = read_func_param(&name, typeonly);
         ensure_not_void(ptype);
         if (ptype->type == CTYPE_ARRAY)
             ptype = make_ptr_type(ptype->ptr);
