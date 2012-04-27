@@ -1755,7 +1755,7 @@ static Ctype *read_decl_spec(int *rsclass) {
         tok = read_token();
         if (!tok)
             error("premature end of input");
-        if (tok->type == TIDENT) {
+        if (tok->type == TIDENT && !usertype) {
             Ctype *def = get_typedef(tok->sval);
             if (def) {
                 set(usertype, def);

@@ -78,6 +78,11 @@ void test_typedef(void) {
     strtype c;
     c.x = 5;
     expect(5, c.x);
+
+    typedef int mytype1;
+    typedef int mytype2;
+    mytype1 mytype2 = 3;
+    expect(3, mytype2);
 }
 
 void testmain(void) {
