@@ -1201,7 +1201,8 @@ static char *read_rectype_tag(void) {
     return NULL;
 }
 
-static int compute_padding(int offset, int size) {
+static int compute_padding(int offset, Ctype *ctype) {
+    int size = ctype->type == CTYPE_ARRAY ? ctype->ptr->size : ctype->size;
     size = MIN(size, MAX_ALIGN);
     return (offset % size == 0) ? 0 : size - offset % size;
 }
@@ -1263,6 +1264,26 @@ static List *read_rectype_fields_sub(void) {
     return r;
 }
 
+static void fix_rectype_flexible_member(List *fields) {
+    Iter *iter = list_iter(fields);
+    while (!iter_end(iter)) {
+        Pair *pair = iter_next(iter);
+        char *name = pair->first;
+        Ctype *ctype = pair->second;
+        if (ctype->type != CTYPE_ARRAY)
+            continue;
+        if (ctype->len == 0)
+            ctype->len = -1;
+        if (ctype->len == -1) {
+            if (!iter_end(iter))
+                error("flexible member may only appear as the last member: %s %s", c2s(ctype), name);
+            if (list_len(fields) == 1)
+                error("flexible member with no other fields: %s %s", c2s(ctype), name);
+            ctype->size = 0;
+        }
+    }
+}
+
 static void finish_bitfield(int *off, int *bitoff) {
     *off += (*bitoff + 8) / 8;
     *bitoff = -1;
@@ -1284,7 +1305,7 @@ static Dict *update_struct_offset(List *fields, int *rsize) {
         }
         if (fieldtype->bitsize == 0) {
             finish_bitfield(&off, &bitoff);
-            off += compute_padding(off, fieldtype->size);
+            off += compute_padding(off, fieldtype);
             bitoff = 0;
             continue;
         }
@@ -1295,14 +1316,14 @@ static Dict *update_struct_offset(List *fields, int *rsize) {
                 fieldtype->offset = off;
             } else {
                 finish_bitfield(&off, &bitoff);
-                off += compute_padding(off, fieldtype->size);
+                off += compute_padding(off, fieldtype);
                 fieldtype->offset = off;
                 fieldtype->bitoff = 0;
             }
             bitoff = fieldtype->bitsize;
         } else {
             finish_bitfield(&off, &bitoff);
-            off += compute_padding(off, fieldtype->size);
+            off += compute_padding(off, fieldtype);
             fieldtype->offset = off;
             off += fieldtype->size;
         }
@@ -1339,6 +1360,7 @@ static Dict *read_rectype_fields(int *rsize, bool is_struct) {
     if (!next_token('{'))
         return NULL;
     List *fields = read_rectype_fields_sub();
+    fix_rectype_flexible_member(fields);
     return is_struct
         ? update_struct_offset(fields, rsize)
         : update_union_offset(fields, rsize);

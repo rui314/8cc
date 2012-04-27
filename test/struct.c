@@ -270,6 +270,13 @@ void test_offsetof(void) {
     expect(4, offsetof(struct tag10, b));
 }
 
+void flexible_member(void) {
+    struct { int a, b[]; } x;
+    expect(4, sizeof(x));
+    struct { int a, b[0]; } y;
+    expect(4, sizeof(y));
+}
+
 void testmain(void) {
     print("struct");
     t1();
@@ -296,4 +303,5 @@ void testmain(void) {
     bitfield_unnamed();
     bitfield_initializer();
     test_offsetof();
+    flexible_member();
 }
