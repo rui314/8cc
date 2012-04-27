@@ -670,6 +670,22 @@ static Node *read_sizeof_operand(void) {
 }
 
 /*----------------------------------------------------------------------
+ * Alignof operator
+ */
+
+static int get_alignment(Ctype *ctype) {
+    int size = ctype->type == CTYPE_ARRAY ? ctype->ptr->size : ctype->size;
+    return MIN(size, MAX_ALIGN);
+}
+
+static Node *read_alignof_operand(void) {
+    expect('(');
+    Ctype *ctype = read_func_param(NULL, true);
+    expect(')');
+    return ast_inttype(ctype_long, get_alignment(ctype));
+}
+
+/*----------------------------------------------------------------------
  * Builtin functions for varargs
  */
 
@@ -990,6 +1006,7 @@ static Node *read_unary_expr(void) {
     if (tok->type == TPUNCT) {
         switch (tok->punct) {
         case KSIZEOF: return read_sizeof_operand();
+        case KALIGNOF: return read_alignof_operand();
         case OP_INC: return read_unary_incdec(OP_PRE_INC);
         case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
         case OP_LOGAND: return read_label_addr();
@@ -1200,8 +1217,7 @@ static char *read_rectype_tag(void) {
 }
 
 static int compute_padding(int offset, Ctype *ctype) {
-    int size = ctype->type == CTYPE_ARRAY ? ctype->ptr->size : ctype->size;
-    size = MIN(size, MAX_ALIGN);
+    int size = get_alignment(ctype);
     return (offset % size == 0) ? 0 : size - offset % size;
 }
 
