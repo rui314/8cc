@@ -101,6 +101,8 @@ void set_input_file(char *displayname, char *realname, FILE *fp) {
 }
 
 char *input_position(void) {
+    if (!file)
+        return "(unknown)";
     return format("%s:%d:%d", file->displayname, file->line, file->column);
 }
 
