@@ -545,7 +545,7 @@ void set_input_buffer(List *tokens) {
 }
 
 List *get_input_buffer(void) {
-    return altbuffer;
+    return altbuffer ? list_reverse(altbuffer) : NULL;
 }
 
 char *read_error_directive(void) {

@@ -318,7 +318,7 @@ static List *expand_all(List *tokens, Token *tmpl) {
     while ((tok = read_expand()) != NULL)
         list_push(r, tok);
     set_list_nspace(r, tmpl);
-    set_input_buffer(orig ? list_reverse(orig) : NULL);
+    set_input_buffer(orig);
     return r;
 }
 
