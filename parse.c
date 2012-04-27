@@ -667,7 +667,7 @@ static Node *read_sizeof_operand(void) {
     Ctype *ctype = read_sizeof_operand_sub(false);
     // Sizeof on void or function type is GNU extension
     int size = (ctype->type == CTYPE_VOID || ctype->type == CTYPE_FUNC) ? 1 : ctype->size;
-    assert(size > 0);
+    assert(0 <= size);
     return ast_inttype(ctype_long, size);
 }
 
@@ -1272,8 +1272,6 @@ static void fix_rectype_flexible_member(List *fields) {
         Ctype *ctype = pair->second;
         if (ctype->type != CTYPE_ARRAY)
             continue;
-        if (ctype->len == 0)
-            ctype->len = -1;
         if (ctype->len == -1) {
             if (!iter_end(iter))
                 error("flexible member may only appear as the last member: %s %s", c2s(ctype), name);
