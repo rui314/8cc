@@ -7,7 +7,7 @@
 #define NULL ((void *)0)
 
 typedef unsigned long size_t;
-typedef unsigned long ptrdiff_t;
+typedef long ptrdiff_t;
 typedef char wchar_t;
 
 #define offsetof(type, member)                  \
