@@ -1577,6 +1577,7 @@ static void read_initializer_list(List *inits, Ctype *ctype, int off) {
             return;
         }
         if (is_punct(tok, '{') && peek_token()->type == TSTRING) {
+            tok = read_token();
             assign_string(inits, ctype, tok->sval, off);
             expect('}');
             return;

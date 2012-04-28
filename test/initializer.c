@@ -34,6 +34,13 @@ void test_array(void) {
     verify_short(qe, q, 24);
 }
 
+void test_string(void) {
+    char s[] = "abc";
+    expect_string("abc", s);
+    char t[] = { "def" };
+    expect_string("def", t);
+}
+
 void test_struct(void) {
     int we[] = { 1, 0, 0, 0, 2, 0, 0, 0 };
     struct { int a[3]; int b; } w[] = { { 1 }, 2 };
@@ -102,6 +109,7 @@ void testmain(void) {
     print("initializer");
 
     test_array();
+    test_string();
     test_struct();
     test_primitive();
     test_nested();
