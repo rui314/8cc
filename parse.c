@@ -64,6 +64,7 @@ static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
 static Node *read_boolean_expr(void);
 static Node *read_expr_opt(void);
+static Node *read_conditional_expr(void);
 static Node *read_assignment_expr(void);
 static Node *read_cast_expr(void);
 static Node *read_comma_expr(void);
@@ -575,6 +576,10 @@ int eval_intexpr(Node *node) {
     }
 }
 
+static int read_intexpr() {
+    return eval_intexpr(read_conditional_expr());
+}
+
 /*----------------------------------------------------------------------
  * Numeric literal
  */
@@ -821,7 +826,7 @@ static Node *read_generic(void) {
 
 static void read_static_assert(void) {
     expect('(');
-    int val = eval_intexpr(read_assignment_expr());
+    int val = read_intexpr();
     expect(',');
     Token *tok = read_token();
     if (tok->type != TSTRING)
@@ -1154,6 +1159,16 @@ static Node *read_logor_expr(void) {
     return node;
 }
 
+static Node *read_conditional_expr(void) {
+    Node *node = read_logor_expr();
+    if (!next_token('?'))
+        return node;
+    Node *then = read_comma_expr();
+    expect(':');
+    Node *els = read_conditional_expr();
+    return ast_ternary(els->ctype, node, then, els);
+}
+
 static Node *read_assignment_expr(void) {
     Node *node = read_logor_expr();
     Token *tok = read_token();
@@ -1162,7 +1177,7 @@ static Node *read_assignment_expr(void) {
     if (is_punct(tok, '?')) {
         Node *then = read_comma_expr();
         expect(':');
-        Node *els = read_assignment_expr();
+        Node *els = read_conditional_expr();
         return ast_ternary(els->ctype, node, then, els);
     }
     int cop = get_compound_assign_op(tok);
@@ -1242,7 +1257,7 @@ static int maybe_read_bitsize(char *name, Ctype *ctype) {
         return -1;
     if (!is_inttype(ctype))
         error("non-integer type cannot be a bitfield: %s", c2s(ctype));
-    int r = eval_intexpr(read_expr());
+    int r = read_intexpr();
     int maxsize = ctype->type == CTYPE_BOOL ? 1 : ctype->size * 8;
     if (r < 0 || maxsize < r)
         error("invalid bitfield size for %s: %d", c2s(ctype), r);
@@ -1439,7 +1454,7 @@ static Ctype *read_enum_def(void) {
         char *name = tok->sval;
 
         if (next_token('='))
-            val = eval_intexpr(read_assignment_expr());
+            val = read_intexpr();
         Node *constval = ast_inttype(ctype_int, val++);
         dict_put(localenv ? localenv : globalenv, name, constval);
         if (next_token(','))
@@ -1674,7 +1689,7 @@ static Ctype *read_direct_declarator2(Ctype *basetype, List *params) {
         if (next_token(']')) {
             len = -1;
         } else {
-            len = eval_intexpr(read_comma_expr());
+            len = read_intexpr();
             expect(']');
         }
         Ctype *t = read_direct_declarator2(basetype, params);
@@ -2082,10 +2097,10 @@ static Node *read_switch_stmt(void) {
 }
 
 static Node *read_case_label(void) {
-    int beg = eval_intexpr(read_expr());
+    int beg = read_intexpr();
     int end;
     if (next_token(KTHREEDOTS))
-        end = eval_intexpr(read_expr());
+        end = read_intexpr();
     else
         end = beg;
     expect(':');
