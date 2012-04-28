@@ -655,6 +655,8 @@ static Ctype *read_sizeof_operand_sub(bool allow_typename) {
     }
     if (is_punct(tok, '(')) {
         Ctype *r = read_sizeof_operand_sub(true);
+        if (!is_punct(peek_token(), ')'))
+            read_cast_expr();
         expect(')');
         if (is_punct(peek_token(), '{'))
             read_decl_init(r);

@@ -52,4 +52,6 @@ void testmain(void) {
     expect(24, sizeof(*d));
     expect(8, sizeof(**d));
     expect(1, sizeof(***d));
+
+    expect(4, sizeof((int)a));
 }
