@@ -6,6 +6,8 @@
 
 void test_alignof(void) {
     expect(1, __alignof_is_defined);
+    expect(1, _Alignof(char));
+    expect(1, __alignof__(char));
     expect(1, alignof(char));
     expect(4, alignof(int));
     expect(8, alignof(struct {char a; int b; }));

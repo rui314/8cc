@@ -1006,7 +1006,8 @@ static Node *read_unary_expr(void) {
     if (tok->type == TPUNCT) {
         switch (tok->punct) {
         case KSIZEOF: return read_sizeof_operand();
-        case KALIGNOF: return read_alignof_operand();
+        case KALIGNOF:
+        case K__ALIGNOF__: return read_alignof_operand();
         case OP_INC: return read_unary_incdec(OP_PRE_INC);
         case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
         case OP_LOGAND: return read_label_addr();
@@ -1818,7 +1819,7 @@ static Ctype *read_decl_spec(int *rsclass) {
         case KINT:        set(type, kint); continue;
         case KFLOAT:      set(type, kfloat); continue;
         case KDOUBLE:     set(type, kdouble); continue;
-        case KSIGNED:     set(sig, ksigned); continue;
+        case KSIGNED:
         case K__SIGNED__: set(sig, ksigned); continue;
         case KUNSIGNED:   set(sig, kunsigned); continue;
         case KSHORT:      set(size, kshort); continue;
