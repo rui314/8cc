@@ -279,6 +279,13 @@ void flexible_member(void) {
     expect(0, sizeof(z));
 }
 
+void empty_struct(void) {
+    struct tag15 {};
+    expect(0, sizeof(struct tag15));
+    union tag16 {};
+    expect(0, sizeof(struct tag16));
+}
+
 void testmain(void) {
     print("struct");
     t1();
@@ -306,4 +313,5 @@ void testmain(void) {
     bitfield_initializer();
     test_offsetof();
     flexible_member();
+    empty_struct();
 }
