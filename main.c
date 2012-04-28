@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include "8cc.h"
 
@@ -11,22 +13,35 @@ static char *inputfile;
 static char *outputfile;
 static bool wantast;
 static bool cpponly;
+static bool dontasm;
+static bool dontlink;
 static String *cppdefs;
+static List *tmpfiles = &EMPTY_LIST;
 
 static void usage(void) {
     fprintf(stderr,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
+            "\n"
             "  -I<path>          add to include path\n"
             "  -E                print preprocessed source code\n"
             "  -D name           Predefine name as a macro\n"
             "  -D name=def\n"
             "  -S                Stop before assembly (default)\n"
+            "  -c                Do not run linker (default)\n"
             "  -U name           Undefine name\n"
             "  -a                print AST\n"
             "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
-            "  -h                print this help\n\n");
+            "  -h                print this help\n"
+            "\n"
+            "One of -a, -c, -E or -S must be specified.\n\n");
     exit(1);
+}
+
+static void delete_temp_files(void) {
+    Iter *iter = list_iter(tmpfiles);
+    while (!iter_end(iter))
+        unlink(iter_next(iter));
 }
 
 static char *replace_suffix(char *filename, char suffix) {
@@ -39,8 +54,16 @@ static char *replace_suffix(char *filename, char suffix) {
 }
 
 static FILE *open_output_file(void) {
-    if (!outputfile)
-        outputfile = replace_suffix(inputfile, 's');
+    if (!outputfile) {
+        if (dontasm) {
+            outputfile = replace_suffix(inputfile, 's');
+        } else {
+            outputfile = format("/tmp/8ccXXXXXX.s");
+            if (!mkstemps(outputfile, 2))
+                perror("mkstemps");
+            list_push(tmpfiles, outputfile);
+        }
+    }
     if (!strcmp(outputfile, "-"))
         return stdout;
     FILE *fp = fopen(outputfile, "w");
@@ -63,7 +86,7 @@ static void parse_debug_arg(char *s) {
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:SU:ad:o:h");
+        int opt = getopt(argc, argv, "I:ED:SU:acd:o:h");
         if (opt == -1)
             break;
         switch (opt) {
@@ -81,12 +104,16 @@ static void parseopt(int argc, char **argv) {
             break;
         }
         case 'S':
+            dontasm = true;
             break;
         case 'U':
             string_appendf(cppdefs, "#undef %s\n", optarg);
             break;
         case 'a':
             wantast = true;
+            break;
+        case 'c':
+            dontlink = true;
             break;
         case 'd':
             parse_debug_arg(optarg);
@@ -101,6 +128,9 @@ static void parseopt(int argc, char **argv) {
     }
     if (optind != argc - 1)
         usage();
+
+    if (!wantast && !cpponly && !dontasm && !dontlink)
+        error("One of -a, -c, -E or -S must be specified");
     inputfile = argv[optind];
 }
 
@@ -121,6 +151,8 @@ static void preprocess(void) {
 
 int main(int argc, char **argv) {
     setbuf(stdout, NULL);
+    if (atexit(delete_temp_files))
+        perror("atexit");
     cpp_init();
     parse_init();
     parseopt(argc, argv);
@@ -141,6 +173,22 @@ int main(int argc, char **argv) {
             printf("%s", a2s(v));
         else
             emit_toplevel(v);
+    }
+
+    close_output_file();
+
+    if (!wantast && !dontasm) {
+        char *objfile = replace_suffix(inputfile, 'o');
+        pid_t pid = fork();
+        if (pid < 0) perror("fork");
+        if (pid == 0) {
+            execlp("as", "as", "-o", objfile, "-c", outputfile, (char *)NULL);
+            perror("execl failed");
+        }
+        int status;
+        waitpid(pid, &status, 0);
+        if (status < 0)
+            error("as failed");
     }
     return 0;
 }

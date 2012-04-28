@@ -56,6 +56,10 @@ void set_output_file(FILE *fp) {
     outputfp = fp;
 }
 
+void close_output_file(void) {
+    fclose(outputfp);
+}
+
 static void emitf(int line, char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
