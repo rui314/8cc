@@ -310,6 +310,7 @@ extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
 
 extern void emit_toplevel(Node *v);
+extern void set_output_file(FILE *fp);
 
 extern bool debug_cpp;
 

@@ -18,6 +18,7 @@ static char *lswitch;
 static int stackpos;
 static int numgp;
 static int numfp;
+static FILE *outputfp;
 
 static void emit_expr(Node *node);
 static void emit_decl_init(List *inits, int off);
@@ -51,17 +52,21 @@ static char *get_caller_list(void) {
     return get_cstring(s);
 }
 
+void set_output_file(FILE *fp) {
+    outputfp = fp;
+}
+
 static void emitf(int line, char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    int col = vprintf(fmt, args);
+    int col = vfprintf(outputfp, fmt, args);
     va_end(args);
 
     for (char *p = fmt; *p; p++)
         if (*p == '\t')
             col += TAB - 1;
     int space = (28 - col) > 0 ? (30 - col) : 2;
-    printf("%*c %s:%d\n", space, '#', get_caller_list(), line);
+    fprintf(outputfp, "%*c %s:%d\n", space, '#', get_caller_list(), line);
 }
 
 static char *get_int_reg(Ctype *ctype, char r) {

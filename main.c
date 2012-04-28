@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include "8cc.h"
 
-static char *file;
+static char *inputfile;
+static char *outputfile;
 static bool wantast;
 static bool cpponly;
 static String *cppdefs;
@@ -19,11 +20,33 @@ static void usage(void) {
             "  -E                print preprocessed source code\n"
             "  -D name           Predefine name as a macro\n"
             "  -D name=def\n"
+            "  -S                Stop before assembly (default)\n"
             "  -U name           Undefine name\n"
             "  -a                print AST\n"
             "  -d cpp            print tokens for debugging\n"
+            "  -o filename       Output to the specified file\n"
             "  -h                print this help\n\n");
     exit(1);
+}
+
+static char *replace_suffix(char *filename, char suffix) {
+    char *r = format("%s", filename);
+    char *p = r + strlen(r) - 1;
+    if (*p != 'c')
+        error("filename suffix is not .c");
+    *p = suffix;
+    return r;
+}
+
+static FILE *open_output_file(void) {
+    if (!outputfile)
+        outputfile = replace_suffix(inputfile, 's');
+    if (!strcmp(outputfile, "-"))
+        return stdout;
+    FILE *fp = fopen(outputfile, "w");
+    if (!fp)
+        perror("fopen");
+    return fp;
 }
 
 static void parse_debug_arg(char *s) {
@@ -40,7 +63,7 @@ static void parse_debug_arg(char *s) {
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:U:ad:h");
+        int opt = getopt(argc, argv, "I:ED:SU:ad:o:h");
         if (opt == -1)
             break;
         switch (opt) {
@@ -57,6 +80,8 @@ static void parseopt(int argc, char **argv) {
             string_appendf(cppdefs, "#define %s\n", optarg);
             break;
         }
+        case 'S':
+            break;
         case 'U':
             string_appendf(cppdefs, "#undef %s\n", optarg);
             break;
@@ -66,6 +91,9 @@ static void parseopt(int argc, char **argv) {
         case 'd':
             parse_debug_arg(optarg);
             break;
+        case 'o':
+            outputfile = optarg;
+            break;
         case 'h':
         default:
             usage();
@@ -73,7 +101,7 @@ static void parseopt(int argc, char **argv) {
     }
     if (optind != argc - 1)
         usage();
-    file = argv[optind];
+    inputfile = argv[optind];
 }
 
 static void preprocess(void) {
@@ -98,7 +126,8 @@ int main(int argc, char **argv) {
     parseopt(argc, argv);
     if (string_len(cppdefs) > 0)
         cpp_eval(get_cstring(cppdefs));
-    lex_init(file);
+    lex_init(inputfile);
+    set_output_file(open_output_file());
 
     if (cpponly)
         preprocess();

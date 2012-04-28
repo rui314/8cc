@@ -20,13 +20,13 @@ test: utiltest $(TESTS)
 	./test.sh
 
 test/%.s: test/%.c 8cc
-	./8cc $< > $@
+	./8cc -S $<
 
 test/%.bin: test/%.s test/main/testmain.s 8cc
 	$(CC) -o $@ $< test/main/testmain.o $(LDFLAGS)
 
 $(SELF) test/main/testmain.s: 8cc test/main/testmain.c
-	./8cc $(@:s=c) > $@
+	./8cc -S $(@:s=c)
 	$(AS) -o $(@:s=o) -c $@
 
 self: $(SELF)

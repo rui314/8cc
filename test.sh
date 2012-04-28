@@ -7,7 +7,7 @@ function fail {
 }
 
 function compile {
-    echo "$1" | ./8cc - > tmp.s || fail "Failed to compile $1"
+    echo "$1" | ./8cc -o tmp.s - || fail "Failed to compile $1"
     gcc -o tmp.out tmp.s
      [ $? -ne 0 ] && fail "GCC failed: $1"
 }
@@ -17,7 +17,7 @@ function assertequal {
 }
 
 function testastf {
-    result="$(echo "$2" | ./8cc -a -)"
+    result="$(echo "$2" | ./8cc -o - -a -)"
     [ $? -ne 0 ] && fail "Failed to compile $2"
     assertequal "$result" "$1"
 }
@@ -32,15 +32,15 @@ function testm {
 }
 
 function testcpp {
-    echo "$2" | ./8cc -E $3 - > tmp.s || fail "Failed to compile $1"
+    echo "$2" | ./8cc -o - -E $3 - > tmp.s || fail "Failed to compile $1"
     assertequal "$(cat tmp.s)" "$1"
 }
 
 
 function testfail {
-    echo "$expr" | ./8cc - > /dev/null 2>&1
+    echo "$expr" | ./8cc -o /dev/null - 2> /dev/null
     expr="int f(){$1}"
-    echo "$expr" | ./8cc $OPTION - > /dev/null 2>&1
+    echo "$expr" | ./8cc -o /dev/null $OPTION - 2> /dev/null
     [ $? -eq 0 ] && fail "Should fail to compile, but succeded: $expr"
 }
 
