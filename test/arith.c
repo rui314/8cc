@@ -49,6 +49,7 @@ void test_ternary(void) {
     expect(52, (1 - 1) ? 51 : 52);
     expect(26, (1 - 1) ? 51 : 52 / 2);
     expect(17, (1 - 0) ? 51 / 3 : 52);
+    expect(3, (1 + 2) ?: 52);
 }
 
 void test_comma(void) {

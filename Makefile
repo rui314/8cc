@@ -1,4 +1,4 @@
-CFLAGS=-Wall -std=gnu99 -g -I. -O
+CFLAGS=-Wall -std=gnu99 -g -I. -O0
 OBJS=cpp.o debug.o dict.o gen.o lex.o list.o parse.o string.o error.o
 SELF=cpp.s debug.s dict.s gen.s lex.s list.s parse.s string.s error.s main.s
 TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))

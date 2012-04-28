@@ -542,8 +542,12 @@ int eval_intexpr(Node *node) {
     case OP_UMINUS: return -eval_intexpr(node->operand);
     case OP_CAST: return eval_intexpr(node->operand);
     case AST_CONV: return eval_intexpr(node->operand);
-    case AST_TERNARY:
-        return eval_intexpr(node->cond) ? eval_intexpr(node->then) : eval_intexpr(node->els);
+    case AST_TERNARY: {
+        long cond = eval_intexpr(node->cond);
+        if (cond)
+            return node->then ? eval_intexpr(node->then) : cond;
+        return eval_intexpr(node->els);
+    }
 #define L (eval_intexpr(node->left))
 #define R (eval_intexpr(node->right))
     case '+': return L + R;
@@ -1157,7 +1161,7 @@ static Node *read_assignment_expr(void) {
         Node *then = read_comma_expr();
         expect(':');
         Node *els = read_assignment_expr();
-        return ast_ternary(then->ctype, node, then, els);
+        return ast_ternary(els->ctype, node, then, els);
     }
     int cop = get_compound_assign_op(tok);
     if (is_punct(tok, '=') || cop) {
