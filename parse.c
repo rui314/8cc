@@ -62,7 +62,7 @@ static Node *read_struct_field(Node *struc);
 static void read_initializer_list(List *inits, Ctype *ctype, int off);
 static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
-static Node *read_cond_expr(void);
+static Node *read_boolean_expr(void);
 static Node *read_expr_opt(void);
 static Node *read_assignment_expr(void);
 static Node *read_cast_expr(void);
@@ -1997,14 +1997,14 @@ static Node *read_funcdef(void) {
  * If
  */
 
-static Node *read_cond_expr(void) {
+static Node *read_boolean_expr(void) {
     Node *cond = read_expr();
     return is_flotype(cond->ctype) ? ast_conv(ctype_bool, cond) : cond;
 }
 
 static Node *read_if_stmt(void) {
     expect('(');
-    Node *cond = read_cond_expr();
+    Node *cond = read_boolean_expr();
     expect(')');
     Node *then = read_stmt();
     if (!next_token(KELSE))
@@ -2046,7 +2046,7 @@ static Node *read_for_stmt(void) {
 
 static Node *read_while_stmt(void) {
     expect('(');
-    Node *cond = read_cond_expr();
+    Node *cond = read_boolean_expr();
     expect(')');
     Node *body = read_stmt();
     return ast_while(cond, body);
@@ -2062,7 +2062,7 @@ static Node *read_do_stmt(void) {
     if (!is_punct(tok, KWHILE))
         error("'while' is expected, but got %s", t2s(tok));
     expect('(');
-    Node *cond = read_cond_expr();
+    Node *cond = read_boolean_expr();
     expect(')');
     expect(';');
     return ast_do(cond, body);
