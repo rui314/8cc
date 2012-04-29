@@ -65,7 +65,28 @@ void test_nested(void) {
     expect(10, v.w.y.c[7]);
 }
 
-void test_designated(void) {
+void test_array_designator(void) {
+    int v[3] = { [1] = 5 };
+    expect(0, v[0]);
+    expect(5, v[1]);
+    expect(0, v[2]);
+
+    struct { struct { int a, b; } x[2]; } y = { [1] = { 1 2 } };
+    expect(0, y.x[0].a);
+    expect(0, y.x[0].b);
+    expect(1, y.x[1].a);
+    expect(2, y.x[1].b);
+
+    struct { struct { int a, b; } x[3]; } y = { [1] = 1, 2, 3, 4 };
+    expect(0, y.x[0].a);
+    expect(0, y.x[0].b);
+    expect(1, y.x[1].a);
+    expect(2, y.x[1].b);
+    expect(3, y.x[2].a);
+    expect(4, y.x[2].b);
+}
+
+void test_struct_designator(void) {
     struct { int x; int y; } v1 = { .y = 1, .x = 5 };
     expect(5, v1.x);
     expect(1, v1.y);
@@ -113,7 +134,8 @@ void testmain(void) {
     test_struct();
     test_primitive();
     test_nested();
-    test_designated();
+    test_array_designator();
+    test_struct_designator();
     test_zero();
     test_typedef();
 }

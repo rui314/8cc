@@ -1573,14 +1573,23 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
                 unget_token(tok);
             goto finish;
         }
-        unget_token(tok);
+        if (is_punct(tok, '[')) {
+            int idx = read_intexpr();
+            if (idx < 0 || (!incomplete && ctype->len <= idx))
+                error("array designator exceeds array bounds: %d", idx);
+            i = idx;
+            expect(']');
+            expect('=');
+        } else {
+            unget_token(tok);
+        }
         read_initializer_elem(inits, ctype->ptr, off + elemsize * i);
         maybe_skip_comma();
     }
     if (has_brace)
         skip_to_brace();
  finish:
-    if (incomplete){
+    if (incomplete) {
         ctype->len = i;
         ctype->size = elemsize * i;
     }
