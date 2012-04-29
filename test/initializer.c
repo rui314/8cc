@@ -99,6 +99,22 @@ void test_struct_designator(void) {
     expect(17, v3.z);
 }
 
+void test_complex_designator(void) {
+    struct { struct { int a, b; } x[3]; } y[] = { [1].x[0].b = 5, 6, 7, 8, 9, [0].x[2].b = 10, 11 };
+    expect(0, y[0].x[0].a);
+    expect(0, y[0].x[0].b);
+    expect(0, y[0].x[1].a);
+    expect(0, y[0].x[1].b);
+    expect(0, y[0].x[2].a);
+    expect(10, y[0].x[2].b);
+    expect(11, y[1].x[0].a);
+    expect(5, y[1].x[0].b);
+    expect(6, y[1].x[1].a);
+    expect(7, y[1].x[1].b);
+    expect(8, y[1].x[2].a);
+    expect(9, y[1].x[2].b);
+}
+
 void test_zero(void) {
     struct tag { int x, y; };
     struct tag v0 = (struct tag){ 6 };
@@ -136,6 +152,7 @@ void testmain(void) {
     test_nested();
     test_array_designator();
     test_struct_designator();
+    test_complex_designator();
     test_zero();
     test_typedef();
 }

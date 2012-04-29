@@ -1505,6 +1505,7 @@ static void skip_to_brace(void) {
 }
 
 static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
+    next_token('=');
     if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
         read_initializer_list(inits, ctype, off);
     } else {
@@ -1535,7 +1536,6 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
             fieldtype = dict_get(ctype->fields, fieldname);
             if (!fieldtype)
                 error("field does not exist: %s", t2s(tok));
-            expect('=');
             iter = list_iter(dict_keys(ctype->fields));
             while (!iter_end(iter)) {
                 char *s = iter_next(iter);
@@ -1579,7 +1579,6 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
                 error("array designator exceeds array bounds: %d", idx);
             i = idx;
             expect(']');
-            expect('=');
         } else {
             unget_token(tok);
         }
