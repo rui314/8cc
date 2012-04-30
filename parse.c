@@ -59,7 +59,7 @@ static void read_decl(List *toplevel, MakeVarFn *make_var);
 static Ctype *read_declarator(char **name, Ctype *basetype, List *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
-static void read_initializer_list(List *inits, Ctype *ctype, int off);
+static void read_initializer_list(List *inits, Ctype *ctype, int off, bool designated);
 static Ctype *read_cast_type(void);
 static List *read_decl_init(Ctype *ctype);
 static Node *read_boolean_expr(void);
@@ -1504,10 +1504,13 @@ static void skip_to_brace(void) {
     }
 }
 
-static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
+static void read_initializer_elem(List *inits, Ctype *ctype, int off, bool designated) {
     next_token('=');
     if (ctype->type == CTYPE_ARRAY || ctype->type == CTYPE_STRUCT) {
-        read_initializer_list(inits, ctype, off);
+        read_initializer_list(inits, ctype, off, designated);
+    } else if (next_token('{')) {
+        read_initializer_elem(inits, ctype, off, true);
+        expect('}');
     } else {
         Node *expr = read_assignment_expr();
         ensure_assignable(ctype, expr->ctype);
@@ -1515,10 +1518,9 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off) {
     }
 }
 
-static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
+static void read_struct_initializer(List *inits, Ctype *ctype, int off, bool designated) {
     bool has_brace = maybe_read_brace();
     Iter *iter = list_iter(dict_keys(ctype->fields));
-    Dict *written = make_dict(NULL);
     for (;;) {
         Token *tok = read_token();
         if (is_punct(tok, '}')) {
@@ -1528,6 +1530,10 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
         }
         char *fieldname;
         Ctype *fieldtype;
+        if ((is_punct(tok, '.') || is_punct(tok, '[')) && !has_brace && !designated) {
+            unget_token(tok);
+            return;
+        }
         if (is_punct(tok, '.')) {
             tok = read_token();
             if (!tok || tok->type != TIDENT)
@@ -1542,6 +1548,7 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
                 if (strcmp(fieldname, s) == 0)
                     break;
             }
+            designated = true;
         } else {
             unget_token(tok);
             if (iter_end(iter))
@@ -1549,11 +1556,9 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
             fieldname = iter_next(iter);
             fieldtype = dict_get(ctype->fields, fieldname);
         }
-        if (dict_get(written, fieldname))
-            error("struct field initialized twice: %s", fieldname);
-        dict_put(written, fieldname, (void *)1);
-        read_initializer_elem(inits, fieldtype, off + fieldtype->offset);
+        read_initializer_elem(inits, fieldtype, off + fieldtype->offset, designated);
         maybe_skip_comma();
+        designated = false;
         if (!ctype->is_struct)
             break;
     }
@@ -1561,7 +1566,7 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off) {
         skip_to_brace();
 }
 
-static void read_array_initializer(List *inits, Ctype *ctype, int off) {
+static void read_array_initializer(List *inits, Ctype *ctype, int off, bool designated) {
     bool has_brace = maybe_read_brace();
     bool incomplete = (ctype->len == -1);
     int elemsize = ctype->ptr->size;
@@ -1573,17 +1578,23 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
                 unget_token(tok);
             goto finish;
         }
+        if ((is_punct(tok, '.') || is_punct(tok, '[')) && !has_brace && !designated) {
+            unget_token(tok);
+            return;
+        }
         if (is_punct(tok, '[')) {
             int idx = read_intexpr();
             if (idx < 0 || (!incomplete && ctype->len <= idx))
                 error("array designator exceeds array bounds: %d", idx);
             i = idx;
             expect(']');
+            designated = true;
         } else {
             unget_token(tok);
         }
-        read_initializer_elem(inits, ctype->ptr, off + elemsize * i);
+        read_initializer_elem(inits, ctype->ptr, off + elemsize * i, designated);
         maybe_skip_comma();
+        designated = false;
     }
     if (has_brace)
         skip_to_brace();
@@ -1594,7 +1605,7 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off) {
     }
 }
 
-static void read_initializer_list(List *inits, Ctype *ctype, int off) {
+static void read_initializer_list(List *inits, Ctype *ctype, int off, bool designated) {
     Token *tok = read_token();
     if (is_string(ctype)) {
         if (tok->type == TSTRING) {
@@ -1610,19 +1621,19 @@ static void read_initializer_list(List *inits, Ctype *ctype, int off) {
     }
     unget_token(tok);
     if (ctype->type == CTYPE_ARRAY) {
-        read_array_initializer(inits, ctype, off);
+        read_array_initializer(inits, ctype, off, designated);
     } else if (ctype->type == CTYPE_STRUCT) {
-        read_struct_initializer(inits, ctype, off);
+        read_struct_initializer(inits, ctype, off, designated);
     } else {
         Ctype *arraytype = make_array_type(ctype, 1);
-        read_array_initializer(inits, arraytype, off);
+        read_array_initializer(inits, arraytype, off, designated);
     }
 }
 
 static List *read_decl_init(Ctype *ctype) {
     List *r = make_list();
     if (is_punct(peek_token(), '{') || is_string(ctype)) {
-        read_initializer_list(r, ctype, 0);
+        read_initializer_list(r, ctype, 0, false);
     } else {
         Node *init = read_assignment_expr();
         if (is_arithtype(init->ctype) && init->ctype->type != ctype->type)

@@ -32,6 +32,9 @@ void test_array(void) {
     short qe[24] = { 1, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 4, 5, 6 };
     short q[4][3][2] = { { 1 }, { 2, 3 }, { 4, 5, 6 } };
     verify_short(qe, q, 24);
+
+    int a[] = {{{ 3 }}};
+    expect(3, a[0]);
 }
 
 void test_string(void) {
@@ -71,19 +74,19 @@ void test_array_designator(void) {
     expect(5, v[1]);
     expect(0, v[2]);
 
-    struct { struct { int a, b; } x[2]; } y = { [1] = { 1 2 } };
-    expect(0, y.x[0].a);
-    expect(0, y.x[0].b);
-    expect(1, y.x[1].a);
-    expect(2, y.x[1].b);
+    struct { int a, b; } x[2] = { [1] = { 1, 2 } };
+    expect(0, x[0].a);
+    expect(0, x[0].b);
+    expect(1, x[1].a);
+    expect(2, x[1].b);
 
-    struct { struct { int a, b; } x[3]; } y = { [1] = 1, 2, 3, 4 };
-    expect(0, y.x[0].a);
-    expect(0, y.x[0].b);
-    expect(1, y.x[1].a);
-    expect(2, y.x[1].b);
-    expect(3, y.x[2].a);
-    expect(4, y.x[2].b);
+    struct { int a, b; } x2[3] = { [1] = 1, 2, 3, 4 };
+    expect(0, x2[0].a);
+    expect(0, x2[0].b);
+    expect(1, x2[1].a);
+    expect(2, x2[1].b);
+    expect(3, x2[2].a);
+    expect(4, x2[2].b);
 }
 
 void test_struct_designator(void) {
@@ -100,7 +103,10 @@ void test_struct_designator(void) {
 }
 
 void test_complex_designator(void) {
-    struct { struct { int a, b; } x[3]; } y[] = { [1].x[0].b = 5, 6, 7, 8, 9, [0].x[2].b = 10, 11 };
+    struct { struct { int a, b; } x[3]; } y[] = {
+        [1].x[0].b = 5, 6, 7, 8, 9,
+        [0].x[2].b = 10, 11
+    };
     expect(0, y[0].x[0].a);
     expect(0, y[0].x[0].b);
     expect(0, y[0].x[1].a);
@@ -113,6 +119,16 @@ void test_complex_designator(void) {
     expect(7, y[1].x[1].b);
     expect(8, y[1].x[2].a);
     expect(9, y[1].x[2].b);
+
+    int y2[][3] = { [0][0] = 1, [1][0] = 3 };
+    expect(1, y2[0][0]);
+    expect(3, y2[1][0]);
+
+    struct { int a, b[3]; } y3 = { .a = 1, .b[0] = 10, .b[1] = 11 };
+    expect(1, y3.a);
+    expect(10, y3.b[0]);
+    expect(11, y3.b[1]);
+    expect(0, y3.b[2]);
 }
 
 void test_zero(void) {
