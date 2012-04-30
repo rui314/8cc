@@ -37,6 +37,7 @@ extern void *list_get(List *list, int index);
 extern void *list_head(List *list);
 extern void *list_tail(List *list);
 extern List *list_reverse(List *list);
+extern void list_clear(List *list);
 extern int list_len(List *list);
 extern Iter *list_iter(List *list);
 extern void *iter_next(Iter *iter);

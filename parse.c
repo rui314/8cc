@@ -1521,7 +1521,30 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off, bool desig
     }
 }
 
-static void read_struct_initializer(List *inits, Ctype *ctype, int off, bool designated) {
+static int comp_init(const void *p, const void *q) {
+    Node * const *a = p;
+    Node * const *b = q;
+    return (*a)->initoff < (*b)->initoff ? -1
+        : (*a)->initoff == (*b)->initoff ? 0 : 1;
+}
+
+static void sort_inits(List *inits) {
+    int len = list_len(inits);
+    Node **tmp = malloc(sizeof(Node *) * len);
+    Iter *iter = list_iter(inits);
+    int i = 0;
+    while (!iter_end(iter)) {
+        Node *init = iter_next(iter);
+        assert(init->type == AST_INIT);
+        tmp[i++] = init;
+    }
+    qsort(tmp, len, sizeof(Node *), comp_init);
+    list_clear(inits);
+    for (int i = 0; i < len; i++)
+        list_push(inits, tmp[i]);
+}
+
+static void read_struct_initializer_sub(List *inits, Ctype *ctype, int off, bool designated) {
     bool has_brace = maybe_read_brace();
     Iter *iter = list_iter(dict_keys(ctype->fields));
     for (;;) {
@@ -1569,7 +1592,12 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off, bool des
         skip_to_brace();
 }
 
-static void read_array_initializer(List *inits, Ctype *ctype, int off, bool designated) {
+static void read_struct_initializer(List *inits, Ctype *ctype, int off, bool designated) {
+    read_struct_initializer_sub(inits, ctype, off, designated);
+    sort_inits(inits);
+}
+
+static void read_array_initializer_sub(List *inits, Ctype *ctype, int off, bool designated) {
     bool has_brace = maybe_read_brace();
     bool flexible = (ctype->len <= 0);
     int elemsize = ctype->ptr->size;
@@ -1606,6 +1634,11 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off, bool desi
         ctype->len = i;
         ctype->size = elemsize * i;
     }
+}
+
+static void read_array_initializer(List *inits, Ctype *ctype, int off, bool designated) {
+    read_array_initializer_sub(inits, ctype, off, designated);
+    sort_inits(inits);
 }
 
 static void read_initializer_list(List *inits, Ctype *ctype, int off, bool designated) {

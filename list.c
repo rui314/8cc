@@ -109,6 +109,12 @@ List *list_reverse(List *list) {
     return r;
 }
 
+void list_clear(List *list) {
+    list->len = 0;
+    list->head = NULL;
+    list->tail = NULL;
+}
+
 int list_len(List *list) {
     return list->len;
 }

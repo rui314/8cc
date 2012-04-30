@@ -87,6 +87,11 @@ void test_array_designator(void) {
     expect(2, x2[1].b);
     expect(3, x2[2].a);
     expect(4, x2[2].b);
+
+    // int x3[] = { [2] = 3, [0] = 1, 2 };
+    // expect(0, x3[0]);
+    // expect(1, x3[1]);
+    // expect(2, x3[2]);
 }
 
 void test_struct_designator(void) {
