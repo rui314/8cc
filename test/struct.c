@@ -233,7 +233,7 @@ void bitfield_union(void) {
 void bitfield_unnamed(void) {
     union {
         int i;
-        struct { char a:4; char b:4; };
+        struct { char a:4; char b:4; char : 8; };
     } x = { 0 };
     x.i = 0;
     x.a = 2;

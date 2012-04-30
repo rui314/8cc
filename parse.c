@@ -1362,7 +1362,8 @@ static Dict *update_struct_offset(List *fields, int *rsize) {
             fieldtype->offset = off;
             off += fieldtype->size;
         }
-        dict_put(r, name, fieldtype);
+        if (name)
+            dict_put(r, name, fieldtype);
     }
     finish_bitfield(&off, &bitoff);
     *rsize = off;
@@ -1385,7 +1386,8 @@ static Dict *update_union_offset(List *fields, int *rsize) {
         fieldtype->offset = 0;
         if (fieldtype->bitsize >= 0)
             fieldtype->bitoff = 0;
-        dict_put(r, name, fieldtype);
+        if (name)
+            dict_put(r, name, fieldtype);
     }
     *rsize = maxsize;
     return r;
