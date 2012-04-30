@@ -1313,6 +1313,7 @@ static void fix_rectype_flexible_member(List *fields) {
                 error("flexible member may only appear as the last member: %s %s", c2s(ctype), name);
             if (list_len(fields) == 1)
                 error("flexible member with no other fields: %s %s", c2s(ctype), name);
+            ctype->len = 0;
             ctype->size = 0;
         }
     }
@@ -1568,10 +1569,10 @@ static void read_struct_initializer(List *inits, Ctype *ctype, int off, bool des
 
 static void read_array_initializer(List *inits, Ctype *ctype, int off, bool designated) {
     bool has_brace = maybe_read_brace();
-    bool incomplete = (ctype->len == -1);
+    bool flexible = (ctype->len <= 0);
     int elemsize = ctype->ptr->size;
     int i;
-    for (i = 0; incomplete || i < ctype->len; i++) {
+    for (i = 0; flexible || i < ctype->len; i++) {
         Token *tok = read_token();
         if (is_punct(tok, '}')) {
             if (!has_brace)
@@ -1584,7 +1585,7 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off, bool desi
         }
         if (is_punct(tok, '[')) {
             int idx = read_intexpr();
-            if (idx < 0 || (!incomplete && ctype->len <= idx))
+            if (idx < 0 || (!flexible && ctype->len <= idx))
                 error("array designator exceeds array bounds: %d", idx);
             i = idx;
             expect(']');
@@ -1599,7 +1600,7 @@ static void read_array_initializer(List *inits, Ctype *ctype, int off, bool desi
     if (has_brace)
         skip_to_brace();
  finish:
-    if (incomplete) {
+    if (ctype->len < 0) {
         ctype->len = i;
         ctype->size = elemsize * i;
     }
