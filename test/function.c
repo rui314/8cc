@@ -120,6 +120,16 @@ void test_bool(void) {
     expect(1, booltest2(513));
 }
 
+typedef struct { int a, b, c, d; } MyType;
+
+int sum(MyType x) {
+    return x.a + x.b + x.c + x.d;
+}
+
+void test_struct(void) {
+    expect(14, sum((MyType){ 2, 3, 4, 5 }));
+}
+
 void testmain(void) {
     print("function");
 
@@ -137,4 +147,5 @@ void testmain(void) {
     empty();
     empty2();
     test_bool();
+    test_struct();
 }

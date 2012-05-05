@@ -20,6 +20,7 @@ static int numgp;
 static int numfp;
 static FILE *outputfp;
 
+static void emit_addr(Node *node);
 static void emit_expr(Node *node);
 static void emit_decl_init(List *inits, int off);
 static void emit_data_int(List *inits, int size, int off, int depth);
@@ -96,6 +97,11 @@ static char *get_load_inst(Ctype *ctype) {
     }
 }
 
+static int align(int n, int m) {
+    int rem = n % m;
+    return (rem == 0) ? n : n - rem + m;
+}
+
 static void push_xmm(int reg) {
     SAVE;
     emit("sub $8, %%rsp");
@@ -122,6 +128,32 @@ static void pop(char *reg) {
     emit("pop %%%s", reg);
     stackpos -= 8;
     assert(stackpos >= 0);
+}
+
+static int push_struct(int size) {
+    SAVE;
+    int aligned = align(size, 8);
+    emit("sub $%d, %%rsp", aligned);
+    emit("mov %%rcx, -8(%%rsp)");
+    emit("mov %%r11, -16(%%rsp)");
+    emit("mov %%rax, %%rcx");
+    int i = 0;
+    for (; i < size; i += 8) {
+        emit("movq %d(%%rcx), %%r11", i);
+        emit("mov %%r11, %d(%%rsp)", i);
+    }
+    for (; i < size; i += 4) {
+        emit("movl %d(%%rcx), %%r11", i);
+        emit("movl %%r11d, %d(%%rsp)", i);
+    }
+    for (; i < size; i++) {
+        emit("movb %d(%%rcx), %%r11", i);
+        emit("movb %%r11b, %d(%%rsp)", i);
+    }
+    emit("mov -8(%%rsp), %%rcx");
+    emit("mov -16(%%rsp), %%r11");
+    stackpos += aligned;
+    return aligned;
 }
 
 static void maybe_emit_bitshift_load(Ctype *ctype) {
@@ -259,6 +291,7 @@ static void emit_pointer_arith(char type, Node *left, Node *right) {
 }
 
 static void emit_zero_filler(int start, int end) {
+    SAVE;
     for (; start <= end - 4; start += 4)
         emit("movl $0, %d(%%rbp)", start);
     for (; start < end; start++)
@@ -266,6 +299,7 @@ static void emit_zero_filler(int start, int end) {
 }
 
 static void ensure_lvar_init(Node *node) {
+    SAVE;
     assert(node->type == AST_LVAR);
     if (node->lvarinit) {
         emit_zero_filler(node->loff, node->loff + node->ctype->size);
@@ -686,7 +720,9 @@ static void classify_args(List *ints, List *floats, List *rest, List *args) {
     Iter *iter = list_iter(args);
     while (!iter_end(iter)) {
         Node *v = iter_next(iter);
-        if (is_flotype(v->ctype))
+        if (v->ctype->type == CTYPE_STRUCT)
+            list_push(rest, v);
+        else if (is_flotype(v->ctype))
             list_push((xreg++ < xmax) ? floats : rest, v);
         else
             list_push((ireg++ < imax) ? ints : rest, v);
@@ -711,17 +747,26 @@ static void restore_arg_regs(int nints, int nfloats) {
         pop(REGS[i]);
 }
 
-static void emit_args(List *vals) {
+static int emit_args(List *vals) {
     SAVE;
+    int r = 0;
     Iter *iter = list_iter(vals);
     while (!iter_end(iter)) {
         Node *v = iter_next(iter);
-        emit_expr(v);
-        if (is_flotype(v->ctype))
+        if (v->ctype->type == CTYPE_STRUCT) {
+            emit_addr(v);
+            r += push_struct(v->ctype->size);
+        } else if (is_flotype(v->ctype)) {
+            emit_expr(v);
             push_xmm(0);
-        else
+            r += 8;
+        } else {
+            emit_expr(v);
             push("rax");
+            r += 8;
+        }
     }
+    return r;
 }
 
 static void pop_int_args(int nints) {
@@ -760,7 +805,7 @@ static void emit_func_call(Node *node) {
         stackpos += 8;
     }
 
-    emit_args(list_reverse(rest));
+    int restsize = emit_args(list_reverse(rest));
     if (isptr) {
         emit_expr(node->fptr);
         push("rax");
@@ -779,9 +824,9 @@ static void emit_func_call(Node *node) {
     else
         emit("call %s", node->fname);
     maybe_booleanize_retval(node->ctype);
-    if (list_len(rest) > 0) {
-        emit("add $%d, %%rsp", list_len(rest) * 8);
-        stackpos -= list_len(rest) * 8;
+    if (restsize > 0) {
+        emit("add $%d, %%rsp", restsize);
+        stackpos -= restsize;
     }
     if (padding) {
         emit("add $8, %%rsp");
@@ -1317,11 +1362,6 @@ static void emit_global_var(Node *v) {
         emit_bss(v);
 }
 
-static int align(int n, int m) {
-    int rem = n % m;
-    return (rem == 0) ? n : n - rem + m;
-}
-
 static int emit_regsave_area(void) {
     int pos = -REGAREA_SIZE;
     emit("mov %%rdi, %d(%%rsp)", pos);
@@ -1348,13 +1388,19 @@ static void push_func_params(List *params, int off) {
     int arg = 2;
     for (Iter *i = list_iter(params); !iter_end(i);) {
         Node *v = iter_next(i);
-        if (is_flotype(v->ctype)) {
+        if (v->ctype->type == CTYPE_STRUCT) {
+            emit("lea %d(%%rbp), %%rax", arg * 8);
+            int size = push_struct(v->ctype->size);
+            off -= size;
+            arg += size / 8;
+        } else if (is_flotype(v->ctype)) {
             if (xreg >= 8) {
                 emit("mov %d(%%rbp), %%rax", arg++ * 8);
                 push("rax");
             } else {
                 push_xmm(xreg++);
             }
+            off -= 8;
         } else {
             if (ireg >= 6) {
                 if (v->ctype->type == CTYPE_BOOL) {
@@ -1369,8 +1415,8 @@ static void push_func_params(List *params, int off) {
                     emit("movzb %%%s, %%%s", SREGS[ireg], MREGS[ireg]);
                 push(REGS[ireg++]);
             }
+            off -= 8;
         }
-        off -= 8;
         v->loff = off;
     }
 }
