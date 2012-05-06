@@ -773,35 +773,32 @@ static struct tm *gettime(void) {
     return current_time;
 }
 
-static void handle_date_macro(Token *tmpl) {
+static void make_token_pushback(Token *tmpl, int type, char *sval) {
     Token *tok = copy_token(tmpl);
-    tok->type = TSTRING;
-    char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-    struct tm *now = gettime();
-    tok->sval = format("%s %02d %04d", month[now->tm_mon], now->tm_mday, 1900 + now->tm_year);
+    tok->type = type;
+    tok->sval = sval;
     unget_token(tok);
+}
+
+static void handle_date_macro(Token *tmpl) {
+    struct tm *now = gettime();
+    char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+    char *sval = format("%s %02d %04d", month[now->tm_mon], now->tm_mday, 1900 + now->tm_year);
+    make_token_pushback(tmpl, TSTRING, sval);
 }
 
 static void handle_time_macro(Token *tmpl) {
-    Token *tok = copy_token(tmpl);
-    tok->type = TSTRING;
     struct tm *now = gettime();
-    tok->sval = format("%02d:%02d:%02d", now->tm_hour, now->tm_min, now->tm_sec);
-    unget_token(tok);
+    char *sval = format("%02d:%02d:%02d", now->tm_hour, now->tm_min, now->tm_sec);
+    make_token_pushback(tmpl, TSTRING, sval);
 }
 
 static void handle_file_macro(Token *tmpl) {
-    Token *tok = copy_token(tmpl);
-    tok->type = TSTRING;
-    tok->sval = get_current_displayname();
-    unget_token(tok);
+    make_token_pushback(tmpl, TSTRING, get_current_displayname());
 }
 
 static void handle_line_macro(Token *tmpl) {
-    Token *tok = copy_token(tmpl);
-    tok->type = TNUMBER;
-    tok->sval = format("%d", get_current_line());
-    unget_token(tok);
+    make_token_pushback(tmpl, TNUMBER, format("%d", get_current_line()));
 }
 
 static void handle_pragma_macro(Token *tmpl) {
@@ -811,18 +808,11 @@ static void handle_pragma_macro(Token *tmpl) {
         error("_Pragma takes a string literal, but got %s", t2s(operand));
     expect(')');
     parse_pragma_operand(operand->sval);
-
-    Token *tok = copy_token(tmpl);
-    tok->type = TNUMBER;
-    tok->sval = "1";
-    unget_token(tok);
+    make_token_pushback(tmpl, TNUMBER, "1");
 }
 
 static void handle_counter_macro(Token *tmpl) {
-    Token *tok = copy_token(tmpl);
-    tok->type = TNUMBER;
-    tok->sval = format("%d", macro_counter++);
-    unget_token(tok);
+    make_token_pushback(tmpl, TNUMBER, format("%d", macro_counter++));
 }
 
 /*----------------------------------------------------------------------
