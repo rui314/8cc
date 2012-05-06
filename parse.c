@@ -30,19 +30,19 @@ static Dict *labels;
 static List *localvars;
 static Ctype *current_func_type;
 
-Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, true };
-Ctype *ctype_bool = &(Ctype){ CTYPE_BOOL, 1, false };
-Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, true };
-Ctype *ctype_short = &(Ctype){ CTYPE_SHORT, 2, true };
-Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, true };
-Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, true };
-Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, true };
-Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, true };
-Ctype *ctype_ldouble = &(Ctype){ CTYPE_LDOUBLE, 16, true };
-static Ctype *ctype_uint = &(Ctype){ CTYPE_INT, 4, false };
-static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, false };
-static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, true };
-static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, false };
+Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, 0, true };
+Ctype *ctype_bool = &(Ctype){ CTYPE_BOOL, 1, 1, false };
+Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, 1, true };
+Ctype *ctype_short = &(Ctype){ CTYPE_SHORT, 2, 2, true };
+Ctype *ctype_int = &(Ctype){ CTYPE_INT, 4, 4, true };
+Ctype *ctype_long = &(Ctype){ CTYPE_LONG, 8, 8, true };
+Ctype *ctype_float = &(Ctype){ CTYPE_FLOAT, 4, 4, true };
+Ctype *ctype_double = &(Ctype){ CTYPE_DOUBLE, 8, 8, true };
+Ctype *ctype_ldouble = &(Ctype){ CTYPE_LDOUBLE, 16, 16, true };
+static Ctype *ctype_uint = &(Ctype){ CTYPE_INT, 4, 4, false };
+static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, 8, false };
+static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, 8, true };
+static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, 8, false };
 
 static int labelseq = 0;
 
@@ -293,22 +293,22 @@ static Ctype *make_numtype(int type, bool sig) {
     Ctype *r = malloc(sizeof(Ctype));
     r->type = type;
     r->sig = sig;
-    if (type == CTYPE_VOID)         r->size = 0;
-    else if (type == CTYPE_BOOL)    r->size = 1;
-    else if (type == CTYPE_CHAR)    r->size = 1;
-    else if (type == CTYPE_SHORT)   r->size = 2;
-    else if (type == CTYPE_INT)     r->size = 4;
-    else if (type == CTYPE_LONG)    r->size = 8;
-    else if (type == CTYPE_LLONG)   r->size = 8;
-    else if (type == CTYPE_FLOAT)   r->size = 4;
-    else if (type == CTYPE_DOUBLE)  r->size = 8;
-    else if (type == CTYPE_LDOUBLE) r->size = 16;
+    if (type == CTYPE_VOID)         r->size = r->align = 0;
+    else if (type == CTYPE_BOOL)    r->size = r->align = 1;
+    else if (type == CTYPE_CHAR)    r->size = r->align = 1;
+    else if (type == CTYPE_SHORT)   r->size = r->align = 2;
+    else if (type == CTYPE_INT)     r->size = r->align = 4;
+    else if (type == CTYPE_LONG)    r->size = r->align = 8;
+    else if (type == CTYPE_LLONG)   r->size = r->align = 8;
+    else if (type == CTYPE_FLOAT)   r->size = r->align = 4;
+    else if (type == CTYPE_DOUBLE)  r->size = r->align = 8;
+    else if (type == CTYPE_LDOUBLE) r->size = r->align = 16;
     else error("internal error");
     return r;
 }
 
 static Ctype* make_ptr_type(Ctype *ctype) {
-    return make_type(&(Ctype){ CTYPE_PTR, .ptr = ctype, .size = 8 });
+    return make_type(&(Ctype){ CTYPE_PTR, .ptr = ctype, .size = 8, .align = 8 });
 }
 
 static Ctype* make_array_type(Ctype *ctype, int len) {
@@ -321,12 +321,12 @@ static Ctype* make_array_type(Ctype *ctype, int len) {
         CTYPE_ARRAY,
         .ptr = ctype,
         .size = size,
-        .len = len });
+        .len = len,
+        .align = ctype->align });
 }
 
-static Ctype* make_struct_type(Dict *fields, int size, bool is_struct) {
-    return make_type(&(Ctype){
-            CTYPE_STRUCT, .fields = fields, .size = size, .is_struct = is_struct });
+static Ctype* make_rectype(bool is_struct) {
+    return make_type(&(Ctype){ CTYPE_STRUCT, .is_struct = is_struct });
 }
 
 static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs) {
@@ -1271,9 +1271,8 @@ static char *read_rectype_tag(void) {
     return NULL;
 }
 
-static int compute_padding(int offset, Ctype *ctype) {
-    int size = get_alignment(ctype);
-    return (offset % size == 0) ? 0 : size - offset % size;
+static int compute_padding(int offset, int align) {
+    return (offset % align == 0) ? 0 : align - offset % align;
 }
 
 static void squash_unnamed_struct(Dict *dict, Ctype *unnamed, int offset) {
@@ -1299,7 +1298,7 @@ static int maybe_read_bitsize(char *name, Ctype *ctype) {
     return r;
 }
 
-static List *read_rectype_fields_sub(void) {
+static List *read_rectype_fields_sub(int *align) {
     List *r = make_list();
     for (;;) {
         if (next_token(KSTATIC_ASSERT)) {
@@ -1320,6 +1319,7 @@ static List *read_rectype_fields_sub(void) {
             fieldtype = copy_type(fieldtype);
             fieldtype->bitsize = maybe_read_bitsize(name, fieldtype);
             list_push(r, make_pair(name, fieldtype));
+            *align = MAX(*align, fieldtype->align);
             if (next_token(','))
                 continue;
             if (is_punct(peek_token(), '}'))
@@ -1357,7 +1357,7 @@ static void finish_bitfield(int *off, int *bitoff) {
     *bitoff = -1;
 }
 
-static Dict *update_struct_offset(List *fields, int *rsize) {
+static Dict *update_struct_offset(List *fields, int *align, int *rsize) {
     int off = 0, bitoff = -1;
     Iter *iter = list_iter(fields);
     Dict *r = make_dict(NULL);
@@ -1365,15 +1365,17 @@ static Dict *update_struct_offset(List *fields, int *rsize) {
         Pair *pair = iter_next(iter);
         char *name = pair->first;
         Ctype *fieldtype = pair->second;
+        *align = MAX(*align, fieldtype->align);
         if (name == NULL && fieldtype->type == CTYPE_STRUCT) {
             finish_bitfield(&off, &bitoff);
             squash_unnamed_struct(r, fieldtype, off);
+            off += compute_padding(off, fieldtype->align);
             off += fieldtype->size;
             continue;
         }
         if (fieldtype->bitsize == 0) {
             finish_bitfield(&off, &bitoff);
-            off += compute_padding(off, fieldtype);
+            off += compute_padding(off, fieldtype->align);
             bitoff = 0;
             continue;
         }
@@ -1384,14 +1386,14 @@ static Dict *update_struct_offset(List *fields, int *rsize) {
                 fieldtype->offset = off;
             } else {
                 finish_bitfield(&off, &bitoff);
-                off += compute_padding(off, fieldtype);
+                off += compute_padding(off, fieldtype->align);
                 fieldtype->offset = off;
                 fieldtype->bitoff = 0;
             }
             bitoff = fieldtype->bitsize;
         } else {
             finish_bitfield(&off, &bitoff);
-            off += compute_padding(off, fieldtype);
+            off += compute_padding(off, fieldtype->align);
             fieldtype->offset = off;
             off += fieldtype->size;
         }
@@ -1399,11 +1401,11 @@ static Dict *update_struct_offset(List *fields, int *rsize) {
             dict_put(r, name, fieldtype);
     }
     finish_bitfield(&off, &bitoff);
-    *rsize = off;
+    *rsize = off + compute_padding(off, *align);
     return r;
 }
 
-static Dict *update_union_offset(List *fields, int *rsize) {
+static Dict *update_union_offset(List *fields, int *align, int *rsize) {
     int maxsize = 0;
     Iter *iter = list_iter(fields);
     Dict *r = make_dict(NULL);
@@ -1412,6 +1414,7 @@ static Dict *update_union_offset(List *fields, int *rsize) {
         char *name = pair->first;
         Ctype *fieldtype = pair->second;
         maxsize = MAX(maxsize, fieldtype->size);
+        *align = MAX(*align, fieldtype->align);
         if (name == NULL && fieldtype->type == CTYPE_STRUCT) {
             squash_unnamed_struct(r, fieldtype, 0);
             continue;
@@ -1426,14 +1429,14 @@ static Dict *update_union_offset(List *fields, int *rsize) {
     return r;
 }
 
-static Dict *read_rectype_fields(int *rsize, bool is_struct) {
+static Dict *read_rectype_fields(int *rsize, int *align, bool is_struct) {
     if (!next_token('{'))
         return NULL;
-    List *fields = read_rectype_fields_sub();
+    List *fields = read_rectype_fields_sub(align);
     fix_rectype_flexible_member(fields);
     return is_struct
-        ? update_struct_offset(fields, rsize)
-        : update_union_offset(fields, rsize);
+        ? update_struct_offset(fields, align, rsize)
+        : update_union_offset(fields, align, rsize);
 }
 
 static Ctype *read_rectype_def(Dict *env, bool is_struct) {
@@ -1442,19 +1445,20 @@ static Ctype *read_rectype_def(Dict *env, bool is_struct) {
     if (tag) {
         r = dict_get(env, tag);
         if (!r) {
-            r = make_struct_type(NULL, 0, is_struct);
+            r = make_rectype(is_struct);
             dict_put(env, tag, r);
         }
     } else {
-        r = make_struct_type(NULL, 0, is_struct);
+        r = make_rectype(is_struct);
     }
-    int size = 0;
-    Dict *fields = read_rectype_fields(&size, is_struct);
+    int size = 0, align = 1;
+    Dict *fields = read_rectype_fields(&size, &align, is_struct);
     if (r && !fields)
         return r;
     if (r && fields) {
         r->fields = fields;
         r->size = size;
+        r->align = align;
         return r;
     }
     return r;

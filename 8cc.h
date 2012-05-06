@@ -134,6 +134,7 @@ enum {
 typedef struct Ctype {
     int type;
     int size;
+    int align;
     // true if signed
     bool sig;
     bool isstatic;
