@@ -34,6 +34,7 @@ static void usage(void) {
             "  -fnodump-stacktrace Do not print stacktrace\n"
             "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
+            "  -w                Disable all warnings\n"
             "  -h                print this help\n"
             "\n"
             "One of -a, -c, -E or -S must be specified.\n\n");
@@ -99,7 +100,7 @@ static void parse_f_arg(char *s) {
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:SU:acd:f:o:h");
+        int opt = getopt(argc, argv, "I:ED:SU:acd:f:o:hw");
         if (opt == -1)
             break;
         switch (opt) {
@@ -136,6 +137,9 @@ static void parseopt(int argc, char **argv) {
             break;
         case 'o':
             outputfile = optarg;
+            break;
+        case 'w':
+            suppress_warning = true;
             break;
         case 'h':
         default:
