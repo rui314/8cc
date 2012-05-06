@@ -692,6 +692,24 @@ static void read_include(void) {
 }
 
 /*----------------------------------------------------------------------
+ * #pragma
+ */
+
+static void parse_pragma_operand(char *s) {
+    if (!strcmp(s, "enable_warning"))
+        enable_warning = true;
+    else if (!strcmp(s, "disable_warning"))
+        enable_warning = false;
+    else
+        error("Unknown #pragma: %s", s);
+}
+
+static void read_pragma(void) {
+    Token *tok = read_ident();
+    parse_pragma_operand(tok->sval);
+}
+
+/*----------------------------------------------------------------------
  * #line
  */
 
@@ -736,6 +754,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "endif"))   read_endif();
     else if (is_ident(tok, "error"))   read_error();
     else if (is_ident(tok, "include")) read_include();
+    else if (is_ident(tok, "pragma"))  read_pragma();
     else if (is_ident(tok, "line"))    read_line();
     else if (tok->type != TNEWLINE)
         error("unsupported preprocessor directive: %s", t2s(tok));
