@@ -11,9 +11,9 @@
 
 static char *inputfile;
 static char *outputfile;
-static bool wantast;
+static bool dumpast;
 static bool cpponly;
-static bool dontasm;
+static bool dumpasm;
 static bool dontlink;
 static String *cppdefs;
 static List *tmpfiles = &EMPTY_LIST;
@@ -29,7 +29,7 @@ static void usage(void) {
             "  -S                Stop before assembly (default)\n"
             "  -c                Do not run linker (default)\n"
             "  -U name           Undefine name\n"
-            "  -a                print AST\n"
+            "  -fdump-ast        print AST\n"
             "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
             "  -h                print this help\n"
@@ -55,7 +55,7 @@ static char *replace_suffix(char *filename, char suffix) {
 
 static FILE *open_output_file(void) {
     if (!outputfile) {
-        if (dontasm) {
+        if (dumpasm) {
             outputfile = replace_suffix(inputfile, 's');
         } else {
             outputfile = format("/tmp/8ccXXXXXX.s");
@@ -83,10 +83,17 @@ static void parse_debug_arg(char *s) {
     }
 }
 
+static void parse_f_arg(char *s) {
+    if (!strcmp(s, "dump-ast"))
+        dumpast = true;
+    else
+        usage();
+}
+
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:SU:acd:o:h");
+        int opt = getopt(argc, argv, "I:ED:SU:acd:f:o:h");
         if (opt == -1)
             break;
         switch (opt) {
@@ -104,19 +111,22 @@ static void parseopt(int argc, char **argv) {
             break;
         }
         case 'S':
-            dontasm = true;
+            dumpasm = true;
             break;
         case 'U':
             string_appendf(cppdefs, "#undef %s\n", optarg);
             break;
         case 'a':
-            wantast = true;
+            dumpast = true;
             break;
         case 'c':
             dontlink = true;
             break;
         case 'd':
             parse_debug_arg(optarg);
+            break;
+        case 'f':
+            parse_f_arg(optarg);
             break;
         case 'o':
             outputfile = optarg;
@@ -129,7 +139,7 @@ static void parseopt(int argc, char **argv) {
     if (optind != argc - 1)
         usage();
 
-    if (!wantast && !cpponly && !dontasm && !dontlink)
+    if (!dumpast && !cpponly && !dumpasm && !dontlink)
         error("One of -a, -c, -E or -S must be specified");
     inputfile = argv[optind];
 }
@@ -164,12 +174,12 @@ int main(int argc, char **argv) {
     if (cpponly)
         preprocess();
 
-    if (wantast)
+    if (dumpast)
         suppress_warning = true;
     List *toplevels = read_toplevels();
     for (Iter *i = list_iter(toplevels); !iter_end(i);) {
         Node *v = iter_next(i);
-        if (wantast)
+        if (dumpast)
             printf("%s", a2s(v));
         else
             emit_toplevel(v);
@@ -177,7 +187,7 @@ int main(int argc, char **argv) {
 
     close_output_file();
 
-    if (!wantast && !dontasm) {
+    if (!dumpast && !dumpasm) {
         char *objfile = replace_suffix(inputfile, 'o');
         pid_t pid = fork();
         if (pid < 0) perror("fork");

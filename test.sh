@@ -17,7 +17,7 @@ function assertequal {
 }
 
 function testastf {
-    result="$(echo "$2" | ./8cc -o - -a -)"
+    result="$(echo "$2" | ./8cc -o - -fdump-ast -)"
     [ $? -ne 0 ] && fail "Failed to compile $2"
     assertequal "$result" "$1"
 }
