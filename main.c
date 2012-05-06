@@ -184,8 +184,6 @@ int main(int argc, char **argv) {
     if (cpponly)
         preprocess();
 
-    if (dumpast)
-        enable_warning = false;
     List *toplevels = read_toplevels();
     for (Iter *i = list_iter(toplevels); !iter_end(i);) {
         Node *v = iter_next(i);
