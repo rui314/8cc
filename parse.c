@@ -893,10 +893,25 @@ static int get_compound_assign_op(Token *tok) {
     }
 }
 
+static Node *read_stmt_expr(void) {
+    Node *r = read_compound_stmt();
+    expect(')');
+    Ctype *rtype = ctype_void;
+    if (list_len(r->stmts) > 0) {
+        Node *lastexpr = list_tail(r->stmts);
+        if (lastexpr->ctype)
+            rtype = lastexpr->ctype;
+    }
+    r->ctype = rtype;
+    return r;
+}
+
 static Node *read_primary_expr(void) {
     Token *tok = read_token();
     if (!tok) return NULL;
     if (is_punct(tok, '(')) {
+        if (next_token('{'))
+            return read_stmt_expr();
         Node *r = read_expr();
         expect(')');
         return r;
