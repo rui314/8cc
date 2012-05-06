@@ -19,6 +19,8 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
+SourceLoc *source_loc;
+
 static Dict *globalenv = &EMPTY_DICT;
 static Dict *localenv;
 static Dict *struct_defs = &EMPTY_DICT;
@@ -85,6 +87,21 @@ enum {
 };
 
 /*----------------------------------------------------------------------
+ * Source location
+ */
+
+static void mark_location(void) {
+    Token *tok = peek_token();
+    if (!tok) {
+        source_loc = NULL;
+        return;
+    }
+    source_loc = malloc(sizeof(SourceLoc));
+    source_loc->file = tok->file;
+    source_loc->line = tok->line;
+}
+
+/*----------------------------------------------------------------------
  * Constructors
  */
 
@@ -95,6 +112,7 @@ char *make_label(void) {
 static Node *make_ast(Node *tmpl) {
     Node *r = malloc(sizeof(Node));
     *r = *tmpl;
+    r->sourceLoc = source_loc;
     return r;
 }
 
@@ -2261,6 +2279,7 @@ static Node *read_compound_stmt(void) {
 
 static void read_decl_or_stmt(List *list) {
     Token *tok = peek_token();
+    mark_location();
     if (tok == NULL)
         error("premature end of input");
     if (is_type_keyword(tok)) {

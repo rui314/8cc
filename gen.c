@@ -21,6 +21,8 @@ static int stackpos;
 static int numgp;
 static int numfp;
 static FILE *outputfp;
+static Dict *source_files = &EMPTY_DICT;
+static char *last_loc = "";
 
 static void emit_addr(Node *node);
 static void emit_expr(Node *node);
@@ -697,6 +699,22 @@ static void emit_literal(Node *node) {
     }
 }
 
+static void maybe_print_source_loc(Node *node) {
+    if (!node->sourceLoc)
+        return;
+    char *file = node->sourceLoc->file;
+    long fileno = (long)dict_get(source_files, file);
+    if (!fileno) {
+        fileno = list_len(dict_keys(source_files)) + 1;
+        dict_put(source_files, file, (void *)fileno);
+        emit(".file %ld \"%s\"", fileno, quote_cstring(file));
+    }
+    char *loc = format(".loc %ld %d 0", fileno, node->sourceLoc->line);
+    if (strcmp(loc, last_loc))
+        emit("%s", loc);
+    last_loc = loc;
+}
+
 static void emit_literal_string(Node *node) {
     SAVE;
     if (!node->slabel) {
@@ -1162,6 +1180,7 @@ static void emit_computed_goto(Node *node) {
 
 static void emit_expr(Node *node) {
     SAVE;
+    maybe_print_source_loc(node);
     switch (node->type) {
     case AST_LITERAL: emit_literal(node); return;
     case AST_STRING:  emit_literal_string(node); return;

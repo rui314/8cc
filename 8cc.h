@@ -153,9 +153,15 @@ typedef struct Ctype {
     bool hasva;
 } Ctype;
 
+typedef struct {
+    char *file;
+    int line;
+} SourceLoc;
+
 typedef struct Node {
     int type;
     Ctype *ctype;
+    SourceLoc *sourceLoc;
     union {
         // Char, int, or long
         long ival;
