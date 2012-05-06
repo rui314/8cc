@@ -139,7 +139,7 @@ static void parseopt(int argc, char **argv) {
             outputfile = optarg;
             break;
         case 'w':
-            suppress_warning = true;
+            enable_warning = false;
             break;
         case 'h':
         default:
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
         preprocess();
 
     if (dumpast)
-        suppress_warning = true;
+        enable_warning = false;
     List *toplevels = read_toplevels();
     for (Iter *i = list_iter(toplevels); !iter_end(i);) {
         Node *v = iter_next(i);

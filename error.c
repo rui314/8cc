@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "8cc.h"
 
-bool suppress_warning = false;
+bool enable_warning = true;
 
 void errorf(char *file, int line, char *fmt, ...) {
     fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;31m[ERROR]\e[0m " : "[ERROR] ");
@@ -20,7 +20,7 @@ void errorf(char *file, int line, char *fmt, ...) {
 }
 
 void warn(char *fmt, ...) {
-    if (suppress_warning)
+    if (!enable_warning)
         return;
     fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;31m[WARNING]\e[0m " : "[WARNING] ");
     fprintf(stderr, "%s: ", input_position());

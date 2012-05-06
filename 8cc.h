@@ -16,7 +16,7 @@ typedef struct {
     int len;
 } String;
 
-extern bool suppress_warning;
+extern bool enable_warning;
 extern bool dumpstack;
 extern bool dumpsource;
 
