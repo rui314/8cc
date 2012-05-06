@@ -7,6 +7,8 @@
 #include "8cc.h"
 #include "list.h"
 
+bool dumpstack = true;
+
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static char *SREGS[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *MREGS[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
@@ -34,10 +36,12 @@ static void emit_data(Node *v, int off, int depth);
 #ifdef __GNUC__
 #define SAVE                                                            \
     int save_hook __attribute__((unused, cleanup(pop_function)));       \
-    list_push(functions, (void *)__func__)
+    if (dumpstack)                                                      \
+        list_push(functions, (void *)__func__);
 
 static void pop_function(void *ignore) {
-    list_pop(functions);
+    if (dumpstack)
+        list_pop(functions);
 }
 #else
 #define SAVE
@@ -67,11 +71,14 @@ static void emitf(int line, char *fmt, ...) {
     int col = vfprintf(outputfp, fmt, args);
     va_end(args);
 
-    for (char *p = fmt; *p; p++)
-        if (*p == '\t')
-            col += TAB - 1;
-    int space = (28 - col) > 0 ? (30 - col) : 2;
-    fprintf(outputfp, "%*c %s:%d\n", space, '#', get_caller_list(), line);
+    if (dumpstack) {
+        for (char *p = fmt; *p; p++)
+            if (*p == '\t')
+                col += TAB - 1;
+        int space = (28 - col) > 0 ? (30 - col) : 2;
+        fprintf(outputfp, "%*c %s:%d", space, '#', get_caller_list(), line);
+    }
+    fprintf(outputfp, "\n");
 }
 
 static char *get_int_reg(Ctype *ctype, char r) {
