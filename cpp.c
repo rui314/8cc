@@ -804,8 +804,18 @@ static void handle_line_macro(Token *tmpl) {
     unget_token(tok);
 }
 
-static void handle_pragma_macro(Token *ignore) {
-    error("No pragmas supported");
+static void handle_pragma_macro(Token *tmpl) {
+    expect('(');
+    Token *operand = read_token();
+    if (!operand || operand->type != TSTRING)
+        error("_Pragma takes a string literal, but got %s", t2s(operand));
+    expect(')');
+    parse_pragma_operand(operand->sval);
+
+    Token *tok = copy_token(tmpl);
+    tok->type = TNUMBER;
+    tok->sval = "1";
+    unget_token(tok);
 }
 
 static void handle_counter_macro(Token *tmpl) {
