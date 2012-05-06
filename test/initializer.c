@@ -163,6 +163,23 @@ void test_typedef(void) {
     expect(3, sizeof(b) / sizeof(*b));
 }
 
+void test_excessive(void) {
+#ifdef __8cc__
+#pragma disable_warning
+#endif
+
+    char x1[3] = { 1, 2, 3, 4, 5 };
+    expect(3, sizeof(x1));
+
+    char x2[3] = "abcdefg";
+    expect(3, sizeof(x2));
+    expect(0, strncmp("abc", x2, 3));
+
+#ifdef __8cc__
+#pragma disable_warning
+#endif
+}
+
 void testmain(void) {
     print("initializer");
 
@@ -176,4 +193,5 @@ void testmain(void) {
     test_complex_designator();
     test_zero();
     test_typedef();
+    test_excessive();
 }
