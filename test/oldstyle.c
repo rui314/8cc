@@ -7,9 +7,14 @@
 #pragma disable_warning
 #endif
 
+oldstyle() {
+    return 4;
+}
+
 void testmain(void) {
     print("K&R");
     expect(3, no_declaration());
+    expect(4, oldstyle());
 }
 
 int no_declaration() {

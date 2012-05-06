@@ -2083,8 +2083,12 @@ static void backfill_labels(void) {
 }
 
 static Node *read_funcdef(void) {
-    int sclass;
-    Ctype *basetype = read_decl_spec(&sclass);
+    int sclass = 0;
+    Ctype *basetype = ctype_int;
+    if (is_type_keyword(peek_token()))
+        basetype = read_decl_spec(&sclass);
+    else
+        warn("type specifier missing, assuming int");
     localenv = make_dict(globalenv);
     gotos = make_list();
     labels = make_dict(NULL);
