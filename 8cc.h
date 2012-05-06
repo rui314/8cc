@@ -18,6 +18,7 @@ typedef struct {
 
 extern bool suppress_warning;
 extern bool dumpstack;
+extern bool dumpsource;
 
 extern String *make_string(void);
 extern char *format(char *fmt, ...);

@@ -4,10 +4,14 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "8cc.h"
 #include "list.h"
 
 bool dumpstack = true;
+bool dumpsource = true;
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static char *SREGS[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
@@ -22,6 +26,7 @@ static int numgp;
 static int numfp;
 static FILE *outputfp;
 static Dict *source_files = &EMPTY_DICT;
+static Dict *source_lines = &EMPTY_DICT;
 static char *last_loc = "";
 
 static void emit_addr(Node *node);
@@ -80,6 +85,15 @@ static void emitf(int line, char *fmt, ...) {
         int space = (28 - col) > 0 ? (30 - col) : 2;
         fprintf(outputfp, "%*c %s:%d", space, '#', get_caller_list(), line);
     }
+    fprintf(outputfp, "\n");
+}
+
+static void emit_nostack(char *fmt, ...) {
+    fprintf(outputfp, "\t");
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(outputfp, fmt, args);
+    va_end(args);
     fprintf(outputfp, "\n");
 }
 
@@ -699,6 +713,66 @@ static void emit_literal(Node *node) {
     }
 }
 
+static char **split(char *buf) {
+    char *p = buf;
+    int len = 1;
+    while (*p) {
+        if (p[0] == '\r' && p[1] == '\n') {
+            len++;
+            p += 2;
+            continue;
+        }
+        if (p[0] == '\r' || p[0] == '\n')
+            len++;
+        p++;
+    }
+    p = buf;
+    char **r = malloc(sizeof(char *) * len);
+    r[0] = buf;
+    int i = 1;
+    while (*p) {
+        if (p[0] == '\r' && p[1] == '\n') {
+            p[0] = '\0';
+            p += 2;
+            r[i++] = p;
+            continue;
+        }
+        if (p[0] == '\r' || p[0] == '\n') {
+            p[0] = '\0';
+            r[i++] = p + 1;
+        }
+        p++;
+    }
+    return r;
+}
+
+static char **read_source_file(char *file) {
+    FILE *fp = fopen(file, "r");
+    if (!fp)
+        return NULL;
+    struct stat st;
+    fstat(fileno(fp), &st);
+    char *buf = malloc(st.st_size + 1);
+    if (fread(buf, 1, st.st_size, fp) != st.st_size)
+        return NULL;
+    fclose(fp);
+    buf[st.st_size] = '\0';
+    return split(buf);
+}
+
+static void maybe_print_source_line(char *file, int line) {
+    if (!dumpsource)
+        return;
+    char **lines = dict_get(source_lines, file);
+    if (!lines) {
+        lines = read_source_file(file);
+        if (!lines)
+            return;
+        dict_put(source_lines, file, lines);
+    }
+    emit_nostack("# %s", lines[line - 1]);
+}
+
 static void maybe_print_source_loc(Node *node) {
     if (!node->sourceLoc)
         return;
@@ -710,8 +784,10 @@ static void maybe_print_source_loc(Node *node) {
         emit(".file %ld \"%s\"", fileno, quote_cstring(file));
     }
     char *loc = format(".loc %ld %d 0", fileno, node->sourceLoc->line);
-    if (strcmp(loc, last_loc))
+    if (strcmp(loc, last_loc)) {
         emit("%s", loc);
+        maybe_print_source_line(file, node->sourceLoc->line);
+    }
     last_loc = loc;
 }
 
