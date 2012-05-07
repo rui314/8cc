@@ -70,6 +70,10 @@ void t9(void) {
     return;
 }
 
+int t10(int a, double b) {
+    return a + b;
+}
+
 int ptrtest1(void) {
     return 55;
 }
@@ -142,6 +146,7 @@ void testmain(void) {
     expect(12, t7(3, 4));
     t8(23);
     t9();
+    expect(7, t10(3, 4.0));
     func_ptr_call();
     func_name();
     empty();

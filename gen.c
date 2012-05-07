@@ -225,7 +225,7 @@ static void emit_toint(Ctype *ctype) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT)
         emit("cvttss2si %%xmm0, %%eax");
-    else if (ctype->type == CTYPE_FLOAT)
+    else if (ctype->type == CTYPE_DOUBLE)
         emit("cvttsd2si %%xmm0, %%eax");
 }
 
