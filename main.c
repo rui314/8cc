@@ -31,7 +31,7 @@ static void usage(void) {
             "  -U name           Undefine name\n"
             "  -fdump-ast        print AST\n"
             "  -fno-dump-source  Do not emit source code as assembly comment\n"
-            "  -fnodump-stacktrace Do not print stacktrace\n"
+            "  -fno-dump-stack   Do not print stacktrace\n"
             "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
             "  -w                Disable all warnings\n"
