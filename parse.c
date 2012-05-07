@@ -2404,7 +2404,10 @@ List *read_toplevels(void) {
  */
 
 void parse_init(void) {
-    Ctype *t = make_func_type(ctype_void, make_list(), true, false);
-    dict_put(globalenv, "__builtin_va_start", ast_gvar(t, "__builtin_va_start"));
-    dict_put(globalenv, "__builtin_va_arg", ast_gvar(t, "__builtin_va_arg"));
+#define DEFINE_BUILTIN(name, rettype, paramtypes)                       \
+    dict_put(globalenv, name, ast_gvar(make_func_type(rettype, paramtypes, true, false), name))
+
+    DEFINE_BUILTIN("__builtin_va_start", ctype_void, make_list());
+    DEFINE_BUILTIN("__builtin_va_arg", ctype_void, make_list());
+    DEFINE_BUILTIN("__builtin_return_address", make_ptr_type(ctype_void), make_list1(ctype_uint));
 }

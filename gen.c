@@ -814,6 +814,29 @@ static void emit_gvar(Node *node) {
     emit_gload(node->ctype, node->glabel, 0);
 }
 
+static bool maybe_emit_builtin(Node *node) {
+    SAVE;
+    if (!strcmp("__builtin_return_address", node->fname)) {
+        push("r11");
+        assert(list_len(node->args) == 1);
+        emit_expr(list_head(node->args));
+        char *loop = make_label();
+        char *end = make_label();
+        emit("mov %%rbp, %%r11");
+        emit_label(loop);
+        emit("test %%rax, %%rax");
+        emit("jz %s", end);
+        emit("mov (%%r11), %%r11");
+        emit("sub $1, %%rax");
+        emit_jmp(loop);
+        emit_label(end);
+        emit("mov 8(%%r11), %%rax");
+        pop("r11");
+        return true;
+    }
+    return false;
+}
+
 static void classify_args(List *ints, List *floats, List *rest, List *args) {
     SAVE;
     int ireg = 0, xreg = 0;
@@ -1263,6 +1286,9 @@ static void emit_expr(Node *node) {
     case AST_LVAR:    emit_lvar(node); return;
     case AST_GVAR:    emit_gvar(node); return;
     case AST_FUNCALL:
+        if (maybe_emit_builtin(node))
+            return;
+        // fall through
     case AST_FUNCPTR_CALL:
         emit_func_call(node);
         return;
