@@ -153,6 +153,7 @@ typedef struct Ctype {
     struct Ctype *rettype;
     List *params;
     bool hasva;
+    bool oldstyle;
 } Ctype;
 
 typedef struct {

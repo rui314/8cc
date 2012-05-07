@@ -329,12 +329,13 @@ static Ctype* make_rectype(bool is_struct) {
     return make_type(&(Ctype){ CTYPE_STRUCT, .is_struct = is_struct });
 }
 
-static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs) {
+static Ctype* make_func_type(Ctype *rettype, List *paramtypes, bool has_varargs, bool oldstyle) {
     return make_type(&(Ctype){
         CTYPE_FUNC,
         .rettype = rettype,
         .params = paramtypes,
-        .hasva = has_varargs });
+        .hasva = has_varargs,
+        .oldstyle = oldstyle });
 }
 
 static Ctype *make_stub_type(void) {
@@ -776,7 +777,7 @@ static Node *read_funcall(char *fname, Node *func) {
     }
     warn("assume returning int: %s()", fname);
     List *args = read_func_args(&EMPTY_LIST);
-    return ast_funcall(make_func_type(ctype_int, make_list(), true), fname, args);
+    return ast_funcall(make_func_type(ctype_int, make_list(), true, false), fname, args);
 }
 
 static Node *read_funcptr_call(Node *fptr) {
@@ -1736,8 +1737,12 @@ static List *read_decl_init(Ctype *ctype) {
  */
 
 static Ctype *read_func_param(char **name, bool optional) {
-    int sclass;
-    Ctype *basetype = read_decl_spec(&sclass);
+    int sclass = 0;
+    Ctype *basetype = ctype_int;
+    if (is_type_keyword(peek_token()))
+        basetype = read_decl_spec(&sclass);
+    else if (optional)
+        error("type expected, but got %s", t2s(peek_token()));
     return read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
 }
 
@@ -1746,18 +1751,21 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
     List *paramtypes = make_list();
     Token *tok = read_token();
     if (is_punct(tok, KVOID) && next_token(')'))
-        return make_func_type(rettype, paramtypes, false);
+        return make_func_type(rettype, paramtypes, false, false);
     if (is_punct(tok, ')'))
-        return make_func_type(rettype, paramtypes, true);
+        return make_func_type(rettype, paramtypes, true, false);
     unget_token(tok);
+    bool oldstyle = true;
     for (;;) {
         if (next_token(KTHREEDOTS)) {
             if (list_len(paramtypes) == 0)
                 error("at least one parameter is required");
             expect(')');
-            return make_func_type(rettype, paramtypes, true);
+            return make_func_type(rettype, paramtypes, true, oldstyle);
         }
         char *name;
+        if (is_type_keyword(peek_token()))
+            oldstyle = false;
         Ctype *ptype = read_func_param(&name, typeonly);
         ensure_not_void(ptype);
         if (ptype->type == CTYPE_ARRAY)
@@ -1769,7 +1777,7 @@ static Ctype *read_func_param_list(List *paramvars, Ctype *rettype) {
         }
         Token *tok = read_token();
         if (is_punct(tok, ')'))
-            return make_func_type(rettype, paramtypes, false);
+            return make_func_type(rettype, paramtypes, false, oldstyle);
         if (!is_punct(tok, ','))
             error("comma expected, but got %s", t2s(tok));
     }
@@ -2019,6 +2027,61 @@ static void read_decl(List *block, MakeVarFn *make_var) {
 }
 
 /*----------------------------------------------------------------------
+ * K&R-style parameter types
+ */
+
+static List *read_oldstyle_param_args(void) {
+    Dict *olocalenv = localenv;
+    localenv = NULL;
+    List *r = make_list();
+    for (;;) {
+        if (is_punct(peek_token(), '{'))
+            break;
+        if (!is_type_keyword(peek_token()))
+            error("K&R-style declarator expected, but got %s", t2s(peek_token()));
+        read_decl(r, ast_lvar);
+    }
+    localenv = olocalenv;
+    return r;
+}
+
+static void update_oldstyle_param_type(List *params, List *vars) {
+    Iter *iter = list_iter(vars);
+ found:
+    while (!iter_end(iter)) {
+        Node *decl = iter_next(iter);
+        assert(decl->type == AST_DECL);
+        Node *var = decl->declvar;
+        assert(var->type == AST_LVAR);
+        Iter *iter2 = list_iter(params);
+        while (!iter_end(iter2)) {
+            Node *param = iter_next(iter2);
+            assert(param->type == AST_LVAR);
+            if (strcmp(param->varname, var->varname))
+                continue;
+            param->ctype = var->ctype;
+            goto found;
+        }
+        error("missing parameter: %s", var->varname);
+    }
+}
+
+static void read_oldstyle_param_type(List *params) {
+    List *vars = read_oldstyle_param_args();
+    update_oldstyle_param_type(params, vars);
+}
+
+static List *param_types(List *params) {
+    List *r = make_list();
+    Iter *iter = list_iter(params);
+    while (!iter_end(iter)) {
+        Node *param = iter_next(iter);
+        list_push(r, param->ctype);
+    }
+    return r;
+}
+
+/*----------------------------------------------------------------------
  * Function definition
  */
 
@@ -2047,7 +2110,7 @@ static bool is_funcdef(void) {
         list_push(buf, tok);
         if (!tok)
             error("premature end of input");
-        if (nest == 0 && paren && is_punct(tok, '{'))
+        if (nest == 0 && paren && (is_punct(tok, '{') || tok->type == TIDENT))
             break;
         if (nest == 0 && (is_punct(tok, ';') || is_punct(tok, ',') || is_punct(tok, '='))) {
             r = false;
@@ -2095,6 +2158,10 @@ static Node *read_funcdef(void) {
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
+    if (functype->oldstyle) {
+        read_oldstyle_param_type(params);
+        functype->params = param_types(params);
+    }
     functype->isstatic = (sclass == S_STATIC);
     ast_gvar(functype, name);
     expect('{');
@@ -2337,7 +2404,7 @@ List *read_toplevels(void) {
  */
 
 void parse_init(void) {
-    Ctype *t = make_func_type(ctype_void, make_list(), true);
+    Ctype *t = make_func_type(ctype_void, make_list(), true, false);
     dict_put(globalenv, "__builtin_va_start", ast_gvar(t, "__builtin_va_start"));
     dict_put(globalenv, "__builtin_va_arg", ast_gvar(t, "__builtin_va_arg"));
 }
