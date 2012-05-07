@@ -46,6 +46,13 @@ static void test_string(void) {
     expect(123, L123);
 }
 
+static void test_ucn(void) {
+    expect('$', L'\u0024');
+    expect('$', L'\U00000024');
+    expect_string("$", "\u0024");
+    expect_string("$", "\U00000024");
+}
+
 int g1 = (int){ 80 };
 int *g2 = &(int){ 81 };
 struct g3 { int x; } *g3 = &(struct g3){ 82 };
@@ -69,5 +76,6 @@ void testmain(void) {
     print("literal");
     test_char();
     test_string();
+    test_ucn();
     test_compound();
 }

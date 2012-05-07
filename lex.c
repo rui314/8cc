@@ -321,6 +321,28 @@ static int read_hex_char(void) {
     }
 }
 
+static bool is_valid_ucn(unsigned int c) {
+    if (0x800 <= c && c <= 0xDFFF)
+        return false;
+    return 0xA0 <= c || c == '$' || c == '@' || c == '`';
+}
+
+static int read_universal_char(int len) {
+    unsigned int r = 0;
+    for (int i = 0; i < len; i++) {
+        char c = get();
+        switch (c) {
+        case '0' ... '9': r = (r << 4) | (c - '0'); continue;
+        case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
+        case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
+        default: error("invalid universal character: %c", c);
+        }
+    }
+    if (!is_valid_ucn(r))
+        error("invalid universal character: \\%c%0*x", (len == 4) ? 'u' : 'U', len, r);
+    return r;
+}
+
 static int read_escaped_char(void) {
     int c = get();
     switch (c) {
@@ -338,6 +360,10 @@ static int read_escaped_char(void) {
         return read_octal_char(c);
     case 'x':
         return read_hex_char();
+    case 'u':
+        return read_universal_char(4);
+    case 'U':
+        return read_universal_char(8);
     case EOF:
         error("premature end of input");
     default:
