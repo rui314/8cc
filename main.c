@@ -37,6 +37,7 @@ static void usage(void) {
             "  -g                Do nothing at this moment\n"
             "  -Wall             Enable all warnings\n"
             "  -O<number>        Does nothing at this moment\n"
+            "  -m64              Output 64-bit code (default)\n"
             "  -w                Disable all warnings\n"
             "  -h                print this help\n"
             "\n"
@@ -105,10 +106,15 @@ static void parse_f_arg(char *s) {
         usage();
 }
 
+static void parse_m_arg(char *s) {
+    if (strcmp(s, "64"))
+        error("Only 64 is allowed for -m, but got %s", s);
+}
+
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:O:SU:W:acd:f:go:hw");
+        int opt = getopt(argc, argv, "I:ED:O:SU:W:acd:f:gm:o:hw");
         if (opt == -1)
             break;
         switch (opt) {
@@ -147,6 +153,9 @@ static void parseopt(int argc, char **argv) {
             break;
         case 'f':
             parse_f_arg(optarg);
+            break;
+        case 'm':
+            parse_m_arg(optarg);
             break;
         case 'g':
             break;
