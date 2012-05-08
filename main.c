@@ -36,6 +36,7 @@ static void usage(void) {
             "  -o filename       Output to the specified file\n"
             "  -g                Do nothing at this moment\n"
             "  -Wall             Enable all warnings\n"
+            "  -O<number>        Does nothing at this moment\n"
             "  -w                Disable all warnings\n"
             "  -h                print this help\n"
             "\n"
@@ -107,7 +108,7 @@ static void parse_f_arg(char *s) {
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:SU:W:acd:f:go:hw");
+        int opt = getopt(argc, argv, "I:ED:O:SU:W:acd:f:go:hw");
         if (opt == -1)
             break;
         switch (opt) {
@@ -124,6 +125,8 @@ static void parseopt(int argc, char **argv) {
             string_appendf(cppdefs, "#define %s\n", optarg);
             break;
         }
+        case 'O':
+            break;
         case 'S':
             dumpasm = true;
             break;
