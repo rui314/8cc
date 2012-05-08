@@ -578,6 +578,7 @@ int eval_intexpr(Node *node) {
     case '>': return L > R;
     case '^': return L ^ R;
     case '&': return L & R;
+    case '|': return L | R;
     case '%': return L % R;
     case OP_EQ: return L == R;
     case OP_GE: return L >= R;
