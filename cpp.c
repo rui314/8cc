@@ -848,6 +848,7 @@ void cpp_init(void) {
     list_unshift(std_include_path, "/usr/include/linux");
     list_unshift(std_include_path, "/usr/include");
     list_unshift(std_include_path, "/usr/local/include");
+    list_unshift(std_include_path, "/usr/local/lib/8cc/include");
     list_unshift(std_include_path, "./include");
 
     define_special_macro("__DATE__", handle_date_macro);
