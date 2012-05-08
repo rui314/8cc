@@ -34,6 +34,7 @@ static void usage(void) {
             "  -fno-dump-stack   Do not print stacktrace\n"
             "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
+            "  -Wall             Enable all warnings\n"
             "  -w                Disable all warnings\n"
             "  -h                print this help\n"
             "\n"
@@ -75,6 +76,11 @@ static FILE *open_output_file(void) {
     return fp;
 }
 
+static void parse_warnings_arg(char *s) {
+    if (strcmp(s, "all"))
+        error("unknown -W option: %s", s);
+}
+
 static void parse_debug_arg(char *s) {
     char *tok, *save;
     while ((tok = strtok_r(s, ",", &save)) != NULL) {
@@ -100,7 +106,7 @@ static void parse_f_arg(char *s) {
 static void parseopt(int argc, char **argv) {
     cppdefs = make_string();
     for (;;) {
-        int opt = getopt(argc, argv, "I:ED:SU:acd:f:o:hw");
+        int opt = getopt(argc, argv, "I:ED:SU:W:acd:f:o:hw");
         if (opt == -1)
             break;
         switch (opt) {
@@ -122,6 +128,9 @@ static void parseopt(int argc, char **argv) {
             break;
         case 'U':
             string_appendf(cppdefs, "#undef %s\n", optarg);
+            break;
+        case 'W':
+            parse_warnings_arg(optarg);
             break;
         case 'a':
             dumpast = true;
