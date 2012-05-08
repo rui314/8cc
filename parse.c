@@ -663,7 +663,7 @@ static Node *read_float(char *s) {
 }
 
 static Node *read_number(char *s) {
-    bool isfloat = strpbrk(s, ".pe");
+    bool isfloat = strpbrk(s, ".pP") || (strncasecmp(s, "0x", 2) && strpbrk(s, "eE"));
     return isfloat ? read_float(s) : read_int(s);
 }
 

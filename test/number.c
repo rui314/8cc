@@ -28,4 +28,5 @@ void testmain(void) {
     expect(8, sizeof(5L));
     expect(4, sizeof(3.0f));
     expect(8, sizeof(3.0));
+    expect(4, sizeof(0xe0));
 }
