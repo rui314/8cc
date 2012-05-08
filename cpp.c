@@ -613,6 +613,8 @@ static void read_elif(void) {
         skip_cond_incl();
     else if (read_constexpr())
         ci->wastrue = true;
+    else
+        skip_cond_incl();
 }
 
 static void read_endif(void) {

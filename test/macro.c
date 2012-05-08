@@ -195,6 +195,12 @@ void const_expr(void) {
 #endif
     expect(104, a);
 
+#if 0
+    fail("#if");
+#elif 0
+    fail("#elif");
+#endif
+
 #if 0 + 0
     a = 6;
 #else
