@@ -6,13 +6,13 @@
 
 void test_primitives(void) {
     expect(1, sizeof(void));
-    expect(1, sizeof(test_primitives));
     expect(1, sizeof(char));
     expect(1, sizeof(_Bool));
     expect(1, sizeof(bool));
     expect(2, sizeof(short));
     expect(4, sizeof(int));
     expect(8, sizeof(long));
+    expect(8, sizeof(test_primitives));
 }
 
 void test_pointers(void) {
@@ -50,6 +50,9 @@ void test_vars(void) {
     expect(3, sizeof(a));
     char b[] = "abc";
     expect(4, sizeof(b));
+    expect(1, sizeof(b[0]));
+    expect(1, sizeof((b[0])));
+    expect(1, sizeof((b)[0]));
     char *c[5];
     expect(40, sizeof(c));
     char *(*d)[3];

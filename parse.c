@@ -672,19 +672,11 @@ static Node *read_number(char *s) {
  * Sizeof operator
  */
 
-static Ctype *read_sizeof_operand_sub(bool allow_typename) {
+static Ctype *read_sizeof_operand_sub(void) {
     Token *tok = read_token();
-    if (allow_typename && is_type_keyword(tok)) {
-        unget_token(tok);
-        return read_func_param(NULL, true);
-    }
-    if (is_punct(tok, '(')) {
-        Ctype *r = read_sizeof_operand_sub(true);
-        if (!is_punct(peek_token(), ')'))
-            read_cast_expr();
+    if (is_punct(tok, '(') && is_type_keyword(peek_token())) {
+        Ctype *r = read_func_param(NULL, true);
         expect(')');
-        if (is_punct(peek_token(), '{'))
-            read_decl_init(r);
         return r;
     }
     unget_token(tok);
@@ -693,7 +685,7 @@ static Ctype *read_sizeof_operand_sub(bool allow_typename) {
 }
 
 static Node *read_sizeof_operand(void) {
-    Ctype *ctype = read_sizeof_operand_sub(false);
+    Ctype *ctype = read_sizeof_operand_sub();
     // Sizeof on void or function type is GNU extension
     int size = (ctype->type == CTYPE_VOID || ctype->type == CTYPE_FUNC) ? 1 : ctype->size;
     assert(0 <= size);
