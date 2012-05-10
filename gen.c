@@ -522,7 +522,7 @@ static void emit_binop(Node *node) {
     else if (is_flotype(node->ctype))
         emit_binop_float_arith(node);
     else
-        error("internal error");
+        error("internal error: %s", a2s(node));
 }
 
 static void emit_save_literal(Node *node, Ctype *totype, int off) {

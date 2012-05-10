@@ -6,13 +6,13 @@
 
 void test_primitives(void) {
     expect(1, sizeof(void));
+    expect(1, sizeof(test_primitives));
     expect(1, sizeof(char));
     expect(1, sizeof(_Bool));
     expect(1, sizeof(bool));
     expect(2, sizeof(short));
     expect(4, sizeof(int));
     expect(8, sizeof(long));
-    expect(8, sizeof(test_primitives));
 }
 
 void test_pointers(void) {

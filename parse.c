@@ -53,6 +53,7 @@ static Ctype* make_array_type(Ctype *ctype, int size);
 static Node *read_compound_stmt(void);
 static void read_decl_or_stmt(List *list);
 static Ctype *convert_array(Ctype *ctype);
+static Node *convert_funcdesg(Node *node);
 static Node *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Node *read_unary_expr(void);
@@ -737,7 +738,7 @@ static List *read_func_args(List *params) {
     Iter *iter = list_iter(params);
     for (;;) {
         if (next_token(')')) break;
-        Node *arg = read_assignment_expr();
+        Node *arg = convert_funcdesg(read_assignment_expr());
         Ctype *paramtype = iter_next(iter);
         if (!paramtype) {
             paramtype = is_flotype(arg->ctype) ? ctype_double :
@@ -1091,11 +1092,10 @@ static Node *read_cast_expr(void) {
 
 static Node *read_multiplicative_expr(void) {
     Node *node = read_cast_expr();
-    node = convert_funcdesg(node);
     for (;;) {
-        if      (next_token('*')) node = usual_conv('*', node, convert_funcdesg(read_cast_expr()));
-        else if (next_token('/')) node = usual_conv('/', node, convert_funcdesg(read_cast_expr()));
-        else if (next_token('%')) node = usual_conv('%', node, convert_funcdesg(read_cast_expr()));
+        if      (next_token('*')) node = usual_conv('*', node, read_cast_expr());
+        else if (next_token('/')) node = usual_conv('/', node, read_cast_expr());
+        else if (next_token('%')) node = usual_conv('%', node, read_cast_expr());
         else break;
     }
     return node;
@@ -1104,8 +1104,8 @@ static Node *read_multiplicative_expr(void) {
 static Node *read_additive_expr(void) {
     Node *node = read_multiplicative_expr();
     for (;;) {
-        if      (next_token('+')) node = usual_conv('+', node, read_multiplicative_expr());
-        else if (next_token('-')) node = usual_conv('-', node, read_multiplicative_expr());
+        if      (next_token('+')) node = usual_conv('+', convert_funcdesg(node), convert_funcdesg(read_multiplicative_expr()));
+        else if (next_token('-')) node = usual_conv('-', convert_funcdesg(node), convert_funcdesg(read_multiplicative_expr()));
         else break;
     }
     return node;
@@ -1125,7 +1125,7 @@ static Node *read_shift_expr(void) {
         ensure_inttype(node);
         ensure_inttype(right);
         Ctype *resulttype = larger_type(node->ctype, right->ctype);
-        node = ast_binop(resulttype, op, node, right);
+        node = ast_binop(resulttype, op, convert_funcdesg(node), convert_funcdesg(right));
     }
     return node;
 }
@@ -1145,9 +1145,9 @@ static Node *read_relational_expr(void) {
 static Node *read_equality_expr(void) {
     Node *node = read_relational_expr();
     if (next_token(OP_EQ))
-        return usual_conv(OP_EQ, node, read_equality_expr());
+        return usual_conv(OP_EQ, convert_funcdesg(node), convert_funcdesg(read_equality_expr()));
     if (next_token(OP_NE))
-        return usual_conv(OP_NE, node, read_equality_expr());
+        return usual_conv(OP_NE, convert_funcdesg(node), convert_funcdesg(read_equality_expr()));
     return node;
 }
 
@@ -1209,7 +1209,7 @@ static Node *read_assignment_expr(void) {
     }
     int cop = get_compound_assign_op(tok);
     if (is_punct(tok, '=') || cop) {
-        Node *value = read_assignment_expr();
+        Node *value = convert_funcdesg(read_assignment_expr());
         if (is_punct(tok, '=') || cop)
             ensure_lvalue(node);
         Node *right = cop ? usual_conv(cop, node, value) : value;
@@ -1546,7 +1546,7 @@ static void read_initializer_elem(List *inits, Ctype *ctype, int off, bool desig
         read_initializer_elem(inits, ctype, off, true);
         expect('}');
     } else {
-        Node *expr = read_assignment_expr();
+        Node *expr = convert_funcdesg(read_assignment_expr());
         ensure_assignable(ctype, expr->ctype);
         list_push(inits, ast_init(expr, ctype, off));
     }
@@ -1702,7 +1702,7 @@ static List *read_decl_init(Ctype *ctype) {
     if (is_punct(peek_token(), '{') || is_string(ctype)) {
         read_initializer_list(r, ctype, 0, false);
     } else {
-        Node *init = read_assignment_expr();
+        Node *init = convert_funcdesg(read_assignment_expr());
         if (is_arithtype(init->ctype) && init->ctype->type != ctype->type)
             init = ast_conv(ctype, init);
         list_push(r, ast_init(init, ctype, 0));
