@@ -36,6 +36,7 @@ static void usage(void) {
             "  -o filename       Output to the specified file\n"
             "  -g                Do nothing at this moment\n"
             "  -Wall             Enable all warnings\n"
+            "  -Werror           Make all warnings into errors\n"
             "  -O<number>        Does nothing at this moment\n"
             "  -m64              Output 64-bit code (default)\n"
             "  -w                Disable all warnings\n"
@@ -80,7 +81,9 @@ static FILE *open_output_file(void) {
 }
 
 static void parse_warnings_arg(char *s) {
-    if (strcmp(s, "all"))
+    if (!strcmp(s, "error"))
+        warning_is_error = true;
+    else if (strcmp(s, "all"))
         error("unknown -W option: %s", s);
 }
 

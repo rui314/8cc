@@ -7,6 +7,9 @@
 #define error(...)                              \
     errorf(__FILE__, __LINE__, __VA_ARGS__)
 
+#define warn(...)                               \
+    warnf(__FILE__, __LINE__, __VA_ARGS__)
+
 #define assert(expr)                                    \
     do {                                                \
         if (!(expr)) error("Assertion failed: " #expr); \
@@ -19,7 +22,7 @@
 #endif
 
 extern void errorf(char *file, int line, char *fmt, ...) NORETURN;
-extern void warn(char *fmt, ...);
+extern void warnf(char *file, int line, char *fmt, ...);
 extern char *quote_cstring(char *p);
 extern char *quote_char(char c);
 

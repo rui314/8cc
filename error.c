@@ -7,26 +7,30 @@
 #include "8cc.h"
 
 bool enable_warning = true;
+bool warning_is_error = false;
 
-void errorf(char *file, int line, char *fmt, ...) {
-    fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;31m[ERROR]\e[0m " : "[ERROR] ");
+static void print_error(char *file, int line, char *level, char *fmt, va_list args) {
+    fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;31m[%s]\e[0m " : "[%s] ", level);
     fprintf(stderr, "%s:%d: %s: ", file, line, input_position());
-    va_list args;
-    va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
+}
+
+void errorf(char *file, int line, char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    print_error(file, line, "ERROR", fmt, args);
     va_end(args);
     exit(1);
 }
 
-void warn(char *fmt, ...) {
+void warnf(char *file, int line, char *fmt, ...) {
     if (!enable_warning)
         return;
-    fprintf(stderr, isatty(fileno(stderr)) ? "\e[1;31m[WARNING]\e[0m " : "[WARNING] ");
-    fprintf(stderr, "%s: ", input_position());
     va_list args;
     va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    print_error(file, line, warning_is_error ? "ERROR" : "WARN", fmt, args);
     va_end(args);
+    if (warning_is_error)
+        exit(1);
 }

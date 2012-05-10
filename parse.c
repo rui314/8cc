@@ -1533,7 +1533,7 @@ static void skip_to_brace(void) {
         Node *ignore = read_assignment_expr();
         if (!ignore)
             return;
-        warn("ignore excessive initializer: %s", a2s(ignore));
+        warn("excessive initializer: %s", a2s(ignore));
         maybe_skip_comma();
     }
 }
