@@ -140,6 +140,24 @@ static void unget(int c) {
     file->column--;
 }
 
+static bool iswhitespace(int c) {
+    return c == ' ' || c == '\t' || c == '\f' || c == '\v';
+}
+
+static bool skip_whitespace(void) {
+    bool r = false;
+    for (;;) {
+        int c = getc(file->fp);
+        if (iswhitespace(c)) {
+            file->column++;
+            r = true;
+            continue;
+        }
+        ungetc(c, file->fp);
+        return r;
+    }
+}
+
 static bool skip_newline(int c) {
     if (c == '\n')
         return true;
@@ -158,9 +176,11 @@ static int get(void) {
     file->column++;
     ungotten = -1;
     if (c == '\\') {
+        bool space_exist = skip_whitespace();
         c = getc(file->fp);
-        file->column++;
         if (skip_newline(c)) {
+            if (space_exist)
+                warn("backslash and newline separated by space");
             file->line++;
             file->column = 1;
             return get();
@@ -203,10 +223,6 @@ static void skip_line(void) {
             return;
         }
     }
-}
-
-static bool iswhitespace(int c) {
-    return c == ' ' || c == '\t' || c == '\f' || c == '\v';
 }
 
 static int skip_space(void) {
