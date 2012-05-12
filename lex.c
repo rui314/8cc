@@ -182,7 +182,7 @@ static int get(void) {
             if (space_exist)
                 warn("backslash and newline separated by space");
             file->line++;
-            file->column = 1;
+            file->column = 0;
             return get();
         }
         unget(c);
@@ -191,7 +191,7 @@ static int get(void) {
     }
     if (skip_newline(c)) {
         file->line++;
-        file->column = 1;
+        file->column = 0;
         at_bol = true;
     } else {
         at_bol = false;
