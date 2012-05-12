@@ -214,12 +214,12 @@ static int skip_space(void) {
     for (;;) {
         int c = get();
         if (c == EOF) break;
-        if (iswhitespace(c)) {
-            nspace++;
-            continue;
-        }
         if (c == '\t'){
             nspace += 4;
+            continue;
+        }
+        if (iswhitespace(c)) {
+            nspace++;
             continue;
         }
         if (c == '/') {
