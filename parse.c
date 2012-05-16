@@ -552,6 +552,12 @@ static Ctype *convert_array(Ctype *ctype) {
  * Integer constant expression
  */
 
+static int eval_struct_ref(Node *node, int offset) {
+    if (node->type == AST_STRUCT_REF)
+        return eval_struct_ref(node->struc, node->ctype->offset + offset);
+    return eval_intexpr(node) + offset;
+}
+
 int eval_intexpr(Node *node) {
     switch (node->type) {
     case AST_LITERAL:
@@ -563,6 +569,14 @@ int eval_intexpr(Node *node) {
     case OP_UMINUS: return -eval_intexpr(node->operand);
     case OP_CAST: return eval_intexpr(node->operand);
     case AST_CONV: return eval_intexpr(node->operand);
+    case AST_ADDR:
+        if (node->operand->type == AST_STRUCT_REF)
+            return eval_struct_ref(node->operand, 0);
+        goto error;
+    case AST_DEREF:
+        if (node->operand->ctype->type == CTYPE_PTR)
+            return eval_intexpr(node->operand);
+        goto error;
     case AST_TERNARY: {
         long cond = eval_intexpr(node->cond);
         if (cond)
@@ -593,6 +607,7 @@ int eval_intexpr(Node *node) {
 #undef L
 #undef R
     default:
+    error:
         error("Integer expression expected, but got %s", a2s(node));
     }
 }
