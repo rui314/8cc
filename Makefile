@@ -1,8 +1,9 @@
-CFLAGS=-Wall -std=gnu99 -g -I. -O0
+CFLAGS=-Wall -std=gnu99 -g -I. -O0 -DBUILD_DIR='"$(shell pwd)"'
 OBJS=cpp.o debug.o dict.o gen.o lex.o list.o parse.o string.o error.o
 SELF=cpp.s debug.s dict.s gen.s lex.s list.s parse.s string.s error.s main.s
 TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))
 PREFIX=/usr/local
+ECC_CFLAGS=-DBUILD_DIR='"$(shell pwd)"'
 
 8cc: 8cc.h main.o $(OBJS)
 	$(CC) -o $@ main.o $(OBJS) $(LDFLAGS)
@@ -21,13 +22,13 @@ test: utiltest $(TESTS)
 	./test.sh
 
 test/%.o: test/%.c 8cc
-	./8cc -c $<
+	./8cc $(ECC_CFLAGS) -c $<
 
 test/%.bin: test/%.o test/main/testmain.s 8cc
 	$(CC) -o $@ $< test/main/testmain.o $(LDFLAGS)
 
 $(SELF) test/main/testmain.s: 8cc test/main/testmain.c
-	./8cc -c $(@:s=c)
+	./8cc $(ECC_CFLAGS) -c $(@:s=c)
 
 self: $(SELF)
 	rm -f 8cc utiltest
