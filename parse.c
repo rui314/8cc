@@ -13,23 +13,34 @@
 #include <strings.h>
 #include "8cc.h"
 
-#define MAX_OP_PRIO 16
+// The largest alignment requirement on x86-64. When we are allocating memory
+// for an array whose type is unknown, the array will be aligned to this
+// boundary.
 #define MAX_ALIGN 16
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
+// The last source location we want to point to when we find an error in the
+// soruce code.
 SourceLoc *source_loc;
 
+// Objects representing various scopes. Did you know C has so many different
+// scopes? You can use the same name for global variable, local variable, struct
+// tag, union tag, and goto label!
 static Dict *globalenv = &EMPTY_DICT;
 static Dict *localenv;
 static Dict *struct_defs = &EMPTY_DICT;
 static Dict *union_defs = &EMPTY_DICT;
-static List *gotos;
 static Dict *labels;
+
 static List *localvars;
+static List *gotos;
 static Ctype *current_func_type;
 
+// Objects representing basic types. All variables will be of one of these types
+// or a derived type from one of them. Note that (typename){initializer} is C99
+// feature to write a literal struct.
 Ctype *ctype_void = &(Ctype){ CTYPE_VOID, 0, 0, true };
 Ctype *ctype_bool = &(Ctype){ CTYPE_BOOL, 1, 1, false };
 Ctype *ctype_char = &(Ctype){ CTYPE_CHAR, 1, 1, true };
@@ -44,6 +55,7 @@ static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, 8, false };
 static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, 8, true };
 static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, 8, false };
 
+// The counter to make a unique identifier for labels.
 static int labelseq = 0;
 
 typedef Node *MakeVarFn(Ctype *ctype, char *name);
