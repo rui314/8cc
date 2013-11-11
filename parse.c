@@ -2430,4 +2430,5 @@ void parse_init(void) {
     DEFINE_BUILTIN("__builtin_va_start", ctype_void, make_list());
     DEFINE_BUILTIN("__builtin_va_arg", ctype_void, make_list());
     DEFINE_BUILTIN("__builtin_return_address", make_ptr_type(ctype_void), make_list1(ctype_uint));
+#undef DEFINE_BUILTIN
 }
