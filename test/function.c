@@ -94,9 +94,8 @@ void func_ptr_call(void) {
     expect(110, p2(55));
     float (*p3)(float) = ptrtest3;
     expectf(4, p3(2));
-
-    int (*p1)(void) = & & & &ptrtest1;
-    expect(55, (**p1)());
+    int (*p4)(void) = &ptrtest1;
+    expect(55, (**p4)());
 }
 
 void func_name(void) {

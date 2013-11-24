@@ -1031,7 +1031,7 @@ static Node *read_label_addr(void) {
 static Node *read_unary_addr(void) {
     Node *operand = read_cast_expr();
     if (operand->type == AST_FUNCDESG)
-        return operand;
+        return convert_funcdesg(operand);
     ensure_lvalue(operand);
     return ast_uop(AST_ADDR, make_ptr_type(operand->ctype), operand);
 }
