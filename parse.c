@@ -488,7 +488,7 @@ static Ctype *result_type(int op, Ctype *ctype) {
     case OP_LE: case OP_GE: case OP_EQ: case OP_NE: case '<': case '>':
         return ctype_int;
     default:
-        return larger_type(ctype, ctype);
+        return larger_type(ctype, ctype_int);
     }
 }
 
