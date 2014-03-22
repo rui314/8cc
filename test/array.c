@@ -3,14 +3,14 @@
 
 #include "test.h"
 
-void t1(void) {
+static void t1(void) {
     int a[2][3];
     int *p = a;
     *p = 1;
     expect(1, *p);
 }
 
-void t2(void) {
+static void t2(void) {
     int a[2][3];
     int *p = a + 1;
     *p = 1;
@@ -19,21 +19,21 @@ void t2(void) {
     expect(32, *(q + 3));
 }
 
-void t3(void) {
+static void t3(void) {
     int a[4][5];
     int *p = a;
     *(*(a + 1) + 2) = 62;
     expect(62, *(p + 7));
 }
 
-void t4(void) {
+static void t4(void) {
     int a[3] = { 1, 2, 3 };
     expect(1, a[0]);
     expect(2, a[1]);
     expect(3, a[2]);
 }
 
-void t5(void) {
+static void t5(void) {
     int a[2][3];
     a[0][1] = 1;
     a[1][1] = 2;
@@ -42,18 +42,18 @@ void t5(void) {
     expect(2, p[4]);
 }
 
-void t6a(int e, int x[][3]) {
+static void t6a(int e, int x[][3]) {
     expect(e, *(*(x + 1) + 1));
 }
 
-void t6(void) {
+static void t6(void) {
     int a[2][3];
     int *p = a;
     *(p + 4) = 65;
     t6a(65, a);
 }
 
-void t7(void) {
+static void t7(void) {
     int a[3*3];  // integer constant expression
     a[8] = 68;
     expect(68, a[8]);

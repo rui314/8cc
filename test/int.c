@@ -3,7 +3,7 @@
 
 #include "test.h"
 
-void expects(short a, short b) {
+static void expects(short a, short b) {
     if (!(a == b)) {
         printf("Failed\n");
         printf("  %d expected, but got %d\n", a, b);

@@ -5,7 +5,7 @@
 
 #define stringify(x) #x
 
-void digraph(void) {
+static void digraph(void) {
     expect_string("[", stringify(<:));
     expect_string("]", stringify(:>));
     expect_string("{", stringify(<%));
@@ -16,7 +16,7 @@ void digraph(void) {
     expect_string("#%", stringify(%:%));
 }
 
-void escape(void) {
+static void escape(void) {
     int value = 10;
     expect(10, val\
 ue);
@@ -33,16 +33,16 @@ ue);
 #endif
 }
 
-void whitespace(void) {
+static void whitespace(void) {
     expect_string("x y", stringify(xy));
 }
 
-void newline(void) {
+static void newline(void) {
      
 #
 }
 
-void dollar(void) {
+static void dollar(void) {
     int $ = 1;
     expect(1, $);
     int $2 = 2;

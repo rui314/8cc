@@ -8,11 +8,11 @@ int t1(void) {
     return 77;
 }
 
-void t2(int a) {
+static void t2(int a) {
     expect(79, a);
 }
 
-void t3(int a, int b, int c, int d, int e, int f) {
+static void t3(int a, int b, int c, int d, int e, int f) {
     expect(1, a);
     expect(2, b);
     expect(3, c);
@@ -25,24 +25,24 @@ int t4a(int *p) {
     return *p;
 }
 
-void t4(void) {
+static void t4(void) {
     int a[] = { 98 };
     expect(98, t4a(a));
 }
 
-void t5a(int *p) {
+static void t5a(int *p) {
     expect(99, *p); p=p+1;
     expect(98, *p); p=p+1;
     expect(97, *p);
 }
 
-void t5b(int p[]) {
+static void t5b(int p[]) {
     expect(99, *p); p=p+1;
     expect(98, *p); p=p+1;
     expect(97, *p);
 }
 
-void t5(void) {
+static void t5(void) {
     int a[] = {1, 2, 3};
     int *p = a;
     *p = 99; p = p + 1;
@@ -66,7 +66,7 @@ int t8(int a, ...) {
     expect(23, a);
 }
 
-void t9(void) {
+static void t9(void) {
     return;
 }
 
@@ -86,7 +86,7 @@ float ptrtest3(float a) {
     return a * 2;
 }
 
-void func_ptr_call(void) {
+static void func_ptr_call(void) {
     expectf(4, ptrtest3(2));
     int (*p1)(void) = ptrtest1;
     expect(55, p1());
@@ -98,15 +98,15 @@ void func_ptr_call(void) {
     expect(55, (**p4)());
 }
 
-void func_name(void) {
+static void func_name(void) {
     expect_string("func_name", __func__);
     expect_string("func_name", __FUNCTION__);
 }
 
-void empty(void) {
+static void empty(void) {
 }
 
-void empty2(void) {
+static void empty2(void) {
     ;;;
 }
 
@@ -116,7 +116,7 @@ bool booltest2(int x) {
     return x;
 }
 
-void test_bool(void) {
+static void test_bool(void) {
     expect(0, booltest1(256));
     expect(1, booltest1(257));
     expect(1, booltest2(512));
@@ -129,7 +129,7 @@ int sum(MyType x) {
     return x.a + x.b + x.c + x.d;
 }
 
-void test_struct(void) {
+static void test_struct(void) {
     expect(14, sum((MyType){ 2, 3, 4, 5 }));
 }
 

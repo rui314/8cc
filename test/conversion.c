@@ -3,7 +3,7 @@
 
 #include "test.h"
 
-void test_bool(void) {
+static void test_bool(void) {
     _Bool v = 3;
     expect(1, v);
     v = 5;
@@ -14,7 +14,7 @@ void test_bool(void) {
     expect(0, v);
 }
 
-void test_float(void) {
+static void test_float(void) {
     double a = 4.0;
     float b = a;
     expectf(4, b);

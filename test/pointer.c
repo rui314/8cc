@@ -3,35 +3,35 @@
 
 #include "test.h"
 
-void t1(void) {
+static void t1(void) {
     int a = 61;
     int *b = &a;
     expect(61, *b);
 }
 
-void t2(void) {
+static void t2(void) {
     char *c = "ab";
     expect(97, *c);
 }
 
-void t3(void) {
+static void t3(void) {
     char *c = "ab" + 1;
     expect(98, *c);
 }
 
-void t4(void) {
+static void t4(void) {
     char s[] = "xyz";
     char *c = s + 2;
     expect(122, *c);
 }
 
-void t5(void) {
+static void t5(void) {
     char s[] = "xyz";
     *s = 65;
     expect(65, *s);
 }
 
-void t6(void) {
+static void t6(void) {
     struct tag {
         int val;
         struct tag *next;
@@ -47,7 +47,7 @@ void t6(void) {
     expect(1, p->next->val);
 }
 
-void subtract(void) {
+static void subtract(void) {
     char *p = "abcdefg";
     char *q = p + 5;
     expect(5, q - p);

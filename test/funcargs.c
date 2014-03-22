@@ -1,12 +1,12 @@
 #include "test.h"
 
-void many_ints(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9) {
+static void many_ints(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9) {
     expect(1, v1); expect(2, v2); expect(3, v3); expect(4, v4);
     expect(5, v5); expect(6, v6); expect(7, v7); expect(8, v8);
     expect(9, v9);
 }
 
-void many_floats(float v01, float v02, float v03, float v04, float v05,
+static void many_floats(float v01, float v02, float v03, float v04, float v05,
                  float v06, float v07, float v08, float v09, float v10,
                  float v11, float v12, float v13, float v14, float v15,
                  float v16, float v17) {
@@ -17,7 +17,7 @@ void many_floats(float v01, float v02, float v03, float v04, float v05,
     expectf(17, v17);
 }
 
-void mixed(float v01, int v02, float v03, int v04, float v05, int v06, float v07, int v08,
+static void mixed(float v01, int v02, float v03, int v04, float v05, int v06, float v07, int v08,
            float v09, int v10, float v11, int v12, float v13, int v14, float v15, int v16,
            float v17, int v18, float v19, int v20, float v21, int v22, float v23, int v24,
            float v25, int v26, float v27, int v28, float v29, int v30, float v31, int v32,

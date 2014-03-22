@@ -4,7 +4,7 @@
 #include "test.h"
 #include <stdalign.h>
 
-void test_alignof(void) {
+static void test_alignof(void) {
     expect(1, __alignof_is_defined);
     expect(1, _Alignof(char));
     expect(1, __alignof__(char));

@@ -6,7 +6,7 @@
 
 char buf[100];
 
-void test_int(int a, ...) {
+static void test_int(int a, ...) {
     va_list ap;
     va_start(ap, a);
     expect(1, a);
@@ -17,7 +17,7 @@ void test_int(int a, ...) {
     va_end(ap);
 }
 
-void test_float(float a, ...) {
+static void test_float(float a, ...) {
     va_list ap;
     va_start(ap, a);
     expectf(1.0, a);
@@ -27,7 +27,7 @@ void test_float(float a, ...) {
     va_end(ap);
 }
 
-void test_mix(char *p, ...) {
+static void test_mix(char *p, ...) {
     va_list ap;
     va_start(ap, p);
     expect_string("abc", p);
@@ -46,7 +46,7 @@ char *format(char *fmt, ...) {
     buf;
 }
 
-void test_va_list(void) {
+static void test_va_list(void) {
     expect_string("", format(""));
     expect_string("3", format("%d", 3));
     expect_string("3,1.0,6,2.0,abc", format("%d,%.1f,%d,%.1f,%s", 3, 1.0, 6, 2.0, "abc"));

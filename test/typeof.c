@@ -3,14 +3,14 @@
 
 #include "test.h"
 
-void test_basic(void) {
+static void test_basic(void) {
     typeof(int) a = 5;
     expect(5, a);
     typeof(a) b = 6;
     expect(6, b);
 }
 
-void test_array(void) {
+static void test_array(void) {
     char a[] = "abc";
     typeof(a) b = "de";
     expect_string("de", b);
@@ -20,7 +20,7 @@ void test_array(void) {
     expect(4, sizeof(y) / sizeof(*y));
 }
 
-void test_alt(void) {
+static void test_alt(void) {
     __typeof__(int) a = 10;
     expect(10, a);
 }

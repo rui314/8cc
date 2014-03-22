@@ -15,7 +15,7 @@ int test_if9(void) { if (0+1) return 'i'; return 0; }
 int test_if10(void) { if (1-1) return 0; return 'j'; }
 int test_if11(void) { if (0.5) return 'k'; return 0; }
 
-void test_if(void) {
+static void test_if(void) {
     expect('a', test_if1());
     expect('b', test_if2());
     expect('c', test_if3());
@@ -29,7 +29,7 @@ void test_if(void) {
     expect('k', test_if11());
 }
 
-void test_for(void) {
+static void test_for(void) {
     int i;
     int acc = 0;
     for (i = 0; i < 5; i++) {
@@ -64,7 +64,7 @@ void test_for(void) {
     expect(68, i);
 }
 
-void test_while(void) {
+static void test_while(void) {
     int acc = 0;
     int i = 0;
     while (i <= 100)
@@ -99,7 +99,7 @@ void test_while(void) {
     expect(67, i);
 }
 
-void test_do(void) {
+static void test_do(void) {
     int acc = 0;
     int i = 0;
     do {
@@ -132,7 +132,7 @@ void test_do(void) {
     expect(72, i);
 }
 
-void test_switch(void) {
+static void test_switch(void) {
     int a = 0;
     switch (1+2) {
     case 0: fail("0");
@@ -195,7 +195,7 @@ void test_switch(void) {
         ;
 }
 
-void test_goto(void) {
+static void test_goto(void) {
     int acc = 0;
     goto x;
     acc = 5;
@@ -213,7 +213,7 @@ void test_goto(void) {
  a:
 }
 
-void test_computed_goto(void) {
+static void test_computed_goto(void) {
     struct { void *x, *y, *z, *a; } t = { &&x, &&y, &&z, &&a };
     int acc = 0;
     goto *t.x;
@@ -232,7 +232,7 @@ void test_computed_goto(void) {
  a:
 }
 
-void test_logor(void) {
+static void test_logor(void) {
     expect(1, 0 || 3);
     expect(1, 5 || 0);
     expect(0, 0 || 0);
