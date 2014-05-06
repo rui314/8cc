@@ -1743,12 +1743,12 @@ static List *read_decl_init(Ctype *ctype) {
  * C's syntax for declaration is not only hard to read for humans but also
  * hard to parse for hand-written parsers. Consider the following two cases:
  *
- *   (A) int *x;
- *   (B) int *x();
+ *   A: int *x;
+ *   B: int *x();
  *
- * A is of type pointer to int, while B is not pointer type. B is of type
+ * A is of type pointer to int, but B is not a pointer type. B is of type
  * function returning a pointer to an integer. The meaning of the first half
- * of the declaration ("int *" part) is different among them.
+ * of the declaration ("int *" part) is different between them.
  *
  * In 8cc, delcarations are parsed by two functions: read_direct_declarator1
  * and read_direct_declarator2. The former function parses the first half of a
