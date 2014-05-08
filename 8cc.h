@@ -162,6 +162,11 @@ typedef struct {
     int line;
 } SourceLoc;
 
+typedef struct {
+    long constant;
+    char *label;
+} ConstExpr;
+
 typedef struct Node {
     int type;
     Ctype *ctype;
@@ -316,7 +321,7 @@ extern void print_asm_header(void);
 extern char *make_label(void);
 extern List *read_toplevels(void);
 extern Node *read_expr(void);
-extern int eval_intexpr(Node *node);
+extern void eval_constexpr(ConstExpr *cexpr, Node *node);
 extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
 

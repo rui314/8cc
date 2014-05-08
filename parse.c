@@ -564,68 +564,13 @@ static Ctype *convert_array(Ctype *ctype) {
  * Integer constant expression
  */
 
-static int eval_struct_ref(Node *node, int offset) {
-    if (node->type == AST_STRUCT_REF)
-        return eval_struct_ref(node->struc, node->ctype->offset + offset);
-    return eval_intexpr(node) + offset;
-}
-
-int eval_intexpr(Node *node) {
-    switch (node->type) {
-    case AST_LITERAL:
-        if (is_inttype(node->ctype))
-            return node->ival;
-        error("Integer expression expected, but got %s", a2s(node));
-    case '!': return !eval_intexpr(node->operand);
-    case '~': return ~eval_intexpr(node->operand);
-    case OP_UMINUS: return -eval_intexpr(node->operand);
-    case OP_CAST: return eval_intexpr(node->operand);
-    case AST_CONV: return eval_intexpr(node->operand);
-    case AST_ADDR:
-        if (node->operand->type == AST_STRUCT_REF)
-            return eval_struct_ref(node->operand, 0);
-        goto error;
-    case AST_DEREF:
-        if (node->operand->ctype->type == CTYPE_PTR)
-            return eval_intexpr(node->operand);
-        goto error;
-    case AST_TERNARY: {
-        long cond = eval_intexpr(node->cond);
-        if (cond)
-            return node->then ? eval_intexpr(node->then) : cond;
-        return eval_intexpr(node->els);
-    }
-#define L (eval_intexpr(node->left))
-#define R (eval_intexpr(node->right))
-    case '+': return L + R;
-    case '-': return L - R;
-    case '*': return L * R;
-    case '/': return L / R;
-    case '<': return L < R;
-    case '>': return L > R;
-    case '^': return L ^ R;
-    case '&': return L & R;
-    case '|': return L | R;
-    case '%': return L % R;
-    case OP_EQ: return L == R;
-    case OP_GE: return L >= R;
-    case OP_LE: return L <= R;
-    case OP_NE: return L != R;
-    case OP_SAL: return L << R;
-    case OP_SAR: return L >> R;
-    case OP_SHR: return ((unsigned long)L) >> R;
-    case OP_LOGAND: return L && R;
-    case OP_LOGOR:  return L || R;
-#undef L
-#undef R
-    default:
-    error:
-        error("Integer expression expected, but got %s", a2s(node));
-    }
-}
-
 static int read_intexpr() {
-    return eval_intexpr(read_conditional_expr());
+    ConstExpr cexpr;
+    Node * ast = read_conditional_expr();
+    eval_constexpr(&cexpr,ast);
+    if(cexpr.label) {
+        error("Expected an int expression, got an address constant.");
+    }
 }
 
 /*----------------------------------------------------------------------
