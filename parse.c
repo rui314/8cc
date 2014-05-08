@@ -571,6 +571,7 @@ static int read_intexpr() {
     if(cexpr.label) {
         error("Expected an int expression, got an address constant.");
     }
+    return cexpr.constant;
 }
 
 /*----------------------------------------------------------------------
