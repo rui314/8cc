@@ -50,12 +50,34 @@ static void eval_constbinop(ConstExpr *left, Node * node) {
     eval_constexpr(left, node->left);
     eval_constexpr(&right, node->right);
     switch(node->type) {
-        case '+':
-            if(left->label || right.label) {
-                error("Cannot perform + on address constants.");
+        case '+': {
+            int lmult = 1;
+            int rmult = 1;
+            if (left->label && right.label) {
+                error("Cannot perform + on two address constants.");
             }
-            left->constant = left->constant + right.constant;
+           
+            /* BROKEN
+            if(node->ctype->type == CTYPE_PTR) {
+                if (is_inttype(node->left->ctype)) {
+                    //printf("lmult...\n");
+                    lmult = node->ctype->ptr->size;
+                }
+                
+                if (is_inttype(node->right->ctype)) {
+                    //printf("rmult...\n");
+                    rmult = node->ctype->ptr->size;
+                }
+            }
+            */
+            
+            if(right.label) {
+                left->label = right.label;
+            }
+            
+            left->constant = (left->constant * lmult) + (right.constant * rmult);
             return;
+        }
         case '-':
             if(left->label || right.label) {
                 error("Cannot perform - on address constants.");
@@ -181,6 +203,10 @@ void eval_constexpr(ConstExpr *cexpr, Node *node) {
     case AST_LITERAL:
         eval_constliteral(cexpr, node);
         return;
+    case AST_GVAR:
+        cexpr->constant = 0;
+        cexpr->label = node->varname;
+        return;
     case '!':
         eval_constnot(cexpr, node);
         return;
@@ -200,7 +226,8 @@ void eval_constexpr(ConstExpr *cexpr, Node *node) {
             eval_conststruct_ref(cexpr, node->operand, 0);
             return;
         }
-        goto error;
+        eval_constexpr(cexpr, node->operand);
+        return;
     case AST_DEREF:
         if (node->operand->ctype->type == CTYPE_PTR) {
             eval_constexpr(cexpr, node->operand);
