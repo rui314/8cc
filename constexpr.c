@@ -10,29 +10,19 @@ static void eval_constliteral(ConstExpr *cexpr, Node * node) {
     error("Integer expression expected, but got %s", a2s(node));
 }
 
-static void eval_constnot(ConstExpr *cexpr, Node * node) {
-    eval_constexpr(cexpr, node->operand);
-    if(cexpr->label) {
-        error("Cannot apply ! to address constant %s", a2s(node));
+#define TRIVIAL_UNOP(OP,NAME) \
+    static void NAME(ConstExpr *cexpr, Node * node) {\
+        eval_constexpr(cexpr, node->operand);\
+        if(cexpr->label) {\
+            error("Cannot apply " #OP " to address constant %s", a2s(node));\
+        }\
+        cexpr->constant = OP cexpr->constant;\
     }
-    cexpr->constant = !cexpr->constant;
-}
 
-static void eval_constbnot(ConstExpr *cexpr, Node * node) {
-    eval_constexpr(cexpr, node->operand);
-    if(cexpr->label) {
-        error("Cannot apply ~ to address constant %s", a2s(node));
-    }
-    cexpr->constant = ~cexpr->constant;
-}
-
-static void eval_constuminus(ConstExpr *cexpr, Node * node) {
-    eval_constexpr(cexpr, node->operand);
-    if(cexpr->label) {
-        error("Cannot apply unary - to address constant %s", a2s(node));
-    }
-    cexpr->constant = -cexpr->constant;
-}
+TRIVIAL_UNOP(!, eval_constnot)
+TRIVIAL_UNOP(~, eval_constbnot)
+TRIVIAL_UNOP(-, eval_constuminus)
+#undef TRIVIAL_UNOP
 
 static void eval_constternary(ConstExpr *cexpr, Node * node) {
     eval_constexpr(cexpr, node->cond);
@@ -56,139 +46,55 @@ static void eval_constbinop(ConstExpr *left, Node * node) {
             if (left->label && right.label) {
                 error("Cannot perform + on two address constants.");
             }
-           
-            /* BROKEN
             if(node->ctype->type == CTYPE_PTR) {
                 if (is_inttype(node->left->ctype)) {
-                    //printf("lmult...\n");
                     lmult = node->ctype->ptr->size;
                 }
-                
                 if (is_inttype(node->right->ctype)) {
-                    //printf("rmult...\n");
                     rmult = node->ctype->ptr->size;
                 }
             }
-            */
-            
             if(right.label) {
                 left->label = right.label;
             }
-            
             left->constant = (left->constant * lmult) + (right.constant * rmult);
             return;
         }
-        case '-':
-            if(left->label || right.label) {
-                error("Cannot perform - on address constants.");
-            }
-            left->constant = left->constant - right.constant;
-            return;
-        case '*':
-            if(left->label || right.label) {
-                error("Cannot perform * on address constants.");
-            }
-            left->constant = left->constant * right.constant;
-            return;
-        case '/':
-            if(left->label || right.label) {
-                error("Cannot perform / on address constants.");
-            }
-            left->constant = left->constant / right.constant;
-            return;
-        case '<':
-            if(left->label || right.label) {
-                error("Cannot perform < on address constants.");
-            }
-            left->constant = left->constant < right.constant;
-            return;
-        case '>':
-            if(left->label || right.label) {
-                error("Cannot perform > on address constants.");
-            }
-            left->constant = left->constant > right.constant;
-            return;
-        case '^':
-            if(left->label || right.label) {
-                error("Cannot perform ^ on address constants.");
-            }
-            left->constant = left->constant ^ right.constant;
-            return;
-        case '&':
-            if(left->label || right.label) {
-                error("Cannot perform & on address constants.");
-            }
-            left->constant = left->constant & right.constant;
-            return;
-        case '|':
-            if(left->label || right.label) {
-                error("Cannot perform | on address constants.");
-            }
-            left->constant = left->constant | right.constant;
-            return;
-        case '%':
-            if(left->label || right.label) {
-                error("Cannot perform modulo on address constants.");
-            }
-            left->constant = left->constant % right.constant;
-            return;
-        case OP_EQ:
-            if(left->label || right.label) {
-                error("Cannot perform == on address constants.");
-            }
-            left->constant = left->constant == right.constant;
-            return;
-        case OP_GE:
-            if(left->label || right.label) {
-                error("Cannot perform >= on address constants.");
-            }
-            left->constant = left->constant >= right.constant;
-            return;
-        case OP_LE:
-            if(left->label || right.label) {
-                error("Cannot perform <= on address constants.");
-            }
-            left->constant = left->constant <= right.constant;
-            return;
-        case OP_NE:
-            if(left->label || right.label) {
-                error("Cannot perform != on address constants.");
-            }
-            left->constant = left->constant != right.constant;
-            return;
-        case OP_SAL:
-            if(left->label || right.label) {
-                error("Cannot perform >> on address constants.");
-            }
-            left->constant = left->constant << right.constant;
-            return;
-        case OP_SAR:
-            if(left->label || right.label) {
-                error("Cannot perform >> on address constants.");
-            }
-            left->constant = left->constant >> right.constant;
-            return;
         case OP_SHR:
             if(left->label || right.label) {
                 error("Cannot perform >> on address constants.");
             }
             left->constant = ((unsigned long)left->constant) >> right.constant;
             return;
-        case OP_LOGAND:
-            if(left->label || right.label) {
-                error("Cannot perform && on address constants.");
-            }
-            left->constant = left->constant && right.constant;
-            return;
-        case OP_LOGOR:
-            if(left->label || right.label) {
-                error("Cannot perform || on address constants.");
-            }
-            left->constant = left->constant || right.constant;
-            return;
+        #define TRIVIAL_CASE(OP, CHAR) \
+            case CHAR: \
+                if(left->label || right.label) {\
+                     error("Cannot perform " #OP " on address constants.");\
+                 }\
+                 left->constant = left->constant OP right.constant;\
+                 return
+
+        TRIVIAL_CASE(-, '-');
+        TRIVIAL_CASE(*, '*');
+        TRIVIAL_CASE(/, '/');
+        TRIVIAL_CASE(%, '%');
+        TRIVIAL_CASE(<, '<');
+        TRIVIAL_CASE(>, '>');
+        TRIVIAL_CASE(^, '^');
+        TRIVIAL_CASE(&, '&');
+        TRIVIAL_CASE(|, '|');
+        TRIVIAL_CASE(==, OP_EQ);
+        TRIVIAL_CASE(!=, OP_NE);
+        TRIVIAL_CASE(>=, OP_GE);
+        TRIVIAL_CASE(<=, OP_LE);
+        TRIVIAL_CASE(<<, OP_SAL);
+        TRIVIAL_CASE(>>, OP_SAR);
+        TRIVIAL_CASE(&&, OP_LOGAND);
+        TRIVIAL_CASE(||, OP_LOGOR);
         default:
             error("Internal error.");
     }
+    #undef TRIVIAL_CASE
 }
 
 static void eval_conststruct_ref(ConstExpr *cexpr, Node *node, int offset) {
@@ -263,4 +169,3 @@ void eval_constexpr(ConstExpr *cexpr, Node *node) {
         error("Constant expression expected, but got %s", a2s(node));
     }
 }
-
