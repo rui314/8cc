@@ -296,6 +296,11 @@ static void emit_assign_deref(Node *var) {
 
 static void emit_pointer_arith(char type, Node *left, Node *right) {
     SAVE;
+    if (right->ctype->type == CTYPE_PTR && type == '+') {
+        Node *tmp = left;
+        left = right;
+        right = tmp;
+    }
     emit_expr(left);
     push("rcx");
     push("rax");

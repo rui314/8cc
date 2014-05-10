@@ -378,6 +378,10 @@ bool is_flotype(Ctype *ctype) {
     }
 }
 
+static bool is_pointertype(Ctype *ctype) {
+    return ctype->type == CTYPE_PTR;
+}
+
 static bool is_arithtype(Ctype *ctype) {
     return is_inttype(ctype) || is_flotype(ctype);
 }
@@ -499,6 +503,26 @@ static Node *usual_conv(int op, Node *left, Node *right) {
         case OP_LE: case OP_GE: case OP_EQ: case OP_NE: case '<': case '>':
             resulttype = ctype_int;
             break;
+        case '-':
+            if(is_pointertype(left->ctype) && is_pointertype(right->ctype)) {
+                resulttype = ctype_int;
+                break;
+            }
+            goto defaultcase;
+        case '+':
+            if(is_pointertype(left->ctype) && is_pointertype(right->ctype)) {
+                error("Adding two pointers is illgal.");
+            }
+            if(is_pointertype(left->ctype)) {
+                resulttype = left->ctype;
+                break;
+            }
+            if(is_pointertype(right->ctype)) {
+                resulttype = right->ctype;
+                break;
+            }
+            goto defaultcase;
+        defaultcase:
         default:
             resulttype = convert_array(left->ctype);
             break;
