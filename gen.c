@@ -1398,7 +1398,6 @@ static char * get_const_expr_as_str(ConstExpr *cexpr) {
     } else {
         snprintf(buff, sizeof(buff), "%lu", cexpr->constant);
     }
-    
     return buff;
 }
 
