@@ -1392,9 +1392,9 @@ static char * get_const_expr_as_str(ConstExpr *cexpr) {
     static char buff[1024];
     if (cexpr->label) {
         if (cexpr->constant < 0)
-            snprintf(buff, sizeof(buff), "%s + %lu", cexpr->label,cexpr->constant);
+            snprintf(buff, sizeof(buff), "%s + %lu", cexpr->label, cexpr->constant);
         else
-            snprintf(buff, sizeof(buff), "%s - %lu", cexpr->label,-cexpr->constant);
+            snprintf(buff, sizeof(buff), "%s - %lu", cexpr->label, -cexpr->constant);
     } else {
         snprintf(buff, sizeof(buff), "%lu", cexpr->constant);
     }
