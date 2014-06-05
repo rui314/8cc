@@ -18,7 +18,6 @@ extern FILE *fmemopen(void *buf, size_t size, const char *mode);
 #include <ctype.h>
 #include <libgen.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include "8cc.h"
