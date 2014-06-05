@@ -7,11 +7,18 @@
  */
 
 // For fmemopen()
+#ifndef linux
+#include <stdio.h>
+extern FILE *fmemopen(void *buf, size_t size, const char *mode);
+#else
+#define _GNU_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <ctype.h>
 #include <libgen.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include "8cc.h"
