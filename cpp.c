@@ -560,6 +560,7 @@ static List *read_intexpr_line(void) {
 }
 
 static bool read_constexpr(void) {
+    ConstExpr cexpr;
     List *orig = get_input_buffer();
     set_input_buffer(read_intexpr_line());
     Node *expr = read_expr();
@@ -567,7 +568,11 @@ static bool read_constexpr(void) {
     if (list_len(buf) > 0)
         error("Stray token: %s", t2s(list_shift(buf)));
     set_input_buffer(orig);
-    return eval_intexpr(expr);
+    eval_constexpr(&cexpr, expr);
+    if(cexpr.label) {
+        error("Unexpected address constant.");
+    }
+    return cexpr.constant;
 }
 
 static void read_if_generic(bool cond) {

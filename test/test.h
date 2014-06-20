@@ -16,3 +16,4 @@ void expect_string(char *a, char *b);
 void expectf(float a, float b);
 void expectd(double a, double b);
 void expectl(long a, long b);
+void expectp(void *a, void *b);

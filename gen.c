@@ -296,6 +296,11 @@ static void emit_assign_deref(Node *var) {
 
 static void emit_pointer_arith(char type, Node *left, Node *right) {
     SAVE;
+    if (right->ctype->type == CTYPE_PTR && type == '+') {
+        Node *tmp = left;
+        left = right;
+        right = tmp;
+    }
     emit_expr(left);
     push("rcx");
     push("rax");
@@ -1383,7 +1388,28 @@ static void emit_data_charptr(char *s, int depth) {
     emit(".quad %s", label);
 }
 
+static char * get_const_expr_as_str(ConstExpr *cexpr) {
+    static char buff[1024];
+    if (cexpr->label) {
+        if (cexpr->constant < 0)
+            snprintf(buff, sizeof(buff), "%s + %lu", cexpr->label, cexpr->constant);
+        else
+            snprintf(buff, sizeof(buff), "%s - %lu", cexpr->label, -cexpr->constant);
+    } else {
+        snprintf(buff, sizeof(buff), "%lu", cexpr->constant);
+    }
+    return buff;
+}
+
+static char * get_const_expr_as_bool(ConstExpr *cexpr) {
+    if (cexpr->label || cexpr->constant) {
+        return "1";
+    }
+    return "0";
+}
+
 static void emit_data_primtype(Ctype *ctype, Node *val) {
+    ConstExpr cexpr;
     switch (ctype->type) {
     case CTYPE_FLOAT: {
         union { float f; int i; } v = { val->fval };
@@ -1396,24 +1422,26 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
         break;
     }
     case CTYPE_BOOL:
-        emit(".byte %d", !!eval_intexpr(val));
+        eval_constexpr(&cexpr, val);
+        emit(".byte %s", get_const_expr_as_bool(&cexpr));
         break;
     case CTYPE_CHAR:
-        emit(".byte %d", eval_intexpr(val));
+        eval_constexpr(&cexpr, val);
+        emit(".byte %s", get_const_expr_as_str(&cexpr));
         break;
     case CTYPE_SHORT:
-        emit(".short %d", eval_intexpr(val));
+        eval_constexpr(&cexpr, val);
+        emit(".short %s", get_const_expr_as_str(&cexpr));
         break;
     case CTYPE_INT:
-        emit(".long %d", eval_intexpr(val));
+        eval_constexpr(&cexpr, val);
+        emit(".long %s", get_const_expr_as_str(&cexpr));
         break;
     case CTYPE_LONG:
     case CTYPE_LLONG:
     case CTYPE_PTR:
-        if (val->type == AST_GVAR)
-            emit(".quad %s", val->varname);
-        else
-            emit(".quad %d", eval_intexpr(val));
+        eval_constexpr(&cexpr, val);
+        emit(".quad %s", get_const_expr_as_str(&cexpr));
         break;
     default:
         error("don't know how to handle\n  <%s>\n  <%s>", c2s(ctype), a2s(val));
@@ -1422,6 +1450,7 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
 
 static void emit_data_int(List *inits, int size, int off, int depth) {
     SAVE;
+    ConstExpr cexpr;
     Iter *iter = list_iter(inits);
     while (!iter_end(iter) && 0 < size) {
         Node *node = iter_next(iter);
@@ -1429,7 +1458,8 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
         emit_padding(node, off);
         if (node->totype->bitsize > 0) {
             assert(node->totype->bitoff == 0);
-            long data = eval_intexpr(v);
+            eval_constexpr(&cexpr, v);
+            long data = cexpr.constant;
             Ctype *totype = node->totype;
             while (!iter_end(iter)) {
                 node = iter_next(iter);
@@ -1438,7 +1468,8 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
                 }
                 v = node->initval;
                 totype = node->totype;
-                data |= ((((long)1 << totype->bitsize) - 1) & eval_intexpr(v)) << totype->bitoff;
+                eval_constexpr(&cexpr, v);
+                data |= ((((long)1 << totype->bitsize) - 1) & cexpr.constant ) << totype->bitoff;
             }
             emit_data_primtype(totype, &(Node){ AST_LITERAL, totype, .ival = data });
             off += totype->size;

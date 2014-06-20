@@ -73,6 +73,14 @@ void expectl(long a, long b) {
     }
 }
 
+void expectp(void *a, void *b) {
+    if (!(a == b)) {
+        printfail();
+        printf("\n  %p expected, but got %p\n", a, b);
+        exit(1);
+    }
+}
+
 int main() {
     testmain();
     printf(isatty(fileno(stdout)) ? "\e[32mOK\e[0m\n" : "OK\n");
