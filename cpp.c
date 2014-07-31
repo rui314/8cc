@@ -23,6 +23,7 @@
 
 bool debug_cpp;
 static Dict *macros = &EMPTY_DICT;
+static Dict *imported = &EMPTY_DICT;
 static List *cond_incl_stack = &EMPTY_LIST;
 static List *std_include_path = &EMPTY_LIST;
 static Token *cpp_token_zero = &(Token){ .type = TNUMBER, .sval = "0" };
@@ -673,30 +674,34 @@ static char *read_cpp_header_name(bool *std) {
     return join_tokens(tokens, false);
 }
 
-static bool try_include(char *dir, char *filename) {
+static bool try_include(char *dir, char *filename, bool isimport) {
     char *path = format("%s/%s", dir, filename);
+    if (isimport && dict_get(imported, path))
+        return true;
     FILE *fp = fopen(path, "r");
     if (!fp)
         return false;
+    if (isimport)
+        dict_put(imported, path, (void *)1);
     push_input_file(path, path, fp);
     return true;
 }
 
-static void read_include(void) {
+static void read_include(bool isimport) {
     bool std;
     char *filename = read_cpp_header_name(&std);
     expect_newline();
     if (!std) {
         if (get_current_file()) {
             char *buf = format("%s", get_current_file());
-            if (try_include(dirname(buf), filename))
+            if (try_include(dirname(buf), filename, isimport))
                 return;
-        } else if (try_include(".", filename)) {
+        } else if (try_include(".", filename, isimport)) {
             return;
         }
     }
     for (Iter *i = list_iter(std_include_path); !iter_end(i);) {
-        if (try_include(iter_next(i), filename))
+        if (try_include(iter_next(i), filename, isimport))
             return;
     }
     error("Cannot find header file: %s", filename);
@@ -765,7 +770,8 @@ static void read_directive(void) {
     else if (is_ident(tok, "endif"))   read_endif();
     else if (is_ident(tok, "error"))   read_error();
     else if (is_ident(tok, "warning")) read_warning();
-    else if (is_ident(tok, "include")) read_include();
+    else if (is_ident(tok, "include")) read_include(false);
+    else if (is_ident(tok, "import"))  read_include(true);
     else if (is_ident(tok, "pragma"))  read_pragma();
     else if (is_ident(tok, "line"))    read_line();
     else if (tok->type != TNEWLINE)
