@@ -49,7 +49,7 @@ fulltest:
 	diff gen2 gen3
 
 clean:
-	rm -f 8cc *.o *.s tmp.* test/*.s test/*.o sample/*.o
+	rm -f 8cc *.o *.s tmp.* test/*.s test/*.o test/main/*.o sample/*.o
 	rm -f utiltest gen[1-9] test/util/testmain.[os]
 	rm -f $(TESTS)
 
