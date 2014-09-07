@@ -338,7 +338,7 @@ static int read_hex_char(void) {
 }
 
 static bool is_valid_ucn(unsigned int c) {
-    if (0x800 <= c && c <= 0xDFFF)
+    if (0xD800 <= c && c <= 0xDFFF)
         return false;
     return 0xA0 <= c || c == '$' || c == '@' || c == '`';
 }
