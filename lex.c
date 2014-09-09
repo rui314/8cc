@@ -474,7 +474,7 @@ static Token *read_token_int(void) {
         return read_number(c);
     case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_': case '$':
         return read_ident(c);
-    case '/': {
+    case '/':
         if (next('/')) {
             skip_line();
             return make_space(1);
@@ -486,7 +486,6 @@ static Token *read_token_int(void) {
         if (next('='))
             return make_punct(OP_A_DIV);
         return make_punct('/');
-    }
     case '.':
         if (isdigit(peek()))
             return read_number(c);
@@ -498,13 +497,13 @@ static Token *read_token_int(void) {
         return make_punct(c);
     case ':':
         return make_punct(next('>') ? ']' : ':');
-    case '#': {
+    case '#':
         if (next('#'))
             return make_ident("##");
         return make_punct('#');
-    }
-    case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
-    case '-': {
+    case '+':
+        return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
+    case '-':
         if (next('-'))
             return make_punct(OP_DEC);
         if (next('>'))
@@ -512,8 +511,8 @@ static Token *read_token_int(void) {
         if (next('='))
             return make_punct(OP_A_SUB);
         return make_punct('-');
-    }
-    case '*': return read_rep('=', OP_A_MUL, '*');
+    case '*':
+        return read_rep('=', OP_A_MUL, '*');
     case '%':
         if (next('>'))
             return make_punct('}');
@@ -531,20 +530,18 @@ static Token *read_token_int(void) {
     case '&': return read_rep2('&', OP_LOGAND, '=', OP_A_AND, '&');
     case '|': return read_rep2('|', OP_LOGOR, '=', OP_A_OR, '|');
     case '^': return read_rep('=', OP_A_XOR, '^');
-    case '<': {
+    case '<':
         if (next('<')) return read_rep('=', OP_A_SAL, OP_SAL);
         if (next('=')) return make_punct(OP_LE);
         if (next(':')) return make_punct('[');
         if (next('%')) return make_punct('{');
         return make_punct('<');
-    }
-    case '>': {
+    case '>':
         if (next('='))
             return make_punct(OP_GE);
         if (next('>'))
             return read_rep('=', OP_A_SAR, OP_SAR);
         return make_punct('>');
-    }
     case '"': return read_string();
     case '\'': return read_char();
     case EOF:
