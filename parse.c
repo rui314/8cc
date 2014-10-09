@@ -1902,9 +1902,6 @@ static Ctype *read_decl_spec(int *rsclass) {
     if (!is_type_keyword(tok))
         error("type keyword expected, but got %s", t2s(tok));
 
-#define unused __attribute__((unused))
-    bool kconst unused = false, kvolatile unused = false, kinline unused = false;
-#undef unused
     Ctype *usertype = NULL;
     enum { kvoid = 1, kbool, kchar, kint, kfloat, kdouble } type = 0;
     enum { kshort = 1, klong, kllong } size = 0;
@@ -1952,9 +1949,9 @@ static Ctype *read_decl_spec(int *rsclass) {
         case KSTATIC:     setsclass(S_STATIC); continue;
         case KAUTO:       setsclass(S_AUTO); continue;
         case KREGISTER:   setsclass(S_REGISTER); continue;
-        case KCONST:      kconst = 1; continue;
-        case KVOLATILE:   kvolatile = 1; continue;
-        case KINLINE:     kinline = 1; continue;
+        case KCONST:      continue;
+        case KVOLATILE:   continue;
+        case KINLINE:     continue;
         case KVOID:       set(type, kvoid); continue;
         case KBOOL:       set(type, kbool); continue;
         case KCHAR:       set(type, kchar); continue;
