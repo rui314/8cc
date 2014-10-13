@@ -20,6 +20,7 @@ static void test_basic(void) {
     expect(-1, a);
     expect(0, a + 1);
     expect(1, +1);
+    expect(1, (unsigned)4000000001 % 2);
 }
 
 static void test_relative(void) {
