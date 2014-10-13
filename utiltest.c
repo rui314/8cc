@@ -2,6 +2,7 @@
 // This program is free software licensed under the MIT license.
 
 #include <string.h>
+#include <inttypes.h>
 #include "8cc.h"
 
 #define assert_true(expr) assert_true2(__LINE__, #expr, (expr))
@@ -101,6 +102,47 @@ static void test_list(void) {
     assert_int(0, (long)list_get(list4, 2));
 }
 
+static void test_map(void) {
+    Map *m = make_map();
+    assert_null(map_get(m, "abc"));
+
+    // Insert 10000 values
+    for (int i = 0; i < 10000; i++) {
+        char *k = format("%d", i);
+        map_put(m, k, (void *)(intptr_t)i);
+        assert_int(i, (int)(intptr_t)map_get(m, k));
+    }
+
+    // Insert again
+    for (int i = 0; i < 1000; i++) {
+        char *k = format("%d", i);
+        map_put(m, k, (void *)(intptr_t)i);
+        assert_int(i, (int)(intptr_t)map_get(m, k));
+    }
+
+    // Verify that the iterator iterates over all the elements
+    {
+      bool x[10000];
+      for (int i = 0; i < 10000; i++)
+        x[i] = 0;
+      MapIter *iter = map_iter(m);
+      char *k = map_next(iter);
+      for (; k; k = map_next(iter)) {
+        int v = (intptr_t)map_get(m, k);
+        x[v] = 1;
+      }
+      for (int i = 0; i < 10000; i++)
+        assert_true(x[i] == 1);
+    }
+
+    // Remove them
+    for (int i = 0; i < 10000; i++) {
+        char *k = format("%d", i);
+        map_remove(m, k);
+        assert_null(map_get(m, k));
+    }
+}
+
 static void test_dict(void) {
     Dict *dict = make_dict(NULL);
     assert_null(dict_parent(dict));
@@ -138,6 +180,7 @@ static void test_dict(void) {
 int main(int argc, char **argv) {
     test_string();
     test_list();
+    test_map();
     test_dict();
     printf("Passed\n");
     return 0;

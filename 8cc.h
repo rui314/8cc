@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "dict.h"
 #include "list.h"
+#include "map.h"
 #include "error.h"
 
 typedef struct {
