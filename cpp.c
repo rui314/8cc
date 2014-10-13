@@ -691,13 +691,10 @@ static void read_include(bool isimport) {
     char *filename = read_cpp_header_name(&std);
     expect_newline();
     if (!std) {
-        if (get_current_file()) {
-            char *buf = format("%s", get_current_file());
-            if (try_include(dirname(buf), filename, isimport))
-                return;
-        } else if (try_include(".", filename, isimport)) {
+        char *cur = get_current_file();
+        char *dir = cur ? dirname(strdup(cur)) : ".";
+        if (try_include(dir, filename, isimport))
             return;
-        }
     }
     for (Iter *i = list_iter(std_include_path); !iter_end(i);) {
         if (try_include(iter_next(i), filename, isimport))
