@@ -161,7 +161,7 @@ void expect_newline(void) {
         error("Newline expected, but got %s", t2s(tok));
 }
 
-static List *read_args_int(Macro *macro) {
+static List *do_read_args(Macro *macro) {
     List *r = make_list();
     List *arg = make_list();
     int depth = 0;
@@ -195,7 +195,7 @@ static List *read_args_int(Macro *macro) {
 }
 
 static List *read_args(Macro *macro) {
-    List *args = read_args_int(macro);
+    List *args = do_read_args(macro);
     if (macro->is_varg) {
         if (list_len(args) == macro->nargs - 1)
             list_push(args, make_list());

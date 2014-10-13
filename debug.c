@@ -9,7 +9,7 @@ static char *maybe_add_bitfield(char *name, Ctype *ctype) {
     return name;
 }
 
-static char *c2s_int(Dict *dict, Ctype *ctype) {
+static char *do_c2s(Dict *dict, Ctype *ctype) {
     if (!ctype)
         return "(nil)";
     switch (ctype->type) {
@@ -24,9 +24,9 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
     case CTYPE_DOUBLE: return "double";
     case CTYPE_LDOUBLE: return "long double";
     case CTYPE_PTR:
-        return format("*%s", c2s_int(dict, ctype->ptr));
+        return format("*%s", do_c2s(dict, ctype->ptr));
     case CTYPE_ARRAY:
-        return format("[%d]%s", ctype->len, c2s_int(dict, ctype->ptr));
+        return format("[%d]%s", ctype->len, do_c2s(dict, ctype->ptr));
     case CTYPE_STRUCT: {
         char *type = ctype->is_struct ? "struct" : "union";
         if (dict_get(dict, format("%p", ctype)))
@@ -36,7 +36,7 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
         string_appendf(s, "(%s", type);
         for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
             Ctype *fieldtype = iter_next(i);
-            string_appendf(s, " (%s)", c2s_int(dict, fieldtype));
+            string_appendf(s, " (%s)", do_c2s(dict, fieldtype));
         }
         string_appendf(s, ")");
         return get_cstring(s);
@@ -46,11 +46,11 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
         string_appendf(s, "(");
         for (Iter *i = list_iter(ctype->params); !iter_end(i);) {
             Ctype *t = iter_next(i);
-            string_appendf(s, "%s", c2s_int(dict, t));
+            string_appendf(s, "%s", do_c2s(dict, t));
             if (!iter_end(i))
                 string_append(s, ',');
         }
-        string_appendf(s, ")=>%s", c2s_int(dict, ctype->rettype));
+        string_appendf(s, ")=>%s", do_c2s(dict, ctype->rettype));
         return get_cstring(s);
     }
     default:
@@ -59,7 +59,7 @@ static char *c2s_int(Dict *dict, Ctype *ctype) {
 }
 
 char *c2s(Ctype *ctype) {
-    return c2s_int(make_dict(NULL), ctype);
+    return do_c2s(make_dict(NULL), ctype);
 }
 
 static void uop_to_string(String *buf, char *op, Node *node) {
@@ -80,7 +80,7 @@ static void a2s_declinit(String *buf, List *initlist) {
     }
 }
 
-static void a2s_int(String *buf, Node *node) {
+static void do_a2s(String *buf, Node *node) {
     if (!node) {
         string_appendf(buf, "(nil)");
         return;
@@ -147,7 +147,7 @@ static void a2s_int(String *buf, Node *node) {
                 string_appendf(buf, ",");
         }
         string_appendf(buf, ")");
-        a2s_int(buf, node->body);
+        do_a2s(buf, node->body);
         break;
     }
     case AST_DECL:
@@ -203,14 +203,14 @@ static void a2s_int(String *buf, Node *node) {
     case AST_COMPOUND_STMT: {
         string_appendf(buf, "{");
         for (Iter *i = list_iter(node->stmts); !iter_end(i);) {
-            a2s_int(buf, iter_next(i));
+            do_a2s(buf, iter_next(i));
             string_appendf(buf, ";");
         }
         string_appendf(buf, "}");
         break;
     }
     case AST_STRUCT_REF:
-        a2s_int(buf, node->struc);
+        do_a2s(buf, node->struc);
         string_appendf(buf, ".");
         string_appendf(buf, node->field);
         break;
@@ -267,7 +267,7 @@ static void a2s_int(String *buf, Node *node) {
 
 char *a2s(Node *node) {
     String *s = make_string();
-    a2s_int(s, node);
+    do_a2s(s, node);
     return get_cstring(s);
 }
 

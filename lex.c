@@ -455,7 +455,7 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
     return make_punct(els);
 }
 
-static Token *read_token_int(void) {
+static Token *do_read_token(void) {
     mark_input();
     int c = get();
     switch (c) {
@@ -617,15 +617,15 @@ Token *peek_cpp_token(void) {
     return tok;
 }
 
-static Token *read_cpp_token_int(void) {
+static Token *do_read_cpp_token(void) {
     if (altbuffer)
         return list_pop(altbuffer);
     if (list_len(buffer) > 0)
         return list_pop(buffer);
     bool bol = at_bol;
-    Token *tok = read_token_int();
+    Token *tok = do_read_token();
     while (tok && tok->type == TSPACE) {
-        Token *tok2 = read_token_int();
+        Token *tok2 = do_read_token();
         if (tok2)
             tok2->nspace += tok->nspace;
         tok = tok2;
@@ -641,5 +641,5 @@ static Token *read_cpp_token_int(void) {
 }
 
 Token *read_cpp_token(void) {
-    return read_cpp_token_int();
+    return do_read_cpp_token();
 }

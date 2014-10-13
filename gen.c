@@ -32,7 +32,7 @@ static char *last_loc = "";
 static void emit_addr(Node *node);
 static void emit_expr(Node *node);
 static void emit_decl_init(List *inits, int off);
-static void emit_data_int(List *inits, int size, int off, int depth);
+static void do_emit_data(List *inits, int size, int off, int depth);
 static void emit_data(Node *v, int off, int depth);
 
 #define REGAREA_SIZE 304
@@ -276,7 +276,7 @@ static void emit_lsave(Ctype *ctype, int off) {
     }
 }
 
-static void emit_assign_deref_int(Ctype *ctype, int off) {
+static void do_emit_assign_deref(Ctype *ctype, int off) {
     SAVE;
     emit("mov (%%rsp), %%rcx");
     char *reg = get_int_reg(ctype, 'c');
@@ -291,7 +291,7 @@ static void emit_assign_deref(Node *var) {
     SAVE;
     push("rax");
     emit_expr(var->operand);
-    emit_assign_deref_int(var->operand->ctype->ptr, 0);
+    do_emit_assign_deref(var->operand->ctype->ptr, 0);
 }
 
 static void emit_pointer_arith(char type, Node *left, Node *right) {
@@ -347,7 +347,7 @@ static void emit_assign_struct_ref(Node *struc, Ctype *field, int off) {
     case AST_DEREF:
         push("rax");
         emit_expr(struc->operand);
-        emit_assign_deref_int(field, field->offset + off);
+        do_emit_assign_deref(field, field->offset + off);
         break;
     default:
         error("internal error: %s", a2s(struc));
@@ -1366,7 +1366,7 @@ static void emit_data_addr(Node *operand, int depth) {
         char *label = make_label();
         emit(".data %d", depth + 1);
         emit_label(label);
-        emit_data_int(operand->lvarinit, operand->ctype->size, 0, depth + 1);
+        do_emit_data(operand->lvarinit, operand->ctype->size, 0, depth + 1);
         emit(".data %d", depth);
         emit(".quad %s", label);
         return;
@@ -1425,7 +1425,7 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
     }
 }
 
-static void emit_data_int(List *inits, int size, int off, int depth) {
+static void do_emit_data(List *inits, int size, int off, int depth) {
     SAVE;
     Iter *iter = list_iter(inits);
     while (!iter_end(iter) && 0 < size) {
@@ -1459,7 +1459,7 @@ static void emit_data_int(List *inits, int size, int off, int depth) {
             continue;
         }
         if (v->type == AST_LVAR && v->lvarinit) {
-            emit_data_int(v->lvarinit, v->ctype->size, 0, depth);
+            do_emit_data(v->lvarinit, v->ctype->size, 0, depth);
             continue;
         }
         bool is_char_ptr = (v->ctype->type == CTYPE_ARRAY && v->ctype->ptr->type == CTYPE_CHAR);
@@ -1478,7 +1478,7 @@ static void emit_data(Node *v, int off, int depth) {
     if (!v->declvar->ctype->isstatic)
         emit_noindent(".global %s", v->declvar->varname);
     emit_noindent("%s:", v->declvar->varname);
-    emit_data_int(v->declinit, v->declvar->ctype->size, off, depth);
+    do_emit_data(v->declinit, v->declvar->ctype->size, off, depth);
 }
 
 static void emit_bss(Node *v) {
