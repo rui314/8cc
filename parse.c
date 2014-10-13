@@ -30,9 +30,9 @@ SourceLoc *source_loc;
 // tag, union tag, and goto label!
 static Dict *globalenv = &EMPTY_DICT;
 static Dict *localenv;
-static Dict *struct_defs = &EMPTY_DICT;
-static Dict *union_defs = &EMPTY_DICT;
-static Dict *labels;
+static Map *struct_defs = &EMPTY_MAP;
+static Map *union_defs = &EMPTY_MAP;
+static Map *labels;
 
 static List *localvars;
 static List *gotos;
@@ -1460,14 +1460,14 @@ static Dict *read_rectype_fields(int *rsize, int *align, bool is_struct) {
         : update_union_offset(fields, align, rsize);
 }
 
-static Ctype *read_rectype_def(Dict *env, bool is_struct) {
+static Ctype *read_rectype_def(Map *env, bool is_struct) {
     char *tag = read_rectype_tag();
     Ctype *r;
     if (tag) {
-        r = dict_get(env, tag);
+        r = map_get(env, tag);
         if (!r) {
             r = make_rectype(is_struct);
-            dict_put(env, tag, r);
+            map_put(env, tag, r);
         }
     } else {
         r = make_rectype(is_struct);
@@ -2152,7 +2152,7 @@ static void backfill_labels(void) {
     for (Iter *i = list_iter(gotos); !iter_end(i);) {
         Node *src = iter_next(i);
         char *label = src->label;
-        Node *dst = dict_get(labels, label);
+        Node *dst = map_get(labels, label);
         if (!dst)
             error("stray %s: %s", src->type == AST_GOTO ? "goto" : "unary &&", label);
         if (dst->newlabel)
@@ -2171,7 +2171,7 @@ static Node *read_funcdef(void) {
         warn("type specifier missing, assuming int");
     localenv = make_dict(globalenv);
     gotos = make_list();
-    labels = make_dict(NULL);
+    labels = make_map();
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
@@ -2336,9 +2336,9 @@ static Node *read_label(Token *tok) {
     expect(':');
     char *label = tok->sval;
     Node *r = ast_label(label);
-    if (dict_get(labels, label))
+    if (map_get(labels, label))
         error("duplicate label: %s", t2s(tok));
-    dict_put(labels, label, r);
+    map_put(labels, label, r);
     return r;
 }
 

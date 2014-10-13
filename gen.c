@@ -25,8 +25,8 @@ static int stackpos;
 static int numgp;
 static int numfp;
 static FILE *outputfp;
-static Dict *source_files = &EMPTY_DICT;
-static Dict *source_lines = &EMPTY_DICT;
+static Map *source_files = &EMPTY_MAP;
+static Map *source_lines = &EMPTY_MAP;
 static char *last_loc = "";
 
 static void emit_addr(Node *node);
@@ -768,12 +768,12 @@ static char **read_source_file(char *file) {
 static void maybe_print_source_line(char *file, int line) {
     if (!dumpsource)
         return;
-    char **lines = dict_get(source_lines, file);
+    char **lines = map_get(source_lines, file);
     if (!lines) {
         lines = read_source_file(file);
         if (!lines)
             return;
-        dict_put(source_lines, file, lines);
+        map_put(source_lines, file, lines);
     }
     emit_nostack("# %s", lines[line - 1]);
 }
@@ -782,10 +782,10 @@ static void maybe_print_source_loc(Node *node) {
     if (!node->sourceLoc)
         return;
     char *file = node->sourceLoc->file;
-    long fileno = (long)dict_get(source_files, file);
+    long fileno = (long)map_get(source_files, file);
     if (!fileno) {
-        fileno = list_len(dict_keys(source_files)) + 1;
-        dict_put(source_files, file, (void *)fileno);
+        fileno = map_size(source_files) + 1;
+        map_put(source_files, file, (void *)fileno);
         emit(".file %ld \"%s\"", fileno, quote_cstring(file));
     }
     char *loc = format(".loc %ld %d 0", fileno, node->sourceLoc->line);

@@ -22,8 +22,8 @@
 #include "8cc.h"
 
 bool debug_cpp;
-static Dict *macros = &EMPTY_DICT;
-static Dict *imported = &EMPTY_DICT;
+static Map *macros = &EMPTY_MAP;
+static Map *imported = &EMPTY_MAP;
 static List *cond_incl_stack = &EMPTY_LIST;
 static List *std_include_path = &EMPTY_LIST;
 static Token *cpp_token_zero = &(Token){ .type = TNUMBER, .sval = "0" };
@@ -396,7 +396,7 @@ static Token *read_expand(void) {
     if (tok->type != TIDENT)
         return tok;
     char *name = tok->sval;
-    Macro *macro = dict_get(macros, name);
+    Macro *macro = map_get(macros, name);
     if (!macro || dict_get(tok->hideset, name))
         return tok;
 
@@ -487,7 +487,7 @@ static void read_funclike_macro(char *name) {
     bool is_varg = read_funclike_macro_params(param);
     List *body = read_funclike_macro_body(param);
     Macro *macro = make_func_macro(body, list_len(dict_keys(param)), is_varg);
-    dict_put(macros, name, macro);
+    map_put(macros, name, macro);
 }
 
 static void read_obj_macro(char *name) {
@@ -498,7 +498,7 @@ static void read_obj_macro(char *name) {
             break;
         list_push(body, tok);
     }
-    dict_put(macros, name, make_obj_macro(body));
+    map_put(macros, name, make_obj_macro(body));
 }
 
 /*----------------------------------------------------------------------
@@ -523,7 +523,7 @@ static void read_define(void) {
 static void read_undef(void) {
     Token *name = read_ident();
     expect_newline();
-    dict_remove(macros, name->sval);
+    map_remove(macros, name->sval);
 }
 
 /*----------------------------------------------------------------------
@@ -538,8 +538,7 @@ static Token *read_defined_op(void) {
     }
     if (tok->type != TIDENT)
         error("Identifier expected, but got %s", t2s(tok));
-    return dict_get(macros, tok->sval) ?
-        cpp_token_one : cpp_token_zero;
+    return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
 /*----------------------------------------------------------------------
@@ -585,7 +584,7 @@ static void read_ifdef_generic(bool is_ifdef) {
     Token *tok = read_cpp_token();
     if (!tok || tok->type != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
-    bool cond = dict_get(macros, tok->sval);
+    bool cond = map_get(macros, tok->sval);
     expect_newline();
     read_if_generic(is_ifdef ? cond : !cond);
 }
@@ -676,13 +675,13 @@ static char *read_cpp_header_name(bool *std) {
 
 static bool try_include(char *dir, char *filename, bool isimport) {
     char *path = format("%s/%s", dir, filename);
-    if (isimport && dict_get(imported, path))
+    if (isimport && map_get(imported, path))
         return true;
     FILE *fp = fopen(path, "r");
     if (!fp)
         return false;
     if (isimport)
-        dict_put(imported, path, (void *)1);
+        map_put(imported, path, (void *)1);
     push_input_file(path, path, fp);
     return true;
 }
@@ -854,11 +853,11 @@ void add_include_path(char *path) {
  */
 
 static void define_obj_macro(char *name, Token *value) {
-    dict_put(macros, name, make_obj_macro(make_list1(value)));
+    map_put(macros, name, make_obj_macro(make_list1(value)));
 }
 
 static void define_special_macro(char *name, special_macro_handler *fn) {
-    dict_put(macros, name, make_special_macro(fn));
+    map_put(macros, name, make_special_macro(fn));
 }
 
 void cpp_init(void) {
