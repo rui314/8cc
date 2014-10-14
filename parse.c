@@ -1952,6 +1952,7 @@ static Ctype *read_decl_spec(int *rsclass) {
         case KCONST:      continue;
         case KVOLATILE:   continue;
         case KINLINE:     continue;
+        case KNORETURN:   continue;
         case KVOID:       set(type, kvoid); continue;
         case KBOOL:       set(type, kbool); continue;
         case KCHAR:       set(type, kchar); continue;
