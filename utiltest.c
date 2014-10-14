@@ -138,6 +138,7 @@ static void test_map(void) {
     // Remove them
     for (int i = 0; i < 10000; i++) {
         char *k = format("%d", i);
+        assert_int(i, (intptr_t)map_get(m, k));
         map_remove(m, k);
         assert_null(map_get(m, k));
     }

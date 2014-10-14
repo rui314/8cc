@@ -95,18 +95,10 @@ void map_remove(Map *map, char *key) {
     uint32_t h = hash(key);
     int idx = h % map->cap;
     Bucket *b = map->buckets[idx];
-    if (!b)
-        return;
-    if (!strcmp(b->key, key)) {
-        map->buckets[idx] = NULL;
-        map->nelem--;
-        return;
-    }
-    Bucket *prev = b;
-    b = b->next;
-    for (; b; prev = prev->next, b = b->next) {
+    Bucket **prev = &map->buckets[idx];
+    for (; b; prev = &(*prev)->next, b = b->next) {
         if (!strcmp(b->key, key)) {
-            prev->next = b->next;
+            *prev = b->next;
             map->nelem--;
             return;
         }
