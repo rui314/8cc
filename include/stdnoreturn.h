@@ -6,4 +6,4 @@
 
 #define noreturn _Noreturn
 
-#endif /* __STDNORETURN_H */
+#endif

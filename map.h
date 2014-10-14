@@ -36,4 +36,4 @@ extern size_t map_size(Map *map);
 extern MapIter *map_iter(Map *map);
 extern char *map_next(MapIter *iter);
 
-#endif /* EIGHTCC_MAP_H */
+#endif

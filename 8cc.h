@@ -327,4 +327,4 @@ extern void close_output_file(void);
 
 extern bool debug_cpp;
 
-#endif /* EIGHTCC_H */
+#endif

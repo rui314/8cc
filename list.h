@@ -43,4 +43,4 @@ extern Iter *list_iter(List *list);
 extern void *iter_next(Iter *iter);
 extern bool iter_end(Iter *iter);
 
-#endif /* EIGHTCC_LIST_H */
+#endif

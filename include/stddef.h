@@ -14,4 +14,4 @@ typedef long double max_align_t;
 #define offsetof(type, member)                  \
     ((size_t)&(((type *)NULL)->member))
 
-#endif /* __STDDEF_H */
+#endif

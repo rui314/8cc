@@ -9,4 +9,4 @@
 #define false 0
 #define __bool_true_false_are_defined 1
 
-#endif /* __STDBOOL_H */
+#endif

@@ -24,4 +24,4 @@ List *dict_keys(Dict *dict);
 List *dict_values(Dict *dict);
 void *dict_parent(Dict *dict);
 
-#endif /* EIGHTCC_DICT_H */
+#endif

@@ -25,4 +25,4 @@ typedef struct {
 #define __GNUC_VA_LIST 1
 typedef va_list __gnuc_va_list;
 
-#endif /* __STDARG_H */
+#endif

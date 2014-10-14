@@ -26,4 +26,4 @@ extern void warnf(char *file, int line, char *fmt, ...);
 extern char *quote_cstring(char *p);
 extern char *quote_char(char c);
 
-#endif /* EIGHTCC_UTIL_H */
+#endif
