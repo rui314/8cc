@@ -2,7 +2,6 @@ CFLAGS=-Wall -std=gnu99 -g -I. -O0 -DBUILD_DIR='"$(shell pwd)"'
 OBJS=cpp.o debug.o dict.o gen.o lex.o list.o parse.o string.o map.o error.o
 SELF=cpp.s debug.s dict.s gen.s lex.s list.s parse.s string.s map.s error.s main.s
 TESTS := $(patsubst %.c,%.bin,$(wildcard test/*.c))
-PREFIX=/usr/local
 ECC_CFLAGS=-DBUILD_DIR='"$(shell pwd)"'
 
 8cc: 8cc.h main.o $(OBJS)
@@ -54,10 +53,5 @@ clean:
 	rm -f $(TESTS)
 
 all: 8cc
-
-install: 8cc
-	install 8cc $(PREFIX)/bin
-	mkdir -p $(PREFIX)/lib/8cc/include
-	install include/* $(PREFIX)/lib/8cc/include
 
 .PHONY: clean test all
