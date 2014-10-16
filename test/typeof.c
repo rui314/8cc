@@ -18,6 +18,10 @@ static void test_array(void) {
 
     typeof(typeof (char *)[4]) y;
     expect(4, sizeof(y) / sizeof(*y));
+
+    typedef typeof(a[0]) CHAR;
+    CHAR z = 'z';
+    expect('z', z);
 }
 
 static void test_alt(void) {
