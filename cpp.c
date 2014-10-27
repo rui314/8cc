@@ -96,7 +96,7 @@ static Token *make_macro_token(int position, bool is_vararg) {
     Token *r = malloc(sizeof(Token));
     r->type = TMACRO_PARAM;
     r->is_vararg = is_vararg;
-    r->hideset = make_dict(NULL);
+    r->hideset = make_map(NULL);
     r->position = position;
     r->nspace = 0;
     r->bol = false;
@@ -213,40 +213,39 @@ static List *read_args(Macro *macro) {
     return args;
 }
 
-static Dict *dict_union(Dict *a, Dict *b) {
-    Dict *r = make_dict(NULL);
-    for (Iter *i = list_iter(dict_keys(a)); !iter_end(i);) {
-        char *key = iter_next(i);
-        dict_put(r, key, dict_get(a, key));
-    }
-    for (Iter *i = list_iter(dict_keys(b)); !iter_end(i);) {
-        char *key = iter_next(i);
-        dict_put(r, key, dict_get(b, key));
-    }
+static void map_copy(Map *dst, Map *src) {
+    MapIter *i = map_iter(src);
+    for (char *k = map_next(i, NULL); k; k = map_next(i, NULL))
+        map_put(dst, k, (void *)1);
+}
+
+static Map *map_union(Map *a, Map *b) {
+    Map *r = make_map(NULL);
+    map_copy(r, a);
+    map_copy(r, b);
     return r;
 }
 
-static Dict *dict_intersection(Dict *a, Dict *b) {
-    Dict *r = make_dict(NULL);
-    for (Iter *i = list_iter(dict_keys(a)); !iter_end(i);) {
-        char *key = iter_next(i);
-        if (dict_get(b, key))
-            dict_put(r, key, (void *)1);
-    }
+static Map *map_intersection(Map *a, Map *b) {
+    Map *r = make_map(NULL);
+    MapIter *i = map_iter(a);
+    for (char *k = map_next(i, NULL); k; k = map_next(i, NULL))
+	if (map_get(b, k))
+	    map_put(r, k, (void *)1);
     return r;
 }
 
-static Dict *dict_append(Dict *dict, char *s) {
-    Dict *r = make_dict(dict);
-    dict_put(r, s, (void *)1);
+static Map *map_append(Map *parent, char *k) {
+    Map *r = make_map(parent);
+    map_put(r, k, (void *)1);
     return r;
 }
 
-static List *add_hide_set(List *tokens, Dict *hideset) {
+static List *add_hide_set(List *tokens, Map *hideset) {
     List *r = make_list();
     for (Iter *i = list_iter(tokens); !iter_end(i);) {
         Token *t = copy_token(iter_next(i));
-        t->hideset = dict_union(t->hideset, hideset);
+        t->hideset = map_union(t->hideset, hideset);
         list_push(r, t);
     }
     return r;
@@ -328,7 +327,7 @@ static List *expand_all(List *tokens, Token *tmpl) {
     return r;
 }
 
-static List *subst(Macro *macro, List *args, Dict *hideset) {
+static List *subst(Macro *macro, List *args, Map *hideset) {
     List *r = make_list();
     for (int i = 0; i < list_len(macro->body); i++) {
         bool islast = (i == list_len(macro->body) - 1);
@@ -397,12 +396,12 @@ static Token *read_expand(void) {
         return tok;
     char *name = tok->sval;
     Macro *macro = map_get(macros, name);
-    if (!macro || dict_get(tok->hideset, name))
+    if (!macro || map_get(tok->hideset, name))
         return tok;
 
     switch (macro->type) {
     case MACRO_OBJ: {
-        Dict *hideset = dict_append(tok->hideset, name);
+        Map *hideset = map_append(tok->hideset, name);
         List *tokens = subst(macro, make_list(), hideset);
         set_list_nspace(tokens, tok);
         unget_all(tokens);
@@ -415,7 +414,7 @@ static Token *read_expand(void) {
         Token *rparen = read_cpp_token();
         if (!is_punct(rparen, ')'))
             error("internal error: %s", t2s(rparen));
-        Dict *hideset = dict_append(dict_intersection(tok->hideset, rparen->hideset), name);
+        Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
         List *tokens = subst(macro, args, hideset);
         set_list_nspace(tokens, tok);
         unget_all(tokens);
@@ -951,7 +950,7 @@ static Token *read_token_sub(bool return_at_eol) {
         }
         unget_token(tok);
         Token *r = read_expand();
-        if (r && r->bol && is_punct(r, '#') && dict_empty(r->hideset)) {
+        if (r && r->bol && is_punct(r, '#') && map_size(r->hideset) == 0) {
             read_directive();
             continue;
         }

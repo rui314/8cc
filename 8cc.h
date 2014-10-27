@@ -53,7 +53,7 @@ typedef struct {
     char *file;
     int line;
     int column;
-    Dict *hideset;
+    Map *hideset;
     union {
         char *sval;
         int punct;
