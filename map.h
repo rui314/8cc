@@ -14,6 +14,7 @@ typedef struct Bucket {
 } Bucket;
 
 typedef struct Map {
+    struct Map *parent;
     Bucket **buckets;
     int nelem;
     int cap;
@@ -25,9 +26,9 @@ typedef struct MapIter {
     int i;
 } MapIter;
 
-#define EMPTY_MAP ((Map){ NULL, 0, 0 })
+#define EMPTY_MAP ((Map){ NULL, NULL, 0, 0 })
 
-extern Map *make_map(void);
+extern Map *make_map(Map *parent);
 extern void *map_get(Map *map, char *key);
 extern void map_put(Map *map, char *key, void *val);
 extern void map_remove(Map *map, char *key);

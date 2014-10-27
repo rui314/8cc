@@ -103,7 +103,7 @@ static void test_list(void) {
 }
 
 static void test_map(void) {
-    Map *m = make_map();
+    Map *m = make_map(NULL);
     assert_null(map_get(m, "abc"));
 
     // Insert 10000 values
@@ -144,6 +144,18 @@ static void test_map(void) {
     }
 }
 
+static void test_map_stack(void) {
+    Map *m1 = make_map(NULL);
+    map_put(m1, "x", (void *)1);
+    assert_int(1, (int)(intptr_t)map_get(m1, "x"));
+
+    Map *m2 = make_map(m1);
+    assert_int(1, (int)(intptr_t)map_get(m2, "x"));
+    map_put(m2, "x", (void *)2);
+    assert_int(2, (int)(intptr_t)map_get(m2, "x"));
+    assert_int(1, (int)(intptr_t)map_get(m1, "x"));
+}
+
 static void test_dict(void) {
     Dict *dict = make_dict(NULL);
     assert_null(dict_parent(dict));
@@ -182,6 +194,7 @@ int main(int argc, char **argv) {
     test_string();
     test_list();
     test_map();
+    test_map_stack();
     test_dict();
     printf("Passed\n");
     return 0;

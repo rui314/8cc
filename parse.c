@@ -2172,7 +2172,7 @@ static Node *read_funcdef(void) {
         warn("type specifier missing, assuming int");
     localenv = make_dict(globalenv);
     gotos = make_list();
-    labels = make_map();
+    labels = make_map(NULL);
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);

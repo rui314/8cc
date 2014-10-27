@@ -32,8 +32,9 @@ static uint32_t hash(char *p) {
     return r;
 }
 
-static Map *make_map_internal(int cap) {
+static Map *do_make_map(Map *parent, int cap) {
     Map *r = malloc(sizeof(Map));
+    r->parent = parent;
     r->buckets = malloc(sizeof(Bucket) * cap);
     for (int i = 0; i < cap; i++)
         r->buckets[i] = NULL;
@@ -44,13 +45,12 @@ static Map *make_map_internal(int cap) {
 
 static void maybe_rehash(Map *map) {
     if (!map->buckets) {
-        Map *m = make_map_internal(INIT_SIZE);
-        *map = *m;
+        *map = *do_make_map(NULL, INIT_SIZE);
         return;
     }
     if (map->nelem * 3 < map->cap)
         return;
-    Map *m = make_map_internal(map->cap * 2);
+    Map *m = do_make_map(map->parent, map->cap * 2);
     for (int i = 0; i < map->cap; i++) {
         Bucket *b = map->buckets[i];
         for (; b; b = b->next)
@@ -59,8 +59,8 @@ static void maybe_rehash(Map *map) {
     *map = *m;
 }
 
-Map *make_map(void) {
-    return make_map_internal(INIT_SIZE);
+Map *make_map(Map *parent) {
+    return do_make_map(parent, INIT_SIZE);
 }
 
 void *map_get(Map *map, char *key) {
@@ -71,6 +71,10 @@ void *map_get(Map *map, char *key) {
     for (; b; b = b->next)
         if (!strcmp(b->key, key))
             return b->val;
+    // Map is stackable; if no value is found,
+    // continue searching from the parent.
+    if (map->parent)
+	return map_get(map->parent, key);
     return NULL;
 }
 
