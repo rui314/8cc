@@ -147,13 +147,19 @@ static void test_map(void) {
 static void test_map_stack(void) {
     Map *m1 = make_map(NULL);
     map_put(m1, "x", (void *)1);
+    map_put(m1, "y", (void *)2);
     assert_int(1, (int)(intptr_t)map_get(m1, "x"));
 
     Map *m2 = make_map(m1);
     assert_int(1, (int)(intptr_t)map_get(m2, "x"));
-    map_put(m2, "x", (void *)2);
-    assert_int(2, (int)(intptr_t)map_get(m2, "x"));
+    map_put(m2, "x", (void *)3);
+    assert_int(3, (int)(intptr_t)map_get(m2, "x"));
     assert_int(1, (int)(intptr_t)map_get(m1, "x"));
+
+    MapIter *iter = map_iter(m2);
+    assert_string("x", map_next(iter));
+    assert_string("y", map_next(iter));
+    assert_null(map_next(iter));
 }
 
 static void test_dict(void) {

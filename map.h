@@ -22,6 +22,7 @@ typedef struct Map {
 
 typedef struct MapIter {
     Map *map;
+    Map *cur;
     Bucket *bucket;
     int i;
 } MapIter;

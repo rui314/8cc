@@ -63,7 +63,7 @@ Map *make_map(Map *parent) {
     return do_make_map(parent, INIT_SIZE);
 }
 
-void *map_get(Map *map, char *key) {
+void *map_get_nostack(Map *map, char *key) {
     if (!map->buckets)
         return NULL;
     uint32_t h = hash(key);
@@ -71,6 +71,13 @@ void *map_get(Map *map, char *key) {
     for (; b; b = b->next)
         if (!strcmp(b->key, key))
             return b->val;
+    return NULL;
+}
+
+void *map_get(Map *map, char *key) {
+    void *r = map_get_nostack(map, key);
+    if (r)
+	return r;
     // Map is stackable; if no value is found,
     // continue searching from the parent.
     if (map->parent)
@@ -116,23 +123,51 @@ size_t map_size(Map *map) {
 MapIter *map_iter(Map *map) {
     MapIter *r = malloc(sizeof(MapIter));
     r->map = map;
+    r->cur = map;
     r->bucket = NULL;
     r->i = 0;
     return r;
 }
 
-char *map_next(MapIter *iter) {
+char *do_map_next(MapIter *iter) {
     if (iter->bucket && iter->bucket->next) {
         iter->bucket = iter->bucket->next;
         return iter->bucket->key;
     }
-    while (iter->i < iter->map->cap) {
-        Bucket *b = iter->map->buckets[iter->i];
+    while (iter->i < iter->cur->cap) {
+        Bucket *b = iter->cur->buckets[iter->i];
         iter->i++;
         if (b) {
             iter->bucket = b;
             return b->key;
         }
+    }
+    return NULL;
+}
+
+static bool is_dup(MapIter *iter, char *k) {
+    for (Map *p = iter->map; p != iter->cur; p = p->parent)
+	if (map_get_nostack(p, k))
+	    return true;
+    return false;
+}
+
+char *map_next(MapIter *iter) {
+    if (!iter->cur)
+	return NULL;
+    for (;;) {
+	char *k = do_map_next(iter);
+	if (!k)
+	    break;
+	if (is_dup(iter, k))
+	    continue;
+	return k;
+    }
+    iter->cur = iter->cur->parent;
+    if (iter->cur) {
+	iter->bucket = NULL;
+	iter->i = 0;
+	return map_next(iter);
     }
     return NULL;
 }
