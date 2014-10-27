@@ -36,6 +36,6 @@ extern void map_remove(Map *map, char *key);
 extern size_t map_size(Map *map);
 
 extern MapIter *map_iter(Map *map);
-extern char *map_next(MapIter *iter);
+extern char *map_next(MapIter *iter, void **val);
 
 #endif

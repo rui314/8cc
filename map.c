@@ -129,9 +129,11 @@ MapIter *map_iter(Map *map) {
     return r;
 }
 
-char *do_map_next(MapIter *iter) {
+char *do_map_next(MapIter *iter, void **val) {
     if (iter->bucket && iter->bucket->next) {
         iter->bucket = iter->bucket->next;
+	if (val)
+	    *val = iter->bucket->val;
         return iter->bucket->key;
     }
     while (iter->i < iter->cur->cap) {
@@ -139,6 +141,8 @@ char *do_map_next(MapIter *iter) {
         iter->i++;
         if (b) {
             iter->bucket = b;
+	    if (val)
+		*val = b->val;
             return b->key;
         }
     }
@@ -152,11 +156,11 @@ static bool is_dup(MapIter *iter, char *k) {
     return false;
 }
 
-char *map_next(MapIter *iter) {
+char *map_next(MapIter *iter, void **val) {
     if (!iter->cur)
 	return NULL;
     for (;;) {
-	char *k = do_map_next(iter);
+	char *k = do_map_next(iter, val);
 	if (!k)
 	    break;
 	if (is_dup(iter, k))
@@ -167,7 +171,7 @@ char *map_next(MapIter *iter) {
     if (iter->cur) {
 	iter->bucket = NULL;
 	iter->i = 0;
-	return map_next(iter);
+	return map_next(iter, val);
     }
     return NULL;
 }

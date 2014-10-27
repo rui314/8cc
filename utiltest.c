@@ -122,17 +122,18 @@ static void test_map(void) {
 
     // Verify that the iterator iterates over all the elements
     {
-      bool x[10000];
-      for (int i = 0; i < 10000; i++)
-        x[i] = 0;
-      MapIter *iter = map_iter(m);
-      char *k = map_next(iter);
-      for (; k; k = map_next(iter)) {
-        int v = (intptr_t)map_get(m, k);
-        x[v] = 1;
-      }
-      for (int i = 0; i < 10000; i++)
-        assert_true(x[i] == 1);
+	bool x[10000];
+	for (int i = 0; i < 10000; i++)
+	    x[i] = 0;
+	MapIter *iter = map_iter(m);
+	void *v;
+	char *k = map_next(iter, &v);
+	for (; k; k = map_next(iter, &v)) {
+	    int i = (intptr_t)v;
+	    x[i] = 1;
+	}
+	for (int i = 0; i < 10000; i++)
+	    assert_true(x[i] == 1);
     }
 
     // Remove them
@@ -157,9 +158,9 @@ static void test_map_stack(void) {
     assert_int(1, (int)(intptr_t)map_get(m1, "x"));
 
     MapIter *iter = map_iter(m2);
-    assert_string("x", map_next(iter));
-    assert_string("y", map_next(iter));
-    assert_null(map_next(iter));
+    assert_string("x", map_next(iter, NULL));
+    assert_string("y", map_next(iter, NULL));
+    assert_null(map_next(iter, NULL));
 }
 
 static void test_dict(void) {
