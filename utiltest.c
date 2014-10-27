@@ -165,7 +165,6 @@ static void test_map_stack(void) {
 
 static void test_dict(void) {
     Dict *dict = make_dict(NULL);
-    assert_null(dict_parent(dict));
     assert_null(dict_get(dict, "abc"));
     dict_put(dict, "abc", (void *)50);
     dict_put(dict, "xyz", (void *)70);
@@ -173,7 +172,6 @@ static void test_dict(void) {
     assert_int(70, (long)dict_get(dict, "xyz"));
 
     Dict *dict2 = make_dict(dict);
-    assert_true(dict_parent(dict2) == dict);
     assert_int(50, (long)dict_get(dict, "abc"));
     assert_int(70, (long)dict_get(dict, "xyz"));
     dict_put(dict2, "ABC", (void *)110);

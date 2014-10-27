@@ -64,7 +64,3 @@ List *dict_values(Dict *dict) {
             list_unshift(r, ((DictEntry *)iter_next(i))->val);
     return r;
 }
-
-void *dict_parent(Dict *dict) {
-    return dict->parent;
-}

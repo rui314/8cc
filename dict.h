@@ -22,6 +22,5 @@ void dict_remove(Dict *dict, char *key);
 bool dict_empty(Dict *dict);
 List *dict_keys(Dict *dict);
 List *dict_values(Dict *dict);
-void *dict_parent(Dict *dict);
 
 #endif
