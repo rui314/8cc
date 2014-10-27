@@ -28,8 +28,8 @@ SourceLoc *source_loc;
 // Objects representing various scopes. Did you know C has so many different
 // scopes? You can use the same name for global variable, local variable, struct
 // tag, union tag, and goto label!
-static Dict *globalenv = &EMPTY_DICT;
-static Dict *localenv;
+static Map *globalenv = &EMPTY_MAP;
+static Map *localenv;
 static Map *struct_defs = &EMPTY_MAP;
 static Map *union_defs = &EMPTY_MAP;
 static Map *labels;
@@ -151,7 +151,7 @@ static Node *ast_floattype(Ctype *ctype, double val) {
 static Node *ast_lvar(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_LVAR, ctype, .varname = name });
     if (localenv)
-        dict_put(localenv, name, r);
+        map_put(localenv, name, r);
     if (localvars)
         list_push(localvars, r);
     return r;
@@ -159,13 +159,13 @@ static Node *ast_lvar(Ctype *ctype, char *name) {
 
 static Node *ast_gvar(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_GVAR, ctype, .varname = name, .glabel = name });
-    dict_put(globalenv, name, r);
+    map_put(globalenv, name, r);
     return r;
 }
 
 static Node *ast_typedef(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_TYPEDEF, ctype, .typedefname = name });
-    dict_put(localenv ? localenv : globalenv, name, r);
+    map_put(localenv ? localenv : globalenv, name, r);
     return r;
 }
 
@@ -422,7 +422,7 @@ static Ctype *copy_incomplete_type(Ctype *ctype) {
 }
 
 static Ctype *get_typedef(char *name) {
-    Node *node = dict_get(localenv ? localenv : globalenv, name);
+    Node *node = map_get(localenv ? localenv : globalenv, name);
     return (node && node->type == AST_TYPEDEF) ? node->ctype : NULL;
 }
 
@@ -882,7 +882,7 @@ static void read_static_assert(void) {
  */
 
 static Node *read_var_or_func(char *name) {
-    Node *v = dict_get(localenv ? localenv : globalenv, name);
+    Node *v = map_get(localenv ? localenv : globalenv, name);
     if (!v || v->ctype->type == CTYPE_FUNC)
         return ast_funcdesg(name, v);
     return v;
@@ -1517,7 +1517,7 @@ static Ctype *read_enum_def(void) {
         if (next_token('='))
             val = read_intexpr();
         Node *constval = ast_inttype(ctype_int, val++);
-        dict_put(localenv ? localenv : globalenv, name, constval);
+        map_put(localenv ? localenv : globalenv, name, constval);
         if (next_token(','))
             continue;
         if (next_token('}'))
@@ -2049,7 +2049,7 @@ static void read_decl(List *block, MakeVarFn *make_var) {
  */
 
 static List *read_oldstyle_param_args(void) {
-    Dict *olocalenv = localenv;
+    Map *orig = localenv;
     localenv = NULL;
     List *r = make_list();
     for (;;) {
@@ -2059,7 +2059,7 @@ static List *read_oldstyle_param_args(void) {
             error("K&R-style declarator expected, but got %s", t2s(peek_token()));
         read_decl(r, ast_lvar);
     }
-    localenv = olocalenv;
+    localenv = orig;
     return r;
 }
 
@@ -2104,12 +2104,12 @@ static List *param_types(List *params) {
  */
 
 static Node *read_func_body(Ctype *functype, char *fname, List *params) {
-    localenv = make_dict(localenv);
+    localenv = make_map(localenv);
     localvars = make_list();
     current_func_type = functype;
     Node *funcname = ast_string(fname);
-    dict_put(localenv, "__func__", funcname);
-    dict_put(localenv, "__FUNCTION__", funcname);
+    map_put(localenv, "__func__", funcname);
+    map_put(localenv, "__FUNCTION__", funcname);
     Node *body = read_compound_stmt();
     Node *r = ast_func(functype, fname, params, body, localvars);
     current_func_type = NULL;
@@ -2170,7 +2170,7 @@ static Node *read_funcdef(void) {
         basetype = read_decl_spec(&sclass);
     else
         warn("type specifier missing, assuming int");
-    localenv = make_dict(globalenv);
+    localenv = make_map(globalenv);
     gotos = make_list();
     labels = make_map(NULL);
     char *name;
@@ -2223,7 +2223,8 @@ static Node *read_opt_decl_or_stmt(void) {
 
 static Node *read_for_stmt(void) {
     expect('(');
-    localenv = make_dict(localenv);
+    Map *orig = localenv;
+    localenv = make_map(localenv);
     Node *init = read_opt_decl_or_stmt();
     Node *cond = read_expr_opt();
     if (cond && is_flotype(cond->ctype))
@@ -2232,7 +2233,7 @@ static Node *read_for_stmt(void) {
     Node *step = read_expr_opt();
     expect(')');
     Node *body = read_stmt();
-    localenv = dict_parent(localenv);
+    localenv = orig;
     return ast_for(init, cond, step, body);
 }
 
@@ -2374,14 +2375,15 @@ static Node *read_stmt(void) {
 }
 
 static Node *read_compound_stmt(void) {
-    localenv = make_dict(localenv);
+    Map *orig = localenv;
+    localenv = make_map(localenv);
     List *list = make_list();
     for (;;) {
         if (next_token('}'))
             break;
         read_decl_or_stmt(list);
     }
-    localenv = dict_parent(localenv);
+    localenv = orig;
     return ast_compound_stmt(list);
 }
 
@@ -2423,7 +2425,7 @@ List *read_toplevels(void) {
 
 void parse_init(void) {
 #define DEFINE_BUILTIN(name, rettype, paramtypes)                       \
-    dict_put(globalenv, name, ast_gvar(make_func_type(rettype, paramtypes, true, false), name))
+    map_put(globalenv, name, ast_gvar(make_func_type(rettype, paramtypes, true, false), name))
 
     DEFINE_BUILTIN("__builtin_va_start", ctype_void, make_list());
     DEFINE_BUILTIN("__builtin_va_arg", ctype_void, make_list());
