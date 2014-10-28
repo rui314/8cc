@@ -429,7 +429,7 @@ static Token *read_expand(void) {
     }
 }
 
-static bool read_funclike_macro_params(Dict *param) {
+static bool read_funclike_macro_params(Map *param) {
     int pos = 0;
     for (;;) {
         Token *tok = read_cpp_token();
@@ -443,7 +443,7 @@ static bool read_funclike_macro_params(Dict *param) {
         if (!tok || tok->type == TNEWLINE)
             error("missing ')' in macro parameter list");
         if (is_ident(tok, "...")) {
-            dict_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
+            map_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
             expect(')');
             return true;
         }
@@ -453,22 +453,22 @@ static bool read_funclike_macro_params(Dict *param) {
         tok = read_cpp_token();
         if (is_ident(tok, "...")) {
             expect(')');
-            dict_put(param, arg, make_macro_token(pos++, true));
+            map_put(param, arg, make_macro_token(pos++, true));
             return true;
         }
         unget_token(tok);
-        dict_put(param, arg, make_macro_token(pos++, false));
+        map_put(param, arg, make_macro_token(pos++, false));
     }
 }
 
-static List *read_funclike_macro_body(Dict *param) {
+static List *read_funclike_macro_body(Map *param) {
     List *r = make_list();
     for (;;) {
         Token *tok = read_cpp_token();
         if (!tok || tok->type == TNEWLINE)
             return r;
         if (tok->type == TIDENT) {
-            Token *subst = dict_get(param, tok->sval);
+            Token *subst = map_get(param, tok->sval);
             if (subst) {
                 subst = copy_token(subst);
                 subst->nspace = tok->nspace;
@@ -482,10 +482,10 @@ static List *read_funclike_macro_body(Dict *param) {
 }
 
 static void read_funclike_macro(char *name) {
-    Dict *param = make_dict(NULL);
+    Map *param = make_map(NULL);
     bool is_varg = read_funclike_macro_params(param);
     List *body = read_funclike_macro_body(param);
-    Macro *macro = make_func_macro(body, list_len(dict_keys(param)), is_varg);
+    Macro *macro = make_func_macro(body, map_size(param), is_varg);
     map_put(macros, name, macro);
 }
 
