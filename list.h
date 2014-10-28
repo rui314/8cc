@@ -6,24 +6,18 @@
 
 #include <stdbool.h>
 
-typedef struct ListNode {
-    void *elem;
-    struct ListNode *next;
-    struct ListNode *prev;
-} ListNode;
-
 typedef struct List {
+    void **body;
     int len;
-    ListNode *head;
-    ListNode *tail;
+    int nalloc;
 } List;
 
 typedef struct Iter {
-    ListNode *ptr;
+    List *list;
+    int i;
 } Iter;
 
-#define EMPTY_LIST                                      \
-    ((List){ .len = 0, .head = NULL, .tail = NULL })
+#define EMPTY_LIST ((List){ .len = 0, .nalloc = 0 })
 
 extern List *make_list(void);
 extern List *make_list1(void *e);
