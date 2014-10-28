@@ -1381,7 +1381,7 @@ static void finish_bitfield(int *off, int *bitoff) {
 static Dict *update_struct_offset(List *fields, int *align, int *rsize) {
     int off = 0, bitoff = -1;
     Iter *iter = list_iter(fields);
-    Dict *r = make_dict(NULL);
+    Dict *r = make_dict();
     while (!iter_end(iter)) {
         Pair *pair = iter_next(iter);
         char *name = pair->first;
@@ -1429,7 +1429,7 @@ static Dict *update_struct_offset(List *fields, int *align, int *rsize) {
 static Dict *update_union_offset(List *fields, int *align, int *rsize) {
     int maxsize = 0;
     Iter *iter = list_iter(fields);
-    Dict *r = make_dict(NULL);
+    Dict *r = make_dict();
     while (!iter_end(iter)) {
         Pair *pair = iter_next(iter);
         char *name = pair->first;

@@ -5,62 +5,22 @@
 #include <string.h>
 #include "dict.h"
 
-typedef struct DictEntry {
-    char *key;
-    void *val;
-} DictEntry;
-
-void *make_dict(void *parent) {
+Dict *make_dict(void) {
     Dict *r = malloc(sizeof(Dict));
-    r->list = make_list();
-    r->parent = parent;
+    r->map = make_map(NULL);
+    r->key = make_list();
     return r;
 }
 
 void *dict_get(Dict *dict, char *key) {
-    for (; dict; dict = dict->parent) {
-        for (Iter *i = list_iter(dict->list); !iter_end(i);) {
-            DictEntry *e = iter_next(i);
-            if (!strcmp(key, e->key))
-                return e->val;
-        }
-    }
-    return NULL;
+    return map_get(dict->map, key);
 }
 
 void dict_put(Dict *dict, char *key, void *val) {
-    DictEntry *e = malloc(sizeof(DictEntry));
-    e->key = key;
-    e->val = val;
-    list_unshift(dict->list, e);
-}
-
-void dict_remove(Dict *dict, char *key) {
-    List *list = make_list();
-    for (Iter *i = list_iter(dict->list); !iter_end(i);) {
-        DictEntry *e = iter_next(i);
-        if (strcmp(key, e->key))
-            list_push(list, e);
-    }
-    dict->list = list;
-}
-
-bool dict_empty(Dict *dict) {
-    return list_len(dict->list) == 0;
+    map_put(dict->map, key, val);
+    list_push(dict->key, key);
 }
 
 List *dict_keys(Dict *dict) {
-    List *r = make_list();
-    for (; dict; dict = dict->parent)
-        for (Iter *i = list_iter(dict->list); !iter_end(i);)
-            list_unshift(r, ((DictEntry *)iter_next(i))->key);
-    return r;
-}
-
-List *dict_values(Dict *dict) {
-    List *r = make_list();
-    for (; dict; dict = dict->parent)
-        for (Iter *i = list_iter(dict->list); !iter_end(i);)
-            list_unshift(r, ((DictEntry *)iter_next(i))->val);
-    return r;
+    return dict->key;
 }

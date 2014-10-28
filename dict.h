@@ -5,22 +5,16 @@
 #define EIGHTCC_DICT_H
 
 #include "list.h"
+#include "map.h"
 
 typedef struct Dict {
-    List *list;
-    struct Dict *parent;
-    int size;
+    Map *map;
+    List *key;
 } Dict;
 
-#define EMPTY_DICT                              \
-    ((Dict){ &EMPTY_LIST, NULL })
-
-void *make_dict(void *parent);
+Dict *make_dict(void);
 void *dict_get(Dict *dict, char *key);
 void dict_put(Dict *dict, char *key, void *val);
-void dict_remove(Dict *dict, char *key);
-bool dict_empty(Dict *dict);
 List *dict_keys(Dict *dict);
-List *dict_values(Dict *dict);
 
 #endif

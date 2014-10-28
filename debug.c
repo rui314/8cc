@@ -34,8 +34,9 @@ static char *do_c2s(Dict *dict, Ctype *ctype) {
         dict_put(dict, format("%p", ctype), (void *)1);
         String *s = make_string();
         string_appendf(s, "(%s", type);
-        for (Iter *i = list_iter(dict_values(ctype->fields)); !iter_end(i);) {
-            Ctype *fieldtype = iter_next(i);
+        for (Iter *i = list_iter(dict_keys(ctype->fields)); !iter_end(i);) {
+            char *key = iter_next(i);
+            Ctype *fieldtype = dict_get(ctype->fields, key);
             string_appendf(s, " (%s)", do_c2s(dict, fieldtype));
         }
         string_appendf(s, ")");
@@ -59,7 +60,7 @@ static char *do_c2s(Dict *dict, Ctype *ctype) {
 }
 
 char *c2s(Ctype *ctype) {
-    return do_c2s(make_dict(NULL), ctype);
+    return do_c2s(make_dict(), ctype);
 }
 
 static void uop_to_string(String *buf, char *op, Node *node) {

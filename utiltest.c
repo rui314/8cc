@@ -164,35 +164,13 @@ static void test_map_stack(void) {
 }
 
 static void test_dict(void) {
-    Dict *dict = make_dict(NULL);
+    Dict *dict = make_dict();
     assert_null(dict_get(dict, "abc"));
     dict_put(dict, "abc", (void *)50);
     dict_put(dict, "xyz", (void *)70);
     assert_int(50, (long)dict_get(dict, "abc"));
     assert_int(70, (long)dict_get(dict, "xyz"));
-
-    Dict *dict2 = make_dict(dict);
-    assert_int(50, (long)dict_get(dict, "abc"));
-    assert_int(70, (long)dict_get(dict, "xyz"));
-    dict_put(dict2, "ABC", (void *)110);
-    assert_int(110, (long)dict_get(dict2, "ABC"));
-    assert_null(dict_get(dict, "ABC"));
-
-    assert_int(3, list_len(dict_values(dict2)));
-    assert_int(2, list_len(dict_values(dict)));
-    assert_int(3, list_len(dict_keys(dict2)));
     assert_int(2, list_len(dict_keys(dict)));
-
-    Dict *dict3 = make_dict(NULL);
-    dict_put(dict3, "abc", (void *)10);
-    assert_int(10, (long)dict_get(dict3, "abc"));
-    dict_remove(dict3, "abc");
-    assert_int(0, (long)dict_get(dict3, "abc"));
-
-    Dict *dict4 = make_dict(NULL);
-    dict_put(dict4, "abc", (void *)50);
-    dict_put(dict4, "abc", (void *)60);
-    assert_int(60, (long)dict_get(dict4, "abc"));
 }
 
 int main(int argc, char **argv) {
