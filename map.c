@@ -67,7 +67,7 @@ Map *make_map_parent(Map *parent) {
     return do_make_map(parent, INIT_SIZE);
 }
 
-void *map_get_nostack(Map *map, char *key) {
+static void *map_get_nostack(Map *map, char *key) {
     if (!map->buckets)
         return NULL;
     uint32_t h = hash(key);
@@ -133,7 +133,7 @@ MapIter *map_iter(Map *map) {
     return r;
 }
 
-char *do_map_next(MapIter *iter, void **val) {
+static char *do_map_next(MapIter *iter, void **val) {
     if (iter->bucket && iter->bucket->next) {
         iter->bucket = iter->bucket->next;
 	if (val)
