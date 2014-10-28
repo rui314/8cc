@@ -24,8 +24,8 @@
 bool debug_cpp;
 static Map *macros = &EMPTY_MAP;
 static Map *imported = &EMPTY_MAP;
-static List *cond_incl_stack = &EMPTY_LIST;
-static List *std_include_path = &EMPTY_LIST;
+static Vector *cond_incl_stack = &EMPTY_VECTOR;
+static Vector *std_include_path = &EMPTY_VECTOR;
 static Token *cpp_token_zero = &(Token){ .type = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .type = TNUMBER, .sval = "1" };
 static struct tm *current_time;
@@ -39,13 +39,13 @@ typedef struct { CondInclCtx ctx; bool wastrue; } CondIncl;
 typedef struct {
     MacroType type;
     int nargs;
-    List *body;
+    Vector *body;
     bool is_varg;
     special_macro_handler *fn;
 } Macro;
 
-static Macro *make_obj_macro(List *body);
-static Macro *make_func_macro(List *body, int nargs, bool is_varg);
+static Macro *make_obj_macro(Vector *body);
+static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(special_macro_handler *fn);
 static Token *read_token_sub(bool return_at_eol);
 static Token *read_expand(void);
@@ -57,8 +57,8 @@ static Token *read_expand(void);
 void cpp_eval(char *buf) {
     FILE *fp = fmemopen(buf, strlen(buf), "r");
     set_input_file("(eval)", NULL, fp);
-    List *toplevels = read_toplevels();
-    for (Iter *i = list_iter(toplevels); !iter_end(i);)
+    Vector *toplevels = read_toplevels();
+    for (Iter *i = vec_iter(toplevels); !iter_end(i);)
         emit_toplevel(iter_next(i));
 }
 
@@ -79,11 +79,11 @@ static Macro *make_macro(Macro *tmpl) {
     return r;
 }
 
-static Macro *make_obj_macro(List *body) {
+static Macro *make_obj_macro(Vector *body) {
     return make_macro(&(Macro){ MACRO_OBJ, .body = body });
 }
 
-static Macro *make_func_macro(List *body, int nargs, bool is_varg) {
+static Macro *make_func_macro(Vector *body, int nargs, bool is_varg) {
     return make_macro(&(Macro){
             MACRO_FUNC, .nargs = nargs, .body = body, .is_varg = is_varg });
 }
@@ -137,10 +137,10 @@ static bool next(int punct) {
     return false;
 }
 
-static void set_list_nspace(List *tokens, Token *tmpl) {
-    if (list_len(tokens) == 0)
+static void set_vec_nspace(Vector *tokens, Token *tmpl) {
+    if (vec_len(tokens) == 0)
         return;
-    Token *tok = list_head(tokens);
+    Token *tok = vec_head(tokens);
     tok->nspace = tmpl->nspace;
 }
 
@@ -161,9 +161,9 @@ void expect_newline(void) {
         error("Newline expected, but got %s", t2s(tok));
 }
 
-static List *do_read_args(Macro *macro) {
-    List *r = make_list();
-    List *arg = make_list();
+static Vector *do_read_args(Macro *macro) {
+    Vector *r = make_vector();
+    Vector *arg = make_vector();
     int depth = 0;
     for (;;) {
         Token *tok = read_cpp_token();
@@ -176,38 +176,38 @@ static List *do_read_args(Macro *macro) {
         } else if (depth) {
             if (is_punct(tok, ')'))
                 depth--;
-            list_push(arg, tok);
+            vec_push(arg, tok);
             continue;
         }
         if (is_punct(tok, ')')) {
             unget_token(tok);
-            list_push(r, arg);
+            vec_push(r, arg);
             return r;
         }
-        bool in_threedots = macro->is_varg && list_len(r) + 1 == macro->nargs;
+        bool in_threedots = macro->is_varg && vec_len(r) + 1 == macro->nargs;
         if (is_punct(tok, ',') && !in_threedots) {
-            list_push(r, arg);
-            arg = make_list();
+            vec_push(r, arg);
+            arg = make_vector();
             continue;
         }
-        list_push(arg, tok);
+        vec_push(arg, tok);
     }
 }
 
-static List *read_args(Macro *macro) {
-    List *args = do_read_args(macro);
+static Vector *read_args(Macro *macro) {
+    Vector *args = do_read_args(macro);
     if (macro->is_varg) {
-        if (list_len(args) == macro->nargs - 1)
-            list_push(args, make_list());
-        else if (list_len(args) < macro->nargs)
+        if (vec_len(args) == macro->nargs - 1)
+            vec_push(args, make_vector());
+        else if (vec_len(args) < macro->nargs)
             error("Macro argument number is less than expected");
         return args;
     }
-    if (!macro->is_varg && list_len(args) != macro->nargs) {
+    if (!macro->is_varg && vec_len(args) != macro->nargs) {
         if (macro->nargs == 0 &&
-            list_len(args) == 1 &&
-            list_len(list_get(args, 0)) == 0)
-            return &EMPTY_LIST;
+            vec_len(args) == 1 &&
+            vec_len(vec_get(args, 0)) == 0)
+            return &EMPTY_VECTOR;
         error("Macro argument number does not match");
     }
     return args;
@@ -241,12 +241,12 @@ static Map *map_append(Map *parent, char *k) {
     return r;
 }
 
-static List *add_hide_set(List *tokens, Map *hideset) {
-    List *r = make_list();
-    for (Iter *i = list_iter(tokens); !iter_end(i);) {
+static Vector *add_hide_set(Vector *tokens, Map *hideset) {
+    Vector *r = make_vector();
+    for (Iter *i = vec_iter(tokens); !iter_end(i);) {
         Token *t = copy_token(iter_next(i));
         t->hideset = map_union(t->hideset, hideset);
-        list_push(r, t);
+        vec_push(r, t);
     }
     return r;
 }
@@ -275,15 +275,15 @@ static Token *glue_tokens(Token *t0, Token *t1) {
     return r;
 }
 
-static void glue_push(List *tokens, Token *tok) {
-    assert(list_len(tokens) > 0);
-    Token *last = list_pop(tokens);
-    list_push(tokens, glue_tokens(last, tok));
+static void glue_push(Vector *tokens, Token *tok) {
+    assert(vec_len(tokens) > 0);
+    Token *last = vec_pop(tokens);
+    vec_push(tokens, glue_tokens(last, tok));
 }
 
-static char *join_tokens(List *args, bool sep) {
+static char *join_tokens(Vector *args, bool sep) {
     Buffer *b = make_buffer();
-    for (Iter *i = list_iter(args); !iter_end(i);) {
+    for (Iter *i = vec_iter(args); !iter_end(i);) {
         Token *tok = iter_next(i);
         if (sep && buf_len(b) && tok->nspace)
             buf_printf(b, " ");
@@ -308,51 +308,51 @@ static char *join_tokens(List *args, bool sep) {
     return buf_body(b);
 }
 
-static Token *stringize(Token *tmpl, List *args) {
+static Token *stringize(Token *tmpl, Vector *args) {
     Token *r = copy_token(tmpl);
     r->type = TSTRING;
     r->sval = join_tokens(args, true);
     return r;
 }
 
-static List *expand_all(List *tokens, Token *tmpl) {
-    List *r = make_list();
-    List *orig = get_input_buffer();
+static Vector *expand_all(Vector *tokens, Token *tmpl) {
+    Vector *r = make_vector();
+    Vector *orig = get_input_buffer();
     set_input_buffer(tokens);
     Token *tok;
     while ((tok = read_expand()) != NULL)
-        list_push(r, tok);
-    set_list_nspace(r, tmpl);
+        vec_push(r, tok);
+    set_vec_nspace(r, tmpl);
     set_input_buffer(orig);
     return r;
 }
 
-static List *subst(Macro *macro, List *args, Map *hideset) {
-    List *r = make_list();
-    for (int i = 0; i < list_len(macro->body); i++) {
-        bool islast = (i == list_len(macro->body) - 1);
-        Token *t0 = list_get(macro->body, i);
-        Token *t1 = islast ? NULL : list_get(macro->body, i + 1);
+static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
+    Vector *r = make_vector();
+    for (int i = 0; i < vec_len(macro->body); i++) {
+        bool islast = (i == vec_len(macro->body) - 1);
+        Token *t0 = vec_get(macro->body, i);
+        Token *t1 = islast ? NULL : vec_get(macro->body, i + 1);
         bool t0_param = (t0->type == TMACRO_PARAM);
         bool t1_param = (!islast && t1->type == TMACRO_PARAM);
 
         if (is_punct(t0, '#') && t1_param) {
-            list_push(r, stringize(t0, list_get(args, t1->position)));
+            vec_push(r, stringize(t0, vec_get(args, t1->position)));
             i++;
             continue;
         }
         if (is_ident(t0, "##") && t1_param) {
-            List *arg = list_get(args, t1->position);
-            if (t1->is_vararg && list_len(r) > 0 && is_punct(list_tail(r), ',')) {
-                if (list_len(arg) > 0)
-                    list_append(r, expand_all(arg, t1));
+            Vector *arg = vec_get(args, t1->position);
+            if (t1->is_vararg && vec_len(r) > 0 && is_punct(vec_tail(r), ',')) {
+                if (vec_len(arg) > 0)
+                    vec_append(r, expand_all(arg, t1));
                 else
-                    list_pop(r);
-            } else if (list_len(arg) > 0) {
-                glue_push(r, list_head(arg));
-                List *tmp = list_copy(arg);
-                list_shift(tmp);
-                list_append(r, expand_all(tmp, t1));
+                    vec_pop(r);
+            } else if (vec_len(arg) > 0) {
+                glue_push(r, vec_head(arg));
+                Vector *tmp = vec_copy(arg);
+                vec_shift(tmp);
+                vec_append(r, expand_all(tmp, t1));
             }
             i++;
             continue;
@@ -365,25 +365,25 @@ static List *subst(Macro *macro, List *args, Map *hideset) {
         }
         if (t0_param && !islast && is_ident(t1, "##")) {
             hideset = t1->hideset;
-            List *arg = list_get(args, t0->position);
-            if (list_len(arg) == 0)
+            Vector *arg = vec_get(args, t0->position);
+            if (vec_len(arg) == 0)
                 i++;
             else
-                list_append(r, arg);
+                vec_append(r, arg);
             continue;
         }
         if (t0_param) {
-            List *arg = list_get(args, t0->position);
-            list_append(r, expand_all(arg, t0));
+            Vector *arg = vec_get(args, t0->position);
+            vec_append(r, expand_all(arg, t0));
             continue;
         }
-        list_push(r, t0);
+        vec_push(r, t0);
     }
     return add_hide_set(r, hideset);
 }
 
-static void unget_all(List *tokens) {
-    for (Iter *i = list_iter(list_reverse(tokens)); !iter_end(i);)
+static void unget_all(Vector *tokens) {
+    for (Iter *i = vec_iter(vec_reverse(tokens)); !iter_end(i);)
         unget_token(iter_next(i));
 }
 
@@ -402,21 +402,21 @@ static Token *read_expand(void) {
     switch (macro->type) {
     case MACRO_OBJ: {
         Map *hideset = map_append(tok->hideset, name);
-        List *tokens = subst(macro, make_list(), hideset);
-        set_list_nspace(tokens, tok);
+        Vector *tokens = subst(macro, make_vector(), hideset);
+        set_vec_nspace(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
     case MACRO_FUNC: {
         if (!next('('))
             return tok;
-        List *args = read_args(macro);
+        Vector *args = read_args(macro);
         Token *rparen = read_cpp_token();
         if (!is_punct(rparen, ')'))
             error("internal error: %s", t2s(rparen));
         Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
-        List *tokens = subst(macro, args, hideset);
-        set_list_nspace(tokens, tok);
+        Vector *tokens = subst(macro, args, hideset);
+        set_vec_nspace(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
@@ -461,8 +461,8 @@ static bool read_funclike_macro_params(Map *param) {
     }
 }
 
-static List *read_funclike_macro_body(Map *param) {
-    List *r = make_list();
+static Vector *read_funclike_macro_body(Map *param) {
+    Vector *r = make_vector();
     for (;;) {
         Token *tok = read_cpp_token();
         if (!tok || tok->type == TNEWLINE)
@@ -472,11 +472,11 @@ static List *read_funclike_macro_body(Map *param) {
             if (subst) {
                 subst = copy_token(subst);
                 subst->nspace = tok->nspace;
-                list_push(r, subst);
+                vec_push(r, subst);
                 continue;
             }
         }
-        list_push(r, tok);
+        vec_push(r, tok);
     }
     return r;
 }
@@ -484,18 +484,18 @@ static List *read_funclike_macro_body(Map *param) {
 static void read_funclike_macro(char *name) {
     Map *param = make_map();
     bool is_varg = read_funclike_macro_params(param);
-    List *body = read_funclike_macro_body(param);
+    Vector *body = read_funclike_macro_body(param);
     Macro *macro = make_func_macro(body, map_size(param), is_varg);
     map_put(macros, name, macro);
 }
 
 static void read_obj_macro(char *name) {
-    List *body = make_list();
+    Vector *body = make_vector();
     for (;;) {
         Token *tok = read_cpp_token();
         if (!tok || tok->type == TNEWLINE)
             break;
-        list_push(body, tok);
+        vec_push(body, tok);
     }
     map_put(macros, name, make_obj_macro(body));
 }
@@ -544,33 +544,33 @@ static Token *read_defined_op(void) {
  * #if and the like
  */
 
-static List *read_intexpr_line(void) {
-    List *r = make_list();
+static Vector *read_intexpr_line(void) {
+    Vector *r = make_vector();
     for (;;) {
         Token *tok = read_token_sub(true);
         if (!tok) return r;
         if (is_ident(tok, "defined"))
-            list_push(r, read_defined_op());
+            vec_push(r, read_defined_op());
         else if (tok->type == TIDENT)
-            list_push(r, cpp_token_one);
+            vec_push(r, cpp_token_one);
         else
-            list_push(r, tok);
+            vec_push(r, tok);
     }
 }
 
 static bool read_constexpr(void) {
-    List *orig = get_input_buffer();
+    Vector *orig = get_input_buffer();
     set_input_buffer(read_intexpr_line());
     Node *expr = read_expr();
-    List *buf = get_input_buffer();
-    if (list_len(buf) > 0)
-        error("Stray token: %s", t2s(list_shift(buf)));
+    Vector *buf = get_input_buffer();
+    if (vec_len(buf) > 0)
+        error("Stray token: %s", t2s(vec_shift(buf)));
     set_input_buffer(orig);
     return eval_intexpr(expr);
 }
 
 static void read_if_generic(bool cond) {
-    list_push(cond_incl_stack, make_cond_incl(IN_THEN, cond));
+    vec_push(cond_incl_stack, make_cond_incl(IN_THEN, cond));
     if (!cond)
         skip_cond_incl();
 }
@@ -597,9 +597,9 @@ static void read_ifndef(void) {
 }
 
 static void read_else(void) {
-    if (list_len(cond_incl_stack) == 0)
+    if (vec_len(cond_incl_stack) == 0)
         error("stray #else");
-    CondIncl *ci = list_tail(cond_incl_stack);
+    CondIncl *ci = vec_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
         error("#else appears in #else");
     expect_newline();
@@ -608,9 +608,9 @@ static void read_else(void) {
 }
 
 static void read_elif(void) {
-    if (list_len(cond_incl_stack) == 0)
+    if (vec_len(cond_incl_stack) == 0)
         error("stray #elif");
-    CondIncl *ci = list_tail(cond_incl_stack);
+    CondIncl *ci = vec_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
         error("#elif after #else");
     if (ci->wastrue)
@@ -622,9 +622,9 @@ static void read_elif(void) {
 }
 
 static void read_endif(void) {
-    if (list_len(cond_incl_stack) == 0)
+    if (vec_len(cond_incl_stack) == 0)
         error("stray #endif");
-    list_pop(cond_incl_stack);
+    vec_pop(cond_incl_stack);
     expect_newline();
 }
 
@@ -659,14 +659,14 @@ static char *read_cpp_header_name(bool *std) {
     }
     if (!is_punct(tok, '<'))
         error("'<' expected, but got %s", t2s(tok));
-    List *tokens = make_list();
+    Vector *tokens = make_vector();
     for (;;) {
         Token *tok = read_expand();
         if (!tok || tok->type == TNEWLINE)
             error("premature end of header name");
         if (is_punct(tok, '>'))
             break;
-        list_push(tokens, tok);
+        vec_push(tokens, tok);
     }
     *std = true;
     return join_tokens(tokens, false);
@@ -695,7 +695,7 @@ static void read_include(bool isimport) {
         if (try_include(dir, filename, isimport))
             return;
     }
-    for (Iter *i = list_iter(std_include_path); !iter_end(i);) {
+    for (Iter *i = vec_iter(std_include_path); !iter_end(i);) {
         if (try_include(iter_next(i), filename, isimport))
             return;
     }
@@ -841,7 +841,7 @@ static char *drop_last_slash(char *s) {
 }
 
 void add_include_path(char *path) {
-    list_unshift(std_include_path, drop_last_slash(path));
+    vec_unshift(std_include_path, drop_last_slash(path));
 }
 
 /*----------------------------------------------------------------------
@@ -849,7 +849,7 @@ void add_include_path(char *path) {
  */
 
 static void define_obj_macro(char *name, Token *value) {
-    map_put(macros, name, make_obj_macro(make_list1(value)));
+    map_put(macros, name, make_obj_macro(make_vector1(value)));
 }
 
 static void define_special_macro(char *name, special_macro_handler *fn) {
@@ -857,12 +857,12 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
 }
 
 void cpp_init(void) {
-    list_push(std_include_path, BUILD_DIR "/include");
-    list_push(std_include_path, "/usr/local/lib/8cc/include");
-    list_push(std_include_path, "/usr/local/include");
-    list_push(std_include_path, "/usr/include");
-    list_push(std_include_path, "/usr/include/linux");
-    list_push(std_include_path, "/usr/include/x86_64-linux-gnu");
+    vec_push(std_include_path, BUILD_DIR "/include");
+    vec_push(std_include_path, "/usr/local/lib/8cc/include");
+    vec_push(std_include_path, "/usr/local/include");
+    vec_push(std_include_path, "/usr/include");
+    vec_push(std_include_path, "/usr/include/linux");
+    vec_push(std_include_path, "/usr/include/x86_64-linux-gnu");
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);

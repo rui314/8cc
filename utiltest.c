@@ -44,14 +44,14 @@ static void test_buf(void) {
 }
 
 static void test_list(void) {
-    List *list = make_list();
-    assert_int(0, list_len(list));
-    list_push(list, (void *)1);
-    assert_int(1, list_len(list));
-    list_push(list, (void *)2);
-    assert_int(2, list_len(list));
+    Vector *list = make_vector();
+    assert_int(0, vec_len(list));
+    vec_push(list, (void *)1);
+    assert_int(1, vec_len(list));
+    vec_push(list, (void *)2);
+    assert_int(2, vec_len(list));
 
-    Iter *iter = list_iter(list);
+    Iter *iter = vec_iter(list);
     assert_int(1, (long)iter_next(iter));
     assert_int(false, iter_end(iter));
     assert_int(2, (long)iter_next(iter));
@@ -59,47 +59,47 @@ static void test_list(void) {
     assert_int(0, (long)iter_next(iter));
     assert_int(true, iter_end(iter));
 
-    List *copy = list_copy(list);
-    assert_int(2, list_len(copy));
-    assert_int(1, (long)list_get(copy, 0));
-    assert_int(2, (long)list_get(copy, 1));
+    Vector *copy = vec_copy(list);
+    assert_int(2, vec_len(copy));
+    assert_int(1, (long)vec_get(copy, 0));
+    assert_int(2, (long)vec_get(copy, 1));
 
-    List *rev = list_reverse(list);
-    iter = list_iter(rev);
+    Vector *rev = vec_reverse(list);
+    iter = vec_iter(rev);
     assert_int(2, (long)iter_next(iter));
     assert_int(1, (long)iter_next(iter));
     assert_int(0, (long)iter_next(iter));
 
-    assert_int(2, list_len(rev));
-    assert_int(1, (long)list_pop(rev));
-    assert_int(1, list_len(rev));
-    assert_int(2, (long)list_pop(rev));
-    assert_int(0, list_len(rev));
-    assert_int(0, (long)list_pop(rev));
+    assert_int(2, vec_len(rev));
+    assert_int(1, (long)vec_pop(rev));
+    assert_int(1, vec_len(rev));
+    assert_int(2, (long)vec_pop(rev));
+    assert_int(0, vec_len(rev));
+    assert_int(0, (long)vec_pop(rev));
 
-    List *list2 = make_list();
-    list_push(list2, (void *)5);
-    list_push(list2, (void *)6);
-    assert_int(5, (long)list_shift(list2));
-    assert_int(6, (long)list_shift(list2));
-    assert_int(0, (long)list_shift(list2));
+    Vector *list2 = make_vector();
+    vec_push(list2, (void *)5);
+    vec_push(list2, (void *)6);
+    assert_int(5, (long)vec_shift(list2));
+    assert_int(6, (long)vec_shift(list2));
+    assert_int(0, (long)vec_shift(list2));
 
-    List *list3 = make_list();
-    assert_int(0, (long)list_head(list3));
-    assert_int(0, (long)list_tail(list3));
-    list_push(list3, (void *)1);
-    assert_int(1, (long)list_head(list3));
-    assert_int(1, (long)list_tail(list3));
-    list_push(list3, (void *)2);
-    assert_int(1, (long)list_head(list3));
-    assert_int(2, (long)list_tail(list3));
+    Vector *list3 = make_vector();
+    assert_int(0, (long)vec_head(list3));
+    assert_int(0, (long)vec_tail(list3));
+    vec_push(list3, (void *)1);
+    assert_int(1, (long)vec_head(list3));
+    assert_int(1, (long)vec_tail(list3));
+    vec_push(list3, (void *)2);
+    assert_int(1, (long)vec_head(list3));
+    assert_int(2, (long)vec_tail(list3));
 
-    List *list4 = make_list();
-    list_push(list4, (void *)1);
-    list_push(list4, (void *)2);
-    assert_int(1, (long)list_get(list4, 0));
-    assert_int(2, (long)list_get(list4, 1));
-    assert_int(0, (long)list_get(list4, 2));
+    Vector *list4 = make_vector();
+    vec_push(list4, (void *)1);
+    vec_push(list4, (void *)2);
+    assert_int(1, (long)vec_get(list4, 0));
+    assert_int(2, (long)vec_get(list4, 1));
+    assert_int(0, (long)vec_get(list4, 2));
 }
 
 static void test_map(void) {
@@ -170,7 +170,7 @@ static void test_dict(void) {
     dict_put(dict, "xyz", (void *)70);
     assert_int(50, (long)dict_get(dict, "abc"));
     assert_int(70, (long)dict_get(dict, "xyz"));
-    assert_int(2, list_len(dict_keys(dict)));
+    assert_int(2, vec_len(dict_keys(dict)));
 }
 
 int main(int argc, char **argv) {

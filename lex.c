@@ -17,9 +17,9 @@ typedef struct {
     FILE *fp;
 } File;
 
-static List *buffer = &EMPTY_LIST;
-static List *altbuffer = NULL;
-static List *file_stack = &EMPTY_LIST;
+static Vector *buffer = &EMPTY_VECTOR;
+static Vector *altbuffer = NULL;
+static Vector *file_stack = &EMPTY_VECTOR;
 static File *file;
 static int line_mark = -1;
 static int column_mark = -1;
@@ -90,7 +90,7 @@ static Token *make_space(int nspace) {
 }
 
 void push_input_file(char *displayname, char *realname, FILE *fp) {
-    list_push(file_stack, file);
+    vec_push(file_stack, file);
     file = make_file(displayname, realname, fp);
     at_bol = true;
 }
@@ -585,12 +585,12 @@ bool is_punct(Token *tok, int c) {
     return tok && (tok->type == TPUNCT) && (tok->punct == c);
 }
 
-void set_input_buffer(List *tokens) {
-    altbuffer = tokens ? list_reverse(tokens) : NULL;
+void set_input_buffer(Vector *tokens) {
+    altbuffer = tokens ? vec_reverse(tokens) : NULL;
 }
 
-List *get_input_buffer(void) {
-    return altbuffer ? list_reverse(altbuffer) : NULL;
+Vector *get_input_buffer(void) {
+    return altbuffer ? vec_reverse(altbuffer) : NULL;
 }
 
 char *read_error_directive(void) {
@@ -615,7 +615,7 @@ char *read_error_directive(void) {
 
 void unget_cpp_token(Token *tok) {
     if (!tok) return;
-    list_push(altbuffer ? altbuffer : buffer, tok);
+    vec_push(altbuffer ? altbuffer : buffer, tok);
 }
 
 Token *peek_cpp_token(void) {
@@ -626,9 +626,9 @@ Token *peek_cpp_token(void) {
 
 static Token *do_read_cpp_token(void) {
     if (altbuffer)
-        return list_pop(altbuffer);
-    if (list_len(buffer) > 0)
-        return list_pop(buffer);
+        return vec_pop(altbuffer);
+    if (vec_len(buffer) > 0)
+        return vec_pop(buffer);
     bool bol = at_bol;
     Token *tok = do_read_token();
     while (tok && tok->type == TSPACE) {
@@ -637,9 +637,9 @@ static Token *do_read_cpp_token(void) {
             tok2->nspace += tok->nspace;
         tok = tok2;
     }
-    if (!tok && list_len(file_stack) > 0) {
+    if (!tok && vec_len(file_stack) > 0) {
         fclose(file->fp);
-        file = list_pop(file_stack);
+        file = vec_pop(file_stack);
         at_bol = true;
         return newline_token;
     }

@@ -8,7 +8,7 @@
 Dict *make_dict(void) {
     Dict *r = malloc(sizeof(Dict));
     r->map = make_map();
-    r->key = make_list();
+    r->key = make_vector();
     return r;
 }
 
@@ -18,9 +18,9 @@ void *dict_get(Dict *dict, char *key) {
 
 void dict_put(Dict *dict, char *key, void *val) {
     map_put(dict->map, key, val);
-    list_push(dict->key, key);
+    vec_push(dict->key, key);
 }
 
-List *dict_keys(Dict *dict) {
+Vector *dict_keys(Dict *dict) {
     return dict->key;
 }

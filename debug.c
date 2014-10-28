@@ -34,7 +34,7 @@ static char *do_c2s(Dict *dict, Ctype *ctype) {
         dict_put(dict, format("%p", ctype), (void *)1);
         Buffer *b = make_buffer();
         buf_printf(b, "(%s", type);
-        for (Iter *i = list_iter(dict_keys(ctype->fields)); !iter_end(i);) {
+        for (Iter *i = vec_iter(dict_keys(ctype->fields)); !iter_end(i);) {
             char *key = iter_next(i);
             Ctype *fieldtype = dict_get(ctype->fields, key);
             buf_printf(b, " (%s)", do_c2s(dict, fieldtype));
@@ -45,7 +45,7 @@ static char *do_c2s(Dict *dict, Ctype *ctype) {
     case CTYPE_FUNC: {
         Buffer *b = make_buffer();
         buf_printf(b, "(");
-        for (Iter *i = list_iter(ctype->params); !iter_end(i);) {
+        for (Iter *i = vec_iter(ctype->params); !iter_end(i);) {
             Ctype *t = iter_next(i);
             buf_printf(b, "%s", do_c2s(dict, t));
             if (!iter_end(i))
@@ -71,8 +71,8 @@ static void binop_to_string(Buffer *b, char *op, Node *node) {
     buf_printf(b, "(%s %s %s)", op, a2s(node->left), a2s(node->right));
 }
 
-static void a2s_declinit(Buffer *b, List *initlist) {
-    for (Iter *i = list_iter(initlist); !iter_end(i);) {
+static void a2s_declinit(Buffer *b, Vector *initlist) {
+    for (Iter *i = vec_iter(initlist); !iter_end(i);) {
         Node *init = iter_next(i);
         buf_printf(b, "%s", a2s(init));
         if (!iter_end(i))
@@ -126,7 +126,7 @@ static void do_a2s(Buffer *b, Node *node) {
     case AST_FUNCPTR_CALL: {
         buf_printf(b, "(%s)%s(", c2s(node->ctype),
                    node->type == AST_FUNCALL ? node->fname : a2s(node));
-        for (Iter *i = list_iter(node->args); !iter_end(i);) {
+        for (Iter *i = vec_iter(node->args); !iter_end(i);) {
             buf_printf(b, "%s", a2s(iter_next(i)));
             if (!iter_end(i))
                 buf_printf(b, ",");
@@ -140,7 +140,7 @@ static void do_a2s(Buffer *b, Node *node) {
     }
     case AST_FUNC: {
         buf_printf(b, "(%s)%s(", c2s(node->ctype), node->fname);
-        for (Iter *i = list_iter(node->params); !iter_end(i);) {
+        for (Iter *i = vec_iter(node->params); !iter_end(i);) {
             Node *param = iter_next(i);
             buf_printf(b, "%s %s", c2s(param->ctype), a2s(param));
             if (!iter_end(i))
@@ -202,7 +202,7 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     case AST_COMPOUND_STMT: {
         buf_printf(b, "{");
-        for (Iter *i = list_iter(node->stmts); !iter_end(i);) {
+        for (Iter *i = vec_iter(node->stmts); !iter_end(i);) {
             do_a2s(b, iter_next(i));
             buf_printf(b, ";");
         }

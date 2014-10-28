@@ -16,7 +16,7 @@ static bool cpponly;
 static bool dumpasm;
 static bool dontlink;
 static Buffer *cppdefs;
-static List *tmpfiles = &EMPTY_LIST;
+static Vector *tmpfiles = &EMPTY_VECTOR;
 
 static void usage(void) {
     fprintf(stderr,
@@ -47,7 +47,7 @@ static void usage(void) {
 }
 
 static void delete_temp_files(void) {
-    Iter *iter = list_iter(tmpfiles);
+    Iter *iter = vec_iter(tmpfiles);
     while (!iter_end(iter))
         unlink(iter_next(iter));
 }
@@ -69,7 +69,7 @@ static FILE *open_output_file(void) {
             outputfile = format("/tmp/8ccXXXXXX.s");
             if (!mkstemps(outputfile, 2))
                 perror("mkstemps");
-            list_push(tmpfiles, outputfile);
+            vec_push(tmpfiles, outputfile);
         }
     }
     if (!strcmp(outputfile, "-"))
@@ -211,8 +211,8 @@ int main(int argc, char **argv) {
     if (cpponly)
         preprocess();
 
-    List *toplevels = read_toplevels();
-    for (Iter *i = list_iter(toplevels); !iter_end(i);) {
+    Vector *toplevels = read_toplevels();
+    for (Iter *i = vec_iter(toplevels); !iter_end(i);) {
         Node *v = iter_next(i);
         if (dumpast)
             printf("%s", a2s(v));

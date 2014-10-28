@@ -8,7 +8,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "8cc.h"
-#include "list.h"
 
 bool dumpstack = true;
 bool dumpsource = true;
@@ -17,7 +16,7 @@ static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 static char *SREGS[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *MREGS[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static int TAB = 8;
-static List *functions = &EMPTY_LIST;
+static Vector *functions = &EMPTY_VECTOR;
 static char *lbreak;
 static char *lcontinue;
 static char *lswitch;
@@ -31,8 +30,8 @@ static char *last_loc = "";
 
 static void emit_addr(Node *node);
 static void emit_expr(Node *node);
-static void emit_decl_init(List *inits, int off);
-static void do_emit_data(List *inits, int size, int off, int depth);
+static void emit_decl_init(Vector *inits, int off);
+static void do_emit_data(Vector *inits, int size, int off, int depth);
 static void emit_data(Node *v, int off, int depth);
 
 #define REGAREA_SIZE 304
@@ -44,11 +43,11 @@ static void emit_data(Node *v, int off, int depth);
 #define SAVE                                                            \
     int save_hook __attribute__((unused, cleanup(pop_function)));       \
     if (dumpstack)                                                      \
-        list_push(functions, (void *)__func__);
+        vec_push(functions, (void *)__func__);
 
 static void pop_function(void *ignore) {
     if (dumpstack)
-        list_pop(functions);
+        vec_pop(functions);
 }
 #else
 #define SAVE
@@ -56,7 +55,7 @@ static void pop_function(void *ignore) {
 
 static char *get_caller_list(void) {
     Buffer *b = make_buffer();
-    for (Iter *i = list_iter(functions); !iter_end(i);) {
+    for (Iter *i = vec_iter(functions); !iter_end(i);) {
         buf_printf(b, "%s", iter_next(i));
         if (!iter_end(i))
             buf_printf(b, " -> ");
@@ -605,8 +604,8 @@ static void emit_copy_struct(Node *left, Node *right) {
     pop("rcx");
 }
 
-static void emit_decl_init(List *inits, int off) {
-    Iter *iter = list_iter(inits);
+static void emit_decl_init(Vector *inits, int off) {
+    Iter *iter = vec_iter(inits);
     while (!iter_end(iter)) {
         Node *node = iter_next(iter);
         assert(node->type == AST_INIT);
@@ -647,9 +646,9 @@ static void emit_post_inc_dec(Node *node, char *op) {
     pop("rax");
 }
 
-static void set_reg_nums(List *args) {
+static void set_reg_nums(Vector *args) {
     numgp = numfp = 0;
-    for (Iter *i = list_iter(args); !iter_end(i);) {
+    for (Iter *i = vec_iter(args); !iter_end(i);) {
         Node *arg = iter_next(i);
         if (is_flotype(arg->ctype))
             numfp++;
@@ -823,8 +822,8 @@ static bool maybe_emit_builtin(Node *node) {
     SAVE;
     if (!strcmp("__builtin_return_address", node->fname)) {
         push("r11");
-        assert(list_len(node->args) == 1);
-        emit_expr(list_head(node->args));
+        assert(vec_len(node->args) == 1);
+        emit_expr(vec_head(node->args));
         char *loop = make_label();
         char *end = make_label();
         emit("mov %%rbp, %%r11");
@@ -842,19 +841,19 @@ static bool maybe_emit_builtin(Node *node) {
     return false;
 }
 
-static void classify_args(List *ints, List *floats, List *rest, List *args) {
+static void classify_args(Vector *ints, Vector *floats, Vector *rest, Vector *args) {
     SAVE;
     int ireg = 0, xreg = 0;
     int imax = 6, xmax = 8;
-    Iter *iter = list_iter(args);
+    Iter *iter = vec_iter(args);
     while (!iter_end(iter)) {
         Node *v = iter_next(iter);
         if (v->ctype->type == CTYPE_STRUCT)
-            list_push(rest, v);
+            vec_push(rest, v);
         else if (is_flotype(v->ctype))
-            list_push((xreg++ < xmax) ? floats : rest, v);
+            vec_push((xreg++ < xmax) ? floats : rest, v);
         else
-            list_push((ireg++ < imax) ? ints : rest, v);
+            vec_push((ireg++ < imax) ? ints : rest, v);
     }
 }
 
@@ -876,10 +875,10 @@ static void restore_arg_regs(int nints, int nfloats) {
         pop(REGS[i]);
 }
 
-static int emit_args(List *vals) {
+static int emit_args(Vector *vals) {
     SAVE;
     int r = 0;
-    Iter *iter = list_iter(vals);
+    Iter *iter = vec_iter(vals);
     while (!iter_end(iter)) {
         Node *v = iter_next(iter);
         if (v->ctype->type == CTYPE_STRUCT) {
@@ -922,11 +921,11 @@ static void emit_func_call(Node *node) {
     bool isptr = (node->type == AST_FUNCPTR_CALL);
     Ctype *ftype = isptr ? node->fptr->ctype->ptr : node->ftype;
 
-    List *ints = make_list();
-    List *floats = make_list();
-    List *rest = make_list();
+    Vector *ints = make_vector();
+    Vector *floats = make_vector();
+    Vector *rest = make_vector();
     classify_args(ints, floats, rest, node->args);
-    save_arg_regs(list_len(ints), list_len(floats));
+    save_arg_regs(vec_len(ints), vec_len(floats));
 
     bool padding = stackpos % 16;
     if (padding) {
@@ -934,19 +933,19 @@ static void emit_func_call(Node *node) {
         stackpos += 8;
     }
 
-    int restsize = emit_args(list_reverse(rest));
+    int restsize = emit_args(vec_reverse(rest));
     if (isptr) {
         emit_expr(node->fptr);
         push("rax");
     }
     emit_args(ints);
     emit_args(floats);
-    pop_float_args(list_len(floats));
-    pop_int_args(list_len(ints));
+    pop_float_args(vec_len(floats));
+    pop_int_args(vec_len(ints));
 
     if (isptr) pop("r11");
     if (ftype->hasva)
-        emit("mov $%d, %%eax", list_len(floats));
+        emit("mov $%d, %%eax", vec_len(floats));
 
     if (isptr)
         emit("call *%%r11");
@@ -961,7 +960,7 @@ static void emit_func_call(Node *node) {
         emit("add $8, %%rsp");
         stackpos -= 8;
     }
-    restore_arg_regs(list_len(ints), list_len(floats));
+    restore_arg_regs(vec_len(ints), vec_len(floats));
     assert(opos == stackpos);
 }
 
@@ -1143,7 +1142,7 @@ static void emit_continue(Node *node) {
 
 static void emit_compound_stmt(Node *node) {
     SAVE;
-    for (Iter *i = list_iter(node->stmts); !iter_end(i);)
+    for (Iter *i = vec_iter(node->stmts); !iter_end(i);)
         emit_expr(iter_next(i));
 }
 
@@ -1425,9 +1424,9 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
     }
 }
 
-static void do_emit_data(List *inits, int size, int off, int depth) {
+static void do_emit_data(Vector *inits, int size, int off, int depth) {
     SAVE;
-    Iter *iter = list_iter(inits);
+    Iter *iter = vec_iter(inits);
     while (!iter_end(iter) && 0 < size) {
         Node *node = iter_next(iter);
         Node *v = node->initval;
@@ -1517,11 +1516,11 @@ static int emit_regsave_area(void) {
     return REGAREA_SIZE;
 }
 
-static void push_func_params(List *params, int off) {
+static void push_func_params(Vector *params, int off) {
     int ireg = 0;
     int xreg = 0;
     int arg = 2;
-    for (Iter *i = list_iter(params); !iter_end(i);) {
+    for (Iter *i = vec_iter(params); !iter_end(i);) {
         Node *v = iter_next(i);
         if (v->ctype->type == CTYPE_STRUCT) {
             emit("lea %d(%%rbp), %%rax", arg * 8);
@@ -1571,10 +1570,10 @@ static void emit_func_prologue(Node *func) {
         off -= emit_regsave_area();
     }
     push_func_params(func->params, off);
-    off -= list_len(func->params) * 8;
+    off -= vec_len(func->params) * 8;
 
     int localarea = 0;
-    for (Iter *i = list_iter(func->localvars); !iter_end(i);) {
+    for (Iter *i = vec_iter(func->localvars); !iter_end(i);) {
         Node *v = iter_next(i);
         int size = align(v->ctype->size, 8);
         assert(size % 8 == 0);

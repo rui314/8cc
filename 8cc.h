@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "dict.h"
-#include "list.h"
+#include "vector.h"
 #include "map.h"
 #include "error.h"
 
@@ -150,7 +150,7 @@ typedef struct Ctype {
     int bitsize;
     // function
     struct Ctype *rettype;
-    List *params;
+    Vector *params;
     bool hasva;
     bool oldstyle;
 } Ctype;
@@ -182,7 +182,7 @@ typedef struct Node {
             char *varname;
             // local
             int loff;
-            List *lvarinit;
+            Vector *lvarinit;
             // global
             char *glabel;
         };
@@ -201,19 +201,19 @@ typedef struct Node {
         struct {
             char *fname;
             // Function call
-            struct List *args;
+            struct Vector *args;
             struct Ctype *ftype;
             // Functoin pointer or function designator
             struct Node *fptr;
             // Function declaration
-            struct List *params;
-            struct List *localvars;
+            struct Vector *params;
+            struct Vector *localvars;
             struct Node *body;
         };
         // Declaration
         struct {
             struct Node *declvar;
-            struct List *declinit;
+            struct Vector *declinit;
         };
         // Initializer
         struct {
@@ -252,7 +252,7 @@ typedef struct Node {
         // Return statement
         struct Node *retval;
         // Compound statement
-        struct List *stmts;
+        struct Vector *stmts;
         // Struct reference
         struct {
             struct Node *struc;
@@ -284,8 +284,8 @@ extern char *read_error_directive(void);
 extern void unget_cpp_token(Token *tok);
 extern Token *peek_cpp_token(void);
 extern Token *read_cpp_token(void);
-extern void set_input_buffer(List *tokens);
-extern List *get_input_buffer(void);
+extern void set_input_buffer(Vector *tokens);
+extern Vector *get_input_buffer(void);
 extern void skip_cond_incl(void);
 extern char *read_header_file_name(bool *std);
 extern void push_input_file(char *displayname, char *realname, FILE *input);
@@ -312,7 +312,7 @@ extern char *a2s(Node *node);
 extern char *c2s(Ctype *ctype);
 extern void print_asm_header(void);
 extern char *make_label(void);
-extern List *read_toplevels(void);
+extern Vector *read_toplevels(void);
 extern Node *read_expr(void);
 extern int eval_intexpr(Node *node);
 extern bool is_inttype(Ctype *ctype);
