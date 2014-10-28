@@ -122,18 +122,18 @@ static void test_map(void) {
 
     // Verify that the iterator iterates over all the elements
     {
-	bool x[10000];
-	for (int i = 0; i < 10000; i++)
-	    x[i] = 0;
-	MapIter *iter = map_iter(m);
-	void *v;
-	char *k = map_next(iter, &v);
-	for (; k; k = map_next(iter, &v)) {
-	    int i = (intptr_t)v;
-	    x[i] = 1;
-	}
-	for (int i = 0; i < 10000; i++)
-	    assert_true(x[i] == 1);
+        bool x[10000];
+        for (int i = 0; i < 10000; i++)
+            x[i] = 0;
+        MapIter *iter = map_iter(m);
+        void *v;
+        char *k = map_next(iter, &v);
+        for (; k; k = map_next(iter, &v)) {
+            int i = (intptr_t)v;
+            x[i] = 1;
+        }
+        for (int i = 0; i < 10000; i++)
+            assert_true(x[i] == 1);
     }
 
     // Remove them

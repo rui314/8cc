@@ -81,11 +81,11 @@ static void *map_get_nostack(Map *map, char *key) {
 void *map_get(Map *map, char *key) {
     void *r = map_get_nostack(map, key);
     if (r)
-	return r;
+        return r;
     // Map is stackable; if no value is found,
     // continue searching from the parent.
     if (map->parent)
-	return map_get(map->parent, key);
+        return map_get(map->parent, key);
     return NULL;
 }
 
@@ -136,8 +136,8 @@ MapIter *map_iter(Map *map) {
 static char *do_map_next(MapIter *iter, void **val) {
     if (iter->bucket && iter->bucket->next) {
         iter->bucket = iter->bucket->next;
-	if (val)
-	    *val = iter->bucket->val;
+        if (val)
+            *val = iter->bucket->val;
         return iter->bucket->key;
     }
     while (iter->i < iter->cur->cap) {
@@ -145,8 +145,8 @@ static char *do_map_next(MapIter *iter, void **val) {
         iter->i++;
         if (b) {
             iter->bucket = b;
-	    if (val)
-		*val = b->val;
+            if (val)
+                *val = b->val;
             return b->key;
         }
     }
@@ -155,27 +155,27 @@ static char *do_map_next(MapIter *iter, void **val) {
 
 static bool is_dup(MapIter *iter, char *k) {
     for (Map *p = iter->map; p != iter->cur; p = p->parent)
-	if (map_get_nostack(p, k))
-	    return true;
+        if (map_get_nostack(p, k))
+            return true;
     return false;
 }
 
 char *map_next(MapIter *iter, void **val) {
     if (!iter->cur)
-	return NULL;
+        return NULL;
     for (;;) {
-	char *k = do_map_next(iter, val);
-	if (!k)
-	    break;
-	if (is_dup(iter, k))
-	    continue;
-	return k;
+        char *k = do_map_next(iter, val);
+        if (!k)
+            break;
+        if (is_dup(iter, k))
+            continue;
+        return k;
     }
     iter->cur = iter->cur->parent;
     if (iter->cur) {
-	iter->bucket = NULL;
-	iter->i = 0;
-	return map_next(iter, val);
+        iter->bucket = NULL;
+        iter->i = 0;
+        return map_next(iter, val);
     }
     return NULL;
 }
