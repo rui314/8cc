@@ -59,7 +59,11 @@ static void maybe_rehash(Map *map) {
     *map = *m;
 }
 
-Map *make_map(Map *parent) {
+Map *make_map(void) {
+    return do_make_map(NULL, INIT_SIZE);
+}
+
+Map *make_map_parent(Map *parent) {
     return do_make_map(parent, INIT_SIZE);
 }
 

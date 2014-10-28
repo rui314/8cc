@@ -56,7 +56,7 @@ void lex_init(char *filename) {
 static Token *make_token(Token *tmpl) {
     Token *r = malloc(sizeof(Token));
     *r = *tmpl;
-    r->hideset = make_map(NULL);
+    r->hideset = make_map();
     r->file = file->displayname;
     r->line = (line_mark < 0) ? file->line : line_mark;
     r->column = (column_mark < 0) ? file->column : column_mark;

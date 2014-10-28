@@ -96,7 +96,7 @@ static Token *make_macro_token(int position, bool is_vararg) {
     Token *r = malloc(sizeof(Token));
     r->type = TMACRO_PARAM;
     r->is_vararg = is_vararg;
-    r->hideset = make_map(NULL);
+    r->hideset = make_map();
     r->position = position;
     r->nspace = 0;
     r->bol = false;
@@ -220,14 +220,14 @@ static void map_copy(Map *dst, Map *src) {
 }
 
 static Map *map_union(Map *a, Map *b) {
-    Map *r = make_map(NULL);
+    Map *r = make_map();
     map_copy(r, a);
     map_copy(r, b);
     return r;
 }
 
 static Map *map_intersection(Map *a, Map *b) {
-    Map *r = make_map(NULL);
+    Map *r = make_map();
     MapIter *i = map_iter(a);
     for (char *k = map_next(i, NULL); k; k = map_next(i, NULL))
 	if (map_get(b, k))
@@ -236,7 +236,7 @@ static Map *map_intersection(Map *a, Map *b) {
 }
 
 static Map *map_append(Map *parent, char *k) {
-    Map *r = make_map(parent);
+    Map *r = make_map_parent(parent);
     map_put(r, k, (void *)1);
     return r;
 }
@@ -482,7 +482,7 @@ static List *read_funclike_macro_body(Map *param) {
 }
 
 static void read_funclike_macro(char *name) {
-    Map *param = make_map(NULL);
+    Map *param = make_map();
     bool is_varg = read_funclike_macro_params(param);
     List *body = read_funclike_macro_body(param);
     Macro *macro = make_func_macro(body, map_size(param), is_varg);

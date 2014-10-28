@@ -7,7 +7,7 @@
 
 Dict *make_dict(void) {
     Dict *r = malloc(sizeof(Dict));
-    r->map = make_map(NULL);
+    r->map = make_map();
     r->key = make_list();
     return r;
 }

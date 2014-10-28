@@ -29,7 +29,8 @@ typedef struct MapIter {
 
 #define EMPTY_MAP ((Map){ NULL, NULL, 0, 0 })
 
-extern Map *make_map(Map *parent);
+extern Map *make_map(void);
+extern Map *make_map_parent(Map *parent);
 extern void *map_get(Map *map, char *key);
 extern void map_put(Map *map, char *key, void *val);
 extern void map_remove(Map *map, char *key);

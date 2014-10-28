@@ -2104,7 +2104,7 @@ static List *param_types(List *params) {
  */
 
 static Node *read_func_body(Ctype *functype, char *fname, List *params) {
-    localenv = make_map(localenv);
+    localenv = make_map_parent(localenv);
     localvars = make_list();
     current_func_type = functype;
     Node *funcname = ast_string(fname);
@@ -2170,9 +2170,9 @@ static Node *read_funcdef(void) {
         basetype = read_decl_spec(&sclass);
     else
         warn("type specifier missing, assuming int");
-    localenv = make_map(globalenv);
+    localenv = make_map_parent(globalenv);
     gotos = make_list();
-    labels = make_map(NULL);
+    labels = make_map();
     char *name;
     List *params = make_list();
     Ctype *functype = read_declarator(&name, basetype, params, DECL_BODY);
@@ -2224,7 +2224,7 @@ static Node *read_opt_decl_or_stmt(void) {
 static Node *read_for_stmt(void) {
     expect('(');
     Map *orig = localenv;
-    localenv = make_map(localenv);
+    localenv = make_map_parent(localenv);
     Node *init = read_opt_decl_or_stmt();
     Node *cond = read_expr_opt();
     if (cond && is_flotype(cond->ctype))
@@ -2376,7 +2376,7 @@ static Node *read_stmt(void) {
 
 static Node *read_compound_stmt(void) {
     Map *orig = localenv;
-    localenv = make_map(localenv);
+    localenv = make_map_parent(localenv);
     List *list = make_list();
     for (;;) {
         if (next_token('}'))

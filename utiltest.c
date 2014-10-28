@@ -103,7 +103,7 @@ static void test_list(void) {
 }
 
 static void test_map(void) {
-    Map *m = make_map(NULL);
+    Map *m = make_map();
     assert_null(map_get(m, "abc"));
 
     // Insert 10000 values
@@ -146,12 +146,12 @@ static void test_map(void) {
 }
 
 static void test_map_stack(void) {
-    Map *m1 = make_map(NULL);
+    Map *m1 = make_map();
     map_put(m1, "x", (void *)1);
     map_put(m1, "y", (void *)2);
     assert_int(1, (int)(intptr_t)map_get(m1, "x"));
 
-    Map *m2 = make_map(m1);
+    Map *m2 = make_map_parent(m1);
     assert_int(1, (int)(intptr_t)map_get(m2, "x"));
     map_put(m2, "x", (void *)3);
     assert_int(3, (int)(intptr_t)map_get(m2, "x"));
