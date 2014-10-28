@@ -15,23 +15,20 @@ typedef struct {
     char *body;
     int nalloc;
     int len;
-} String;
+} Buffer;
 
 extern bool enable_warning;
 extern bool dumpstack;
 extern bool dumpsource;
 extern bool warning_is_error;
 
-extern String *make_string(void);
+extern Buffer *make_buffer(void);
 extern char *format(char *fmt, ...);
 extern char *vformat(char *fmt, va_list args);
-extern char *get_cstring(String *s);
-extern int string_len(String *s);
-extern void string_append(String *s, char c);
-extern void string_appendf(String *s, char *fmt, ...);
-
-#define STRING(x)                                                       \
-    (String){ .body = (x), .nalloc = sizeof(x), .len = sizeof(x) + 1 }
+extern int buf_len(Buffer *b);
+extern void buf_write(Buffer *b, char c);
+extern void buf_printf(Buffer *b, char *fmt, ...);
+extern char *buf_body(Buffer *b);
 
 enum {
     TIDENT,

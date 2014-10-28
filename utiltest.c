@@ -30,17 +30,17 @@ static void assert_int2(int line, long a, long b) {
         error("%d: Expected %ld but got %ld", line, a, b);
 }
 
-static void test_string(void) {
-    String *s = make_string();
-    string_append(s, 'a');
-    assert_string("a", get_cstring(s));
-    string_append(s, 'b');
-    assert_string("ab", get_cstring(s));
+static void test_buf(void) {
+    Buffer *b = make_buffer();
+    buf_write(b, 'a');
+    buf_write(b, 'b');
+    buf_write(b, '\0');
+    assert_string("ab", buf_body(b));
 
-    string_appendf(s, ".");
-    assert_string("ab.", get_cstring(s));
-    string_appendf(s, "%s", "0123456789");
-    assert_string("ab.0123456789", get_cstring(s));
+    Buffer *b2 = make_buffer();
+    buf_write(b2, '.');
+    buf_printf(b2, "%s", "0123456789");
+    assert_string(".0123456789", buf_body(b2));
 }
 
 static void test_list(void) {
@@ -174,7 +174,7 @@ static void test_dict(void) {
 }
 
 int main(int argc, char **argv) {
-    test_string();
+    test_buf();
     test_list();
     test_map();
     test_map_stack();

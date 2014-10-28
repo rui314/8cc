@@ -230,8 +230,8 @@ static Map *map_intersection(Map *a, Map *b) {
     Map *r = make_map();
     MapIter *i = map_iter(a);
     for (char *k = map_next(i, NULL); k; k = map_next(i, NULL))
-	if (map_get(b, k))
-	    map_put(r, k, (void *)1);
+        if (map_get(b, k))
+            map_put(r, k, (void *)1);
     return r;
 }
 
@@ -251,14 +251,14 @@ static List *add_hide_set(List *tokens, Map *hideset) {
     return r;
 }
 
-static void paste(String *s, Token *tok) {
+static void paste(Buffer *b, Token *tok) {
     switch (tok->type) {
     case TIDENT:
     case TNUMBER:
-        string_appendf(s, "%s", tok->sval);
+        buf_printf(b, "%s", tok->sval);
         return;
     case TPUNCT:
-        string_appendf(s, "%s", t2s(tok));
+        buf_printf(b, "%s", t2s(tok));
         return;
     default:
         error("can't paste: %s", t2s(tok));
@@ -266,12 +266,12 @@ static void paste(String *s, Token *tok) {
 }
 
 static Token *glue_tokens(Token *t0, Token *t1) {
-    String *s = make_string();
-    paste(s, t0);
-    paste(s, t1);
+    Buffer *b = make_buffer();
+    paste(b, t0);
+    paste(b, t1);
     Token *r = copy_token(t0);
-    r->type = isdigit(get_cstring(s)[0]) ? TNUMBER : TIDENT;
-    r->sval = get_cstring(s);
+    r->type = isdigit(buf_body(b)[0]) ? TNUMBER : TIDENT;
+    r->sval = buf_body(b);
     return r;
 }
 
@@ -282,30 +282,30 @@ static void glue_push(List *tokens, Token *tok) {
 }
 
 static char *join_tokens(List *args, bool sep) {
-    String *s = make_string();
+    Buffer *b = make_buffer();
     for (Iter *i = list_iter(args); !iter_end(i);) {
         Token *tok = iter_next(i);
-        if (sep && string_len(s) && tok->nspace)
-            string_appendf(s, " ");
+        if (sep && buf_len(b) && tok->nspace)
+            buf_printf(b, " ");
         switch (tok->type) {
         case TIDENT:
         case TNUMBER:
-            string_appendf(s, "%s", tok->sval);
+            buf_printf(b, "%s", tok->sval);
             break;
         case TPUNCT:
-            string_appendf(s, "%s", t2s(tok));
+            buf_printf(b, "%s", t2s(tok));
             break;
         case TCHAR:
-            string_appendf(s, "%s", quote_char(tok->c));
+            buf_printf(b, "%s", quote_char(tok->c));
             break;
         case TSTRING:
-            string_appendf(s, "\"%s\"", quote_cstring(tok->sval));
+            buf_printf(b, "\"%s\"", quote_cstring(tok->sval));
             break;
         default:
             error("internal error");
         }
     }
-    return get_cstring(s);
+    return buf_body(b);
 }
 
 static Token *stringize(Token *tmpl, List *args) {

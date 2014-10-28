@@ -15,7 +15,7 @@ static bool dumpast;
 static bool cpponly;
 static bool dumpasm;
 static bool dontlink;
-static String *cppdefs;
+static Buffer *cppdefs;
 static List *tmpfiles = &EMPTY_LIST;
 
 static void usage(void) {
@@ -115,7 +115,7 @@ static void parse_m_arg(char *s) {
 }
 
 static void parseopt(int argc, char **argv) {
-    cppdefs = make_string();
+    cppdefs = make_buffer();
     for (;;) {
         int opt = getopt(argc, argv, "I:ED:O:SU:W:acd:f:gm:o:hw");
         if (opt == -1)
@@ -131,7 +131,7 @@ static void parseopt(int argc, char **argv) {
             char *p = strchr(optarg, '=');
             if (p)
                 *p = ' ';
-            string_appendf(cppdefs, "#define %s\n", optarg);
+            buf_printf(cppdefs, "#define %s\n", optarg);
             break;
         }
         case 'O':
@@ -140,7 +140,7 @@ static void parseopt(int argc, char **argv) {
             dumpasm = true;
             break;
         case 'U':
-            string_appendf(cppdefs, "#undef %s\n", optarg);
+            buf_printf(cppdefs, "#undef %s\n", optarg);
             break;
         case 'W':
             parse_warnings_arg(optarg);
@@ -203,8 +203,8 @@ int main(int argc, char **argv) {
     cpp_init();
     parse_init();
     parseopt(argc, argv);
-    if (string_len(cppdefs) > 0)
-        cpp_eval(get_cstring(cppdefs));
+    if (buf_len(cppdefs) > 0)
+        cpp_eval(buf_body(cppdefs));
     lex_init(inputfile);
     set_output_file(open_output_file());
 

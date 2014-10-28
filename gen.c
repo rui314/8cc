@@ -55,13 +55,13 @@ static void pop_function(void *ignore) {
 #endif
 
 static char *get_caller_list(void) {
-    String *s = make_string();
+    Buffer *b = make_buffer();
     for (Iter *i = list_iter(functions); !iter_end(i);) {
-        string_appendf(s, "%s", iter_next(i));
+        buf_printf(b, "%s", iter_next(i));
         if (!iter_end(i))
-            string_appendf(s, " -> ");
+            buf_printf(b, " -> ");
     }
-    return get_cstring(s);
+    return buf_body(b);
 }
 
 void set_output_file(FILE *fp) {

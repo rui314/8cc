@@ -294,15 +294,16 @@ void skip_cond_incl(void) {
 }
 
 static Token *read_number(char c) {
-    String *s = make_string();
-    string_append(s, c);
+    Buffer *b = make_buffer();
+    buf_write(b, c);
     for (;;) {
         int c = get();
         if (!isdigit(c) && !isalpha(c) && c != '.') {
             unget(c);
-            return make_number(get_cstring(s));
+            buf_write(b, '\0');
+            return make_number(buf_body(b));
         }
-        string_append(s, c);
+        buf_write(b, c);
     }
 }
 
@@ -398,7 +399,7 @@ static Token *read_char(void) {
 }
 
 static Token *read_string(void) {
-    String *s = make_string();
+    Buffer *b = make_buffer();
     for (;;) {
         int c = get();
         if (c == EOF)
@@ -407,21 +408,23 @@ static Token *read_string(void) {
             break;
         if (c == '\\')
             c = read_escaped_char();
-        string_append(s, c);
+        buf_write(b, c);
     }
-    return make_strtok(get_cstring(s));
+    buf_write(b, '\0');
+    return make_strtok(buf_body(b));
 }
 
 static Token *read_ident(char c) {
-    String *s = make_string();
-    string_append(s, c);
+    Buffer *b = make_buffer();
+    buf_write(b, c);
     for (;;) {
         int c2 = get();
         if (isalnum(c2) || c2 == '_' || c2 == '$') {
-            string_append(s, c2);
+            buf_write(b, c2);
         } else {
             unget(c2);
-            return make_ident(get_cstring(s));
+            buf_write(b, '\0');
+            return make_ident(buf_body(b));
         }
     }
 }
@@ -563,18 +566,19 @@ char *read_header_file_name(bool *std) {
     } else {
         return NULL;
     }
-    String *s = make_string();
+    Buffer *b = make_buffer();
     for (;;) {
         int c = get();
         if (c == EOF || c == '\n' || c == '\r')
             error("premature end of header name");
         if (c == close)
             break;
-        string_append(s, c);
+        buf_write(b, c);
     }
-    if (get_cstring(s)[0] == '\0')
+    if (buf_body(b)[0] == '\0')
         error("header name should not be empty");
-    return get_cstring(s);
+    buf_write(b, '\0');
+    return buf_body(b);
 }
 
 bool is_punct(Token *tok, int c) {
@@ -590,20 +594,23 @@ List *get_input_buffer(void) {
 }
 
 char *read_error_directive(void) {
-    String *s = make_string();
+    Buffer *b = make_buffer();
     bool bol = true;
     for (;;) {
         int c = get();
-        if (c == EOF) break;
+        if (c == EOF)
+            break;
         if (c == '\n' || c == '\r') {
             unget(c);
             break;
         }
-        if (bol && iswhitespace(c)) continue;
+        if (bol && iswhitespace(c))
+            continue;
         bol = false;
-        string_append(s, c);
+        buf_write(b, c);
     }
-    return get_cstring(s);
+    buf_write(b, '\0');
+    return buf_body(b);
 }
 
 void unget_cpp_token(Token *tok) {

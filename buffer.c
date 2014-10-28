@@ -8,68 +8,66 @@
 
 #define INIT_SIZE 8
 
-String *make_string(void) {
-    String *r = malloc(sizeof(String));
+Buffer *make_buffer(void) {
+    Buffer *r = malloc(sizeof(Buffer));
     r->body = malloc(INIT_SIZE);
     r->nalloc = INIT_SIZE;
     r->len = 0;
-    r->body[0] = '\0';
     return r;
 }
 
-static void realloc_body(String *s) {
-    int newsize = s->nalloc * 2;
+static void realloc_body(Buffer *b) {
+    int newsize = b->nalloc * 2;
     char *body = malloc(newsize);
-    strcpy(body, s->body);
-    s->body = body;
-    s->nalloc = newsize;
+    memcpy(body, b->body, b->len);
+    b->body = body;
+    b->nalloc = newsize;
 }
 
-char *get_cstring(String *s) {
-    return s->body;
+char *buf_body(Buffer *b) {
+    return b->body;
 }
 
-int string_len(String *s) {
-    return s->len;
+int buf_len(Buffer *b) {
+    return b->len;
 }
 
-void string_append(String *s, char c) {
-    if (s->nalloc == (s->len + 1))
-        realloc_body(s);
-    s->body[s->len++] = c;
-    s->body[s->len] = '\0';
+void buf_write(Buffer *b, char c) {
+    if (b->nalloc == (b->len + 1))
+        realloc_body(b);
+    b->body[b->len++] = c;
 }
 
-void string_appendf(String *s, char *fmt, ...) {
+void buf_printf(Buffer *b, char *fmt, ...) {
     va_list args;
     for (;;) {
-        int avail = s->nalloc - s->len;
+        int avail = b->nalloc - b->len;
         va_start(args, fmt);
-        int written = vsnprintf(s->body + s->len, avail, fmt, args);
+        int written = vsnprintf(b->body + b->len, avail, fmt, args);
         va_end(args);
         if (avail <= written) {
-            realloc_body(s);
+            realloc_body(b);
             continue;
         }
-        s->len += written;
+        b->len += written;
         return;
     }
 }
 
 char *vformat(char *fmt, va_list ap) {
-    String *s = make_string();
+    Buffer *b = make_buffer();
     va_list aq;
     for (;;) {
-        int avail = s->nalloc - s->len;
+        int avail = b->nalloc - b->len;
         va_copy(aq, ap);
-        int written = vsnprintf(s->body + s->len, avail, fmt, aq);
+        int written = vsnprintf(b->body + b->len, avail, fmt, aq);
         va_end(aq);
         if (avail <= written) {
-            realloc_body(s);
+            realloc_body(b);
             continue;
         }
-        s->len += written;
-        return get_cstring(s);
+        b->len += written;
+        return buf_body(b);
     }
 }
 
@@ -82,17 +80,17 @@ char *format(char *fmt, ...) {
 }
 
 char *quote_cstring(char *p) {
-    String *s = make_string();
+    Buffer *b = make_buffer();
     while (*p) {
         if (*p == '\"' || *p == '\\')
-            string_appendf(s, "\\%c", *p);
+            buf_printf(b, "\\%c", *p);
         else if (*p == '\n')
-            string_appendf(s, "\\n");
+            buf_printf(b, "\\n");
         else
-            string_append(s, *p);
+            buf_printf(b, "%c", *p);
         p++;
     }
-    return get_cstring(s);
+    return buf_body(b);
 }
 
 char *quote_char(char c) {
