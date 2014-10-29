@@ -68,7 +68,7 @@ testast '(()=>int)f(){(decl int a 3@0);(deref (addr lv=a));}' 'int a=3;*&a;'
 testast '(()=>int)f(){(decl int a 3@0);(decl *int b (addr lv=a)@0);(deref lv=b);}' 'int a=3;int *b=&a;*b;'
 testast '(()=>int)f(){(if 1 {2;});}' 'if(1){2;}'
 testast '(()=>int)f(){(if 1 {2;} {3;});}' 'if(1){2;}else{3;}'
-testast '(()=>int)f(){(for (decl int a 1@0) 3 7 {5;});}' 'for(int a=1;3;7){5;}'
+testast '(()=>int)f(){(for {(decl int a 1@0);} 3 7 {5;});}' 'for(int a=1;3;7){5;}'
 testast '(()=>int)f(){"abcd";}' '"abcd";'
 testast "(()=>int)f(){99;}" "'c';"
 testast '(()=>int)f(){(int)a();}' 'a();'

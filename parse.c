@@ -2218,7 +2218,7 @@ static Node *read_opt_decl_or_stmt(void) {
         return NULL;
     Vector *list = make_vector();
     read_decl_or_stmt(list);
-    return vec_shift(list);
+    return ast_compound_stmt(list);
 }
 
 static Node *read_for_stmt(void) {
