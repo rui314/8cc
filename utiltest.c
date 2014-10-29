@@ -75,18 +75,14 @@ static void test_list(void) {
     assert_int(1, vec_len(rev));
     assert_int(2, (long)vec_pop(rev));
     assert_int(0, vec_len(rev));
-    assert_int(0, (long)vec_pop(rev));
 
     Vector *list2 = make_vector();
     vec_push(list2, (void *)5);
     vec_push(list2, (void *)6);
     assert_int(5, (long)vec_shift(list2));
     assert_int(6, (long)vec_shift(list2));
-    assert_int(0, (long)vec_shift(list2));
 
     Vector *list3 = make_vector();
-    assert_int(0, (long)vec_head(list3));
-    assert_int(0, (long)vec_tail(list3));
     vec_push(list3, (void *)1);
     assert_int(1, (long)vec_head(list3));
     assert_int(1, (long)vec_tail(list3));
@@ -99,7 +95,6 @@ static void test_list(void) {
     vec_push(list4, (void *)2);
     assert_int(1, (long)vec_get(list4, 0));
     assert_int(2, (long)vec_get(list4, 1));
-    assert_int(0, (long)vec_get(list4, 2));
 }
 
 static void test_map(void) {

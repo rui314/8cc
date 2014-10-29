@@ -276,7 +276,6 @@ static Token *glue_tokens(Token *t0, Token *t1) {
 }
 
 static void glue_push(Vector *tokens, Token *tok) {
-    assert(vec_len(tokens) > 0);
     Token *last = vec_pop(tokens);
     vec_push(tokens, glue_tokens(last, tok));
 }

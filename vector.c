@@ -72,14 +72,12 @@ void vec_append(Vector *a, Vector *b) {
 }
 
 void *vec_pop(Vector *vec) {
-    if (vec->len == 0)
-        return NULL;
+    assert(vec->len > 0);
     return vec->body[--vec->len];
 }
 
 void *vec_shift(Vector *vec) {
-    if (vec->len == 0)
-        return NULL;
+    assert(vec->len > 0);
     void *r = vec->body[0];
     for (int i = 1; i < vec->len; i++)
         vec->body[i - 1] = vec->body[i];
@@ -96,17 +94,18 @@ void vec_unshift(Vector *vec, void *elem) {
 }
 
 void *vec_get(Vector *vec, int index) {
-    if (index < 0 || vec->len <= index)
-        return NULL;
+    assert(0 <= index && index < vec->len);
     return vec->body[index];
 }
 
 void *vec_head(Vector *vec) {
-    return (vec->len == 0) ? NULL : vec->body[0];
+    assert(vec->len > 0);
+    return vec->body[0];
 }
 
 void *vec_tail(Vector *vec) {
-    return (vec->len == 0) ? NULL : vec->body[vec->len - 1];
+    assert(vec->len > 0);
+    return vec->body[vec->len - 1];
 }
 
 Vector *vec_reverse(Vector *vec) {
