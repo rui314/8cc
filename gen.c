@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include "8cc.h"
 
-bool dumpstack = true;
+bool dumpstack = false;
 bool dumpsource = true;
 
 static char *REGS[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};

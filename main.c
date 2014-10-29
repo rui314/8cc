@@ -30,8 +30,8 @@ static void usage(void) {
             "  -c                Do not run linker (default)\n"
             "  -U name           Undefine name\n"
             "  -fdump-ast        print AST\n"
+            "  -fdump-stack      Print stacktrace\n"
             "  -fno-dump-source  Do not emit source code as assembly comment\n"
-            "  -fno-dump-stack   Do not print stacktrace\n"
             "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
             "  -g                Do nothing at this moment\n"
@@ -101,8 +101,8 @@ static void parse_debug_arg(char *s) {
 static void parse_f_arg(char *s) {
     if (!strcmp(s, "dump-ast"))
         dumpast = true;
-    else if (!strcmp(s, "no-dump-stack"))
-        dumpstack = false;
+    else if (!strcmp(s, "dump-stack"))
+        dumpstack = true;
     else if (!strcmp(s, "no-dump-source"))
         dumpsource = false;
     else
