@@ -73,9 +73,23 @@ void close_output_file(void) {
 }
 
 static void emitf(int line, char *fmt, ...) {
+    // Replace "#" with "%%" so that vfprintf prints out "#" as "%".
+    char buf[256];
+    int i = 0;
+    for (char *p = fmt; *p; p++) {
+        assert(i < sizeof(buf) - 3);
+        if (*p == '#') {
+            buf[i++] = '%';
+            buf[i++] = '%';
+        } else {
+            buf[i++] = *p;
+        }
+    }
+    buf[i] = '\0';
+
     va_list args;
     va_start(args, fmt);
-    int col = vfprintf(outputfp, fmt, args);
+    int col = vfprintf(outputfp, buf, args);
     va_end(args);
 
     if (dumpstack) {
@@ -127,28 +141,28 @@ static int align(int n, int m) {
 
 static void push_xmm(int reg) {
     SAVE;
-    emit("sub $8, %%rsp");
-    emit("movsd %%xmm%d, (%%rsp)", reg);
+    emit("sub $8, #rsp");
+    emit("movsd #xmm%d, (#rsp)", reg);
     stackpos += 8;
 }
 
 static void pop_xmm(int reg) {
     SAVE;
-    emit("movsd (%%rsp), %%xmm%d", reg);
-    emit("add $8, %%rsp");
+    emit("movsd (#rsp), #xmm%d", reg);
+    emit("add $8, #rsp");
     stackpos -= 8;
     assert(stackpos >= 0);
 }
 
 static void push(char *reg) {
     SAVE;
-    emit("push %%%s", reg);
+    emit("push #%s", reg);
     stackpos += 8;
 }
 
 static void pop(char *reg) {
     SAVE;
-    emit("pop %%%s", reg);
+    emit("pop #%s", reg);
     stackpos -= 8;
     assert(stackpos >= 0);
 }
@@ -156,25 +170,25 @@ static void pop(char *reg) {
 static int push_struct(int size) {
     SAVE;
     int aligned = align(size, 8);
-    emit("sub $%d, %%rsp", aligned);
-    emit("mov %%rcx, -8(%%rsp)");
-    emit("mov %%r11, -16(%%rsp)");
-    emit("mov %%rax, %%rcx");
+    emit("sub $%d, #rsp", aligned);
+    emit("mov #rcx, -8(#rsp)");
+    emit("mov #r11, -16(#rsp)");
+    emit("mov #rax, #rcx");
     int i = 0;
     for (; i < size; i += 8) {
-        emit("movq %d(%%rcx), %%r11", i);
-        emit("mov %%r11, %d(%%rsp)", i);
+        emit("movq %d(#rcx), #r11", i);
+        emit("mov #r11, %d(#rsp)", i);
     }
     for (; i < size; i += 4) {
-        emit("movl %d(%%rcx), %%r11", i);
-        emit("movl %%r11d, %d(%%rsp)", i);
+        emit("movl %d(#rcx), #r11", i);
+        emit("movl #r11d, %d(#rsp)", i);
     }
     for (; i < size; i++) {
-        emit("movb %d(%%rcx), %%r11", i);
-        emit("movb %%r11b, %d(%%rsp)", i);
+        emit("movb %d(#rcx), #r11", i);
+        emit("movb #r11b, %d(#rsp)", i);
     }
-    emit("mov -8(%%rsp), %%rcx");
-    emit("mov -16(%%rsp), %%r11");
+    emit("mov -8(#rsp), #rcx");
+    emit("mov -16(#rsp), #r11");
     stackpos += aligned;
     return aligned;
 }
@@ -183,10 +197,10 @@ static void maybe_emit_bitshift_load(Ctype *ctype) {
     SAVE;
     if (ctype->bitsize <= 0)
         return;
-    emit("shr $%d, %%rax", ctype->bitoff);
+    emit("shr $%d, #rax", ctype->bitoff);
     push("rcx");
-    emit("mov $0x%lx, %%rcx", (1 << (long)ctype->bitsize) - 1);
-    emit("and %%rcx, %%rax");
+    emit("mov $0x%lx, #rcx", (1 << (long)ctype->bitsize) - 1);
+    emit("and #rcx, #rax");
     pop("rcx");
 }
 
@@ -196,13 +210,13 @@ static void maybe_emit_bitshift_save(Ctype *ctype, char *addr) {
         return;
     push("rcx");
     push("rdi");
-    emit("mov $0x%lx, %%rdi", (1 << (long)ctype->bitsize) - 1);
-    emit("and %%rdi, %%rax");
-    emit("shl $%d, %%rax", ctype->bitoff);
-    emit("mov %s, %%%s", addr, get_int_reg(ctype, 'c'));
-    emit("mov $0x%lx, %%rdi", ~(((1 << (long)ctype->bitsize) - 1) << ctype->bitoff));
-    emit("and %%rdi, %%rcx");
-    emit("or %%rcx, %%rax");
+    emit("mov $0x%lx, #rdi", (1 << (long)ctype->bitsize) - 1);
+    emit("and #rdi, #rax");
+    emit("shl $%d, #rax", ctype->bitoff);
+    emit("mov %s, #%s", addr, get_int_reg(ctype, 'c'));
+    emit("mov $0x%lx, #rdi", ~(((1 << (long)ctype->bitsize) - 1) << ctype->bitoff));
+    emit("and #rdi, #rcx");
+    emit("or #rcx, #rax");
     pop("rdi");
     pop("rcx");
 }
@@ -211,43 +225,43 @@ static void emit_gload(Ctype *ctype, char *label, int off) {
     SAVE;
     if (ctype->type == CTYPE_ARRAY) {
         if (off)
-            emit("lea %s+%d(%%rip), %%rax", label, off);
+            emit("lea %s+%d(#rip), #rax", label, off);
         else
-            emit("lea %s(%%rip), %%rax", label);
+            emit("lea %s(#rip), #rax", label);
         return;
     }
     char *inst = get_load_inst(ctype);
-    emit("%s %s+%d(%%rip), %%rax", inst, label, off);
+    emit("%s %s+%d(#rip), #rax", inst, label, off);
     maybe_emit_bitshift_load(ctype);
 }
 
 static void emit_toint(Ctype *ctype) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT)
-        emit("cvttss2si %%xmm0, %%eax");
+        emit("cvttss2si #xmm0, #eax");
     else if (ctype->type == CTYPE_DOUBLE)
-        emit("cvttsd2si %%xmm0, %%eax");
+        emit("cvttsd2si #xmm0, #eax");
 }
 
 static void emit_lload(Ctype *ctype, char *base, int off) {
     SAVE;
     if (ctype->type == CTYPE_ARRAY) {
-        emit("lea %d(%%%s), %%rax", off, base);
+        emit("lea %d(#%s), #rax", off, base);
     } else if (ctype->type == CTYPE_FLOAT) {
-        emit("movss %d(%%%s), %%xmm0", off, base);
+        emit("movss %d(#%s), #xmm0", off, base);
     } else if (ctype->type == CTYPE_DOUBLE || ctype->type == CTYPE_LDOUBLE) {
-        emit("movsd %d(%%%s), %%xmm0", off, base);
+        emit("movsd %d(#%s), #xmm0", off, base);
     } else {
         char *inst = get_load_inst(ctype);
-        emit("%s %d(%%%s), %%rax", inst, off, base);
+        emit("%s %d(#%s), #rax", inst, off, base);
         maybe_emit_bitshift_load(ctype);
     }
 }
 
 static void maybe_convert_bool(Ctype *ctype) {
     if (ctype->type == CTYPE_BOOL) {
-        emit("test %%rax, %%rax");
-        emit("setne %%al");
+        emit("test #rax, #rax");
+        emit("setne #al");
     }
 }
 
@@ -258,32 +272,32 @@ static void emit_gsave(char *varname, Ctype *ctype, int off) {
     char *reg = get_int_reg(ctype, 'a');
     char *addr = format("%s+%d(%%rip)", varname, off);
     maybe_emit_bitshift_save(ctype, addr);
-    emit("mov %%%s, %s", reg, addr);
+    emit("mov #%s, %s", reg, addr);
 }
 
 static void emit_lsave(Ctype *ctype, int off) {
     SAVE;
     if (ctype->type == CTYPE_FLOAT) {
-        emit("movss %%xmm0, %d(%%rbp)", off);
+        emit("movss #xmm0, %d(#rbp)", off);
     } else if (ctype->type == CTYPE_DOUBLE) {
-        emit("movsd %%xmm0, %d(%%rbp)", off);
+        emit("movsd #xmm0, %d(#rbp)", off);
     } else {
         maybe_convert_bool(ctype);
         char *reg = get_int_reg(ctype, 'a');
         char *addr = format("%d(%%rbp)", off);
         maybe_emit_bitshift_save(ctype, addr);
-        emit("mov %%%s, %s", reg, addr);
+        emit("mov #%s, %s", reg, addr);
     }
 }
 
 static void do_emit_assign_deref(Ctype *ctype, int off) {
     SAVE;
-    emit("mov (%%rsp), %%rcx");
+    emit("mov (#rsp), #rcx");
     char *reg = get_int_reg(ctype, 'c');
     if (off)
-        emit("mov %%%s, %d(%%rax)", reg, off);
+        emit("mov #%s, %d(#rax)", reg, off);
     else
-        emit("mov %%%s, (%%rax)", reg);
+        emit("mov #%s, (#rax)", reg);
     pop("rax");
 }
 
@@ -302,12 +316,12 @@ static void emit_pointer_arith(char type, Node *left, Node *right) {
     emit_expr(right);
     int size = left->ctype->ptr->size;
     if (size > 1)
-        emit("imul $%d, %%rax", size);
-    emit("mov %%rax, %%rcx");
+        emit("imul $%d, #rax", size);
+    emit("mov #rax, #rcx");
     pop("rax");
     switch (type) {
-    case '+': emit("add %%rcx, %%rax"); break;
-    case '-': emit("sub %%rcx, %%rax"); break;
+    case '+': emit("add #rcx, #rax"); break;
+    case '-': emit("sub #rcx, #rax"); break;
     default: error("invalid operator '%d'", type);
     }
     pop("rcx");
@@ -316,9 +330,9 @@ static void emit_pointer_arith(char type, Node *left, Node *right) {
 static void emit_zero_filler(int start, int end) {
     SAVE;
     for (; start <= end - 4; start += 4)
-        emit("movl $0, %d(%%rbp)", start);
+        emit("movl $0, %d(#rbp)", start);
     for (; start < end; start++)
-        emit("movb $0, %d(%%rbp)", start);
+        emit("movb $0, %d(#rbp)", start);
 }
 
 static void ensure_lvar_init(Node *node) {
@@ -394,15 +408,15 @@ static void emit_to_bool(Ctype *ctype) {
     SAVE;
     if (is_flotype(ctype)) {
         push_xmm(1);
-        emit("xorpd %%xmm1, %%xmm1");
-        emit("%s %%xmm1, %%xmm0", (ctype->type == CTYPE_FLOAT) ? "ucomiss" : "ucomisd");
-        emit("setne %%al");
+        emit("xorpd #xmm1, #xmm1");
+        emit("%s #xmm1, #xmm0", (ctype->type == CTYPE_FLOAT) ? "ucomiss" : "ucomisd");
+        emit("setne #al");
         pop_xmm(1);
     } else {
-        emit("cmp $0, %%rax");
-        emit("setne %%al");
+        emit("cmp $0, #rax");
+        emit("setne #al");
     }
-    emit("movzb %%al, %%eax");
+    emit("movzb #al, #eax");
 }
 
 static void emit_comp(char *inst, Node *node) {
@@ -413,9 +427,9 @@ static void emit_comp(char *inst, Node *node) {
         emit_expr(node->right);
         pop_xmm(1);
         if (node->left->ctype->type == CTYPE_FLOAT)
-            emit("ucomiss %%xmm0, %%xmm1");
+            emit("ucomiss #xmm0, #xmm1");
         else
-            emit("ucomisd %%xmm0, %%xmm1");
+            emit("ucomisd #xmm0, #xmm1");
     } else {
         emit_expr(node->left);
         push("rax");
@@ -423,12 +437,12 @@ static void emit_comp(char *inst, Node *node) {
         pop("rcx");
         int type = node->left->ctype->type;
         if (type == CTYPE_LONG || type == CTYPE_LLONG)
-          emit("cmp %%rax, %%rcx");
+          emit("cmp #rax, #rcx");
         else
-          emit("cmp %%eax, %%ecx");
+          emit("cmp #eax, #ecx");
     }
-    emit("%s %%al", inst);
-    emit("movzb %%al, %%eax");
+    emit("%s #al", inst);
+    emit("movzb #al, #eax");
 }
 
 static void emit_binop_int_arith(Node *node) {
@@ -448,22 +462,22 @@ static void emit_binop_int_arith(Node *node) {
     emit_expr(node->left);
     push("rax");
     emit_expr(node->right);
-    emit("mov %%rax, %%rcx");
+    emit("mov #rax, #rcx");
     pop("rax");
     if (node->type == '/' || node->type == '%') {
         if (node->ctype->sig) {
           emit("cqto");
-          emit("idiv %%rcx");
+          emit("idiv #rcx");
         } else {
-          emit("xor %%edx, %%edx");
-          emit("div %%rcx");
+          emit("xor #edx, #edx");
+          emit("div #rcx");
         }
         if (node->type == '%')
-            emit("mov %%edx, %%eax");
+            emit("mov #edx, #eax");
     } else if (node->type == OP_SAL || node->type == OP_SAR || node->type == OP_SHR) {
-        emit("%s %%cl, %%%s", op, get_int_reg(node->left->ctype, 'a'));
+        emit("%s #cl, #%s", op, get_int_reg(node->left->ctype, 'a'));
     } else {
-        emit("%s %%rcx, %rax", op);
+        emit("%s #rcx, #rax", op);
     }
 }
 
@@ -481,21 +495,21 @@ static void emit_binop_float_arith(Node *node) {
     emit_expr(node->left);
     push_xmm(0);
     emit_expr(node->right);
-    emit("%s %%xmm0, %%xmm1", (isdouble ? "movsd" : "movss"));
+    emit("%s #xmm0, #xmm1", (isdouble ? "movsd" : "movss"));
     pop_xmm(0);
-    emit("%s %%xmm1, %%xmm0", op);
+    emit("%s #xmm1, #xmm0", op);
 }
 
 static void emit_load_convert(Ctype *to, Ctype *from) {
     SAVE;
     if (is_inttype(from) && to->type == CTYPE_FLOAT)
-        emit("cvtsi2ss %%eax, %%xmm0");
+        emit("cvtsi2ss #eax, #xmm0");
     else if (is_inttype(from) && to->type == CTYPE_DOUBLE)
-        emit("cvtsi2sd %%eax, %%xmm0");
+        emit("cvtsi2sd #eax, #xmm0");
     else if (from->type == CTYPE_FLOAT && to->type == CTYPE_DOUBLE)
-        emit("cvtps2pd %%xmm0, %%xmm0");
+        emit("cvtps2pd #xmm0, #xmm0");
     else if (from->type == CTYPE_DOUBLE && to->type == CTYPE_FLOAT)
-        emit("cvtpd2ps %%xmm0, %%xmm0");
+        emit("cvtpd2ps #xmm0, #xmm0");
     else if (to->type == CTYPE_BOOL)
         emit_to_bool(from);
     else if (is_inttype(to))
@@ -532,28 +546,28 @@ static void emit_binop(Node *node) {
 
 static void emit_save_literal(Node *node, Ctype *totype, int off) {
     switch (totype->type) {
-    case CTYPE_BOOL:  emit("movb $%d, %d(%%rbp)", !!node->ival, off); break;
-    case CTYPE_CHAR:  emit("movb $%d, %d(%%rbp)", node->ival, off); break;
-    case CTYPE_SHORT: emit("movw $%d, %d(%%rbp)", node->ival, off); break;
-    case CTYPE_INT:   emit("movl $%d, %d(%%rbp)", node->ival, off); break;
+    case CTYPE_BOOL:  emit("movb $%d, %d(#rbp)", !!node->ival, off); break;
+    case CTYPE_CHAR:  emit("movb $%d, %d(#rbp)", node->ival, off); break;
+    case CTYPE_SHORT: emit("movw $%d, %d(#rbp)", node->ival, off); break;
+    case CTYPE_INT:   emit("movl $%d, %d(#rbp)", node->ival, off); break;
     case CTYPE_LONG:
     case CTYPE_LLONG:
     case CTYPE_PTR: {
         unsigned long ival = node->ival;
-        emit("movl $%lu, %d(%%rbp)", ival & ((1L << 32) - 1), off);
-        emit("movl $%lu, %d(%%rbp)", ival >> 32, off + 4);
+        emit("movl $%lu, %d(#rbp)", ival & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(#rbp)", ival >> 32, off + 4);
         break;
     }
     case CTYPE_FLOAT: {
         float fval = node->fval;
         int *p = (int *)&fval;
-        emit("movl $%u, %d(%%rbp)", *p, off);
+        emit("movl $%u, %d(#rbp)", *p, off);
         break;
     }
     case CTYPE_DOUBLE: {
         long *p = (long *)&node->fval;
-        emit("movl $%lu, %d(%%rbp)", *p & ((1L << 32) - 1), off);
-        emit("movl $%lu, %d(%%rbp)", *p >> 32, off + 4);
+        emit("movl $%lu, %d(#rbp)", *p & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(#rbp)", *p >> 32, off + 4);
         break;
     }
     default:
@@ -565,17 +579,17 @@ static void emit_addr(Node *node) {
     switch (node->type) {
     case AST_LVAR:
         ensure_lvar_init(node);
-        emit("lea %d(%%rbp), %%rax", node->loff);
+        emit("lea %d(#rbp), #rax", node->loff);
         break;
     case AST_GVAR:
-        emit("lea %s(%%rip), %%rax", node->glabel);
+        emit("lea %s(#rip), #rax", node->glabel);
         break;
     case AST_DEREF:
         emit_expr(node->operand);
         break;
     case AST_STRUCT_REF:
         emit_addr(node->struc);
-        emit("add $%d, %%rax", node->ctype->offset);
+        emit("add $%d, #rax", node->ctype->offset);
         break;
     default:
         error("internal error: %s", a2s(node));
@@ -586,20 +600,20 @@ static void emit_copy_struct(Node *left, Node *right) {
     push("rcx");
     push("r11");
     emit_addr(right);
-    emit("mov %%rax, %%rcx");
+    emit("mov #rax, #rcx");
     emit_addr(left);
     int i = 0;
     for (; i < left->ctype->size; i += 8) {
-        emit("movq %d(%%rcx), %%r11", i);
-        emit("movq %%r11, %d(%%rax)", i);
+        emit("movq %d(#rcx), #r11", i);
+        emit("movq #r11, %d(#rax)", i);
     }
     for (; i < left->ctype->size; i += 4) {
-        emit("movl %d(%%rcx), %%r11", i);
-        emit("movl %%r11, %d(%%rax)", i);
+        emit("movl %d(#rcx), #r11", i);
+        emit("movl #r11, %d(#rax)", i);
     }
     for (; i < left->ctype->size; i++) {
-        emit("movb %d(%%rcx), %%r11", i);
-        emit("movb %%r11, %d(%%rax)", i);
+        emit("movb %d(#rcx), #r11", i);
+        emit("movb #r11, %d(#rax)", i);
     }
     pop("r11");
     pop("rcx");
@@ -623,17 +637,17 @@ static void emit_uminus(Node *node) {
     emit_expr(node->operand);
     if (is_flotype(node->ctype)) {
         push_xmm(1);
-        emit("xorpd %%xmm1, %%xmm1");
-        emit("%s %%xmm1, %%xmm0", (node->ctype->type == CTYPE_DOUBLE ? "subsd" : "subss"));
+        emit("xorpd #xmm1, #xmm1");
+        emit("%s #xmm1, #xmm0", (node->ctype->type == CTYPE_DOUBLE ? "subsd" : "subss"));
         pop_xmm(1);
     } else {
-        emit("neg %%rax");
+        emit("neg #rax");
     }
 }
 
 static void emit_pre_inc_dec(Node *node, char *op) {
     emit_expr(node->operand);
-    emit("%s $1, %%rax", op);
+    emit("%s $1, #rax", op);
     emit_store(node->operand);
 }
 
@@ -641,7 +655,7 @@ static void emit_post_inc_dec(Node *node, char *op) {
     SAVE;
     emit_expr(node->operand);
     push("rax");
-    emit("%s $1, %%rax", op);
+    emit("%s $1, #rax", op);
     emit_store(node->operand);
     pop("rax");
 }
@@ -658,7 +672,7 @@ static void set_reg_nums(Vector *args) {
 }
 
 static void emit_je(char *label) {
-    emit("test %%rax, %%rax");
+    emit("test #rax, #rax");
     emit("je %s", label);
 }
 
@@ -675,14 +689,14 @@ static void emit_literal(Node *node) {
     switch (node->ctype->type) {
     case CTYPE_BOOL:
     case CTYPE_CHAR:
-        emit("mov $%d, %%rax", node->ival);
+        emit("mov $%d, #rax", node->ival);
         break;
     case CTYPE_INT:
-        emit("mov $%d, %%rax", node->ival);
+        emit("mov $%d, #rax", node->ival);
         break;
     case CTYPE_LONG:
     case CTYPE_LLONG: {
-        emit("mov $%lu, %%rax", node->ival);
+        emit("mov $%lu, #rax", node->ival);
         break;
     }
     case CTYPE_FLOAT: {
@@ -695,7 +709,7 @@ static void emit_literal(Node *node) {
             emit(".long %d", *p);
             emit_noindent(".text");
         }
-        emit("movss %s(%%rip), %%xmm0", node->flabel);
+        emit("movss %s(#rip), #xmm0", node->flabel);
         break;
     }
     case CTYPE_DOUBLE:
@@ -709,7 +723,7 @@ static void emit_literal(Node *node) {
             emit(".long %d", fval[1]);
             emit_noindent(".text");
         }
-        emit("movsd %s(%%rip), %%xmm0", node->flabel);
+        emit("movsd %s(#rip), #xmm0", node->flabel);
         break;
     }
     default:
@@ -804,7 +818,7 @@ static void emit_literal_string(Node *node) {
         emit(".string \"%s\"", quote_cstring(node->sval));
         emit_noindent(".text");
     }
-    emit("lea %s(%%rip), %%rax", node->slabel);
+    emit("lea %s(#rip), #rax", node->slabel);
 }
 
 static void emit_lvar(Node *node) {
@@ -827,15 +841,15 @@ static bool maybe_emit_builtin(Node *node) {
     emit_expr(vec_head(node->args));
     char *loop = make_label();
     char *end = make_label();
-    emit("mov %%rbp, %%r11");
+    emit("mov #rbp, #r11");
     emit_label(loop);
-    emit("test %%rax, %%rax");
+    emit("test #rax, #rax");
     emit("jz %s", end);
-    emit("mov (%%r11), %%r11");
-    emit("sub $1, %%rax");
+    emit("mov (#r11), #r11");
+    emit("sub $1, #rax");
     emit_jmp(loop);
     emit_label(end);
-    emit("mov 8(%%r11), %%rax");
+    emit("mov 8(#r11), #rax");
     pop("r11");
     return true;
 }
@@ -908,7 +922,7 @@ static void pop_float_args(int nfloats) {
 
 static void maybe_booleanize_retval(Ctype *ctype) {
     if (ctype->type == CTYPE_BOOL) {
-        emit("movzx %%al, %%rax");
+        emit("movzx #al, #rax");
     }
 }
 
@@ -926,7 +940,7 @@ static void emit_func_call(Node *node) {
 
     bool padding = stackpos % 16;
     if (padding) {
-        emit("sub $8, %%rsp");
+        emit("sub $8, #rsp");
         stackpos += 8;
     }
 
@@ -942,19 +956,19 @@ static void emit_func_call(Node *node) {
 
     if (isptr) pop("r11");
     if (ftype->hasva)
-        emit("mov $%d, %%eax", vec_len(floats));
+        emit("mov $%d, #eax", vec_len(floats));
 
     if (isptr)
-        emit("call *%%r11");
+        emit("call *#r11");
     else
         emit("call %s", node->fname);
     maybe_booleanize_retval(node->ctype);
     if (restsize > 0) {
-        emit("add $%d, %%rsp", restsize);
+        emit("add $%d, #rsp", restsize);
         stackpos -= restsize;
     }
     if (padding) {
-        emit("add $8, %%rsp");
+        emit("add $8, #rsp");
         stackpos -= 8;
     }
     restore_arg_regs(vec_len(ints), vec_len(floats));
@@ -1089,12 +1103,12 @@ static void emit_case(Node *node) {
     emit_jmp(skip);
     emit_label(lswitch);
     lswitch = make_label();
-    emit("cmp $%d, %%eax", node->casebeg);
+    emit("cmp $%d, #eax", node->casebeg);
     if (node->casebeg == node->caseend) {
         emit("jne %s", lswitch);
     } else {
         emit("jl %s", lswitch);
-        emit("cmp $%d, %%eax", node->caseend);
+        emit("cmp $%d, #eax", node->caseend);
         emit("jg %s", lswitch);
     }
     emit_label(skip);
@@ -1147,10 +1161,10 @@ static void emit_va_start(Node *node) {
     SAVE;
     emit_expr(node->ap);
     push("rcx");
-    emit("movl $%d, (%%rax)", numgp * 8);
-    emit("movl $%d, 4(%%rax)", 48 + numfp * 16);
-    emit("lea %d(%%rbp), %%rcx", -REGAREA_SIZE);
-    emit("mov %%rcx, 16(%%rax)");
+    emit("movl $%d, (#rax)", numgp * 8);
+    emit("movl $%d, 4(#rax)", 48 + numfp * 16);
+    emit("lea %d(#rbp), #rcx", -REGAREA_SIZE);
+    emit("mov #rcx, 16(#rax)");
     pop("rcx");
 }
 
@@ -1160,21 +1174,21 @@ static void emit_va_arg(Node *node) {
     emit("nop");
     push("rcx");
     push("rbx");
-    emit("mov 16(%%rax), %%rcx");
+    emit("mov 16(#rax), #rcx");
     if (is_flotype(node->ctype)) {
-        emit("mov 4(%%rax), %%ebx");
-        emit("add %%rbx, %%rcx");
-        emit("add $16, %%ebx");
-        emit("mov %%ebx, 4(%%rax)");
-        emit("movsd (%%rcx), %%xmm0");
+        emit("mov 4(#rax), #ebx");
+        emit("add #rbx, #rcx");
+        emit("add $16, #ebx");
+        emit("mov #ebx, 4(#rax)");
+        emit("movsd (#rcx), #xmm0");
         if (node->ctype->type == CTYPE_FLOAT)
-            emit("cvtpd2ps %%xmm0, %%xmm0");
+            emit("cvtpd2ps #xmm0, #xmm0");
     } else {
-        emit("mov (%%rax), %%ebx");
-        emit("add %%rbx, %%rcx");
-        emit("add $8, %%ebx");
-        emit("mov %%rbx, (%%rax)");
-        emit("mov (%%rcx), %%rax");
+        emit("mov (#rax), #ebx");
+        emit("add #rbx, #rcx");
+        emit("add $8, #ebx");
+        emit("mov #rbx, (#rax)");
+        emit("mov (#rcx), #rax");
     }
     pop("rbx");
     pop("rcx");
@@ -1184,14 +1198,14 @@ static void emit_logand(Node *node) {
     SAVE;
     char *end = make_label();
     emit_expr(node->left);
-    emit("test %%rax, %%rax");
-    emit("mov $0, %%rax");
+    emit("test #rax, #rax");
+    emit("mov $0, #rax");
     emit("je %s", end);
     emit_expr(node->right);
-    emit("test %%rax, %%rax");
-    emit("mov $0, %%rax");
+    emit("test #rax, #rax");
+    emit("mov $0, #rax");
     emit("je %s", end);
-    emit("mov $1, %%rax");
+    emit("mov $1, #rax");
     emit_label(end);
 }
 
@@ -1199,23 +1213,23 @@ static void emit_logor(Node *node) {
     SAVE;
     char *end = make_label();
     emit_expr(node->left);
-    emit("test %%rax, %%rax");
-    emit("mov $1, %%rax");
+    emit("test #rax, #rax");
+    emit("mov $1, #rax");
     emit("jne %s", end);
     emit_expr(node->right);
-    emit("test %%rax, %%rax");
-    emit("mov $1, %%rax");
+    emit("test #rax, #rax");
+    emit("mov $1, #rax");
     emit("jne %s", end);
-    emit("mov $0, %%rax");
+    emit("mov $0, #rax");
     emit_label(end);
 }
 
 static void emit_lognot(Node *node) {
     SAVE;
     emit_expr(node->operand);
-    emit("cmp $0, %%rax");
-    emit("sete %%al");
-    emit("movzb %%al, %%eax");
+    emit("cmp $0, #rax");
+    emit("sete #al");
+    emit("movzb #al, #eax");
 }
 
 static void emit_bitand(Node *node) {
@@ -1224,7 +1238,7 @@ static void emit_bitand(Node *node) {
     push("rax");
     emit_expr(node->right);
     pop("rcx");
-    emit("and %%rcx, %%rax");
+    emit("and #rcx, #rax");
 }
 
 static void emit_bitor(Node *node) {
@@ -1233,13 +1247,13 @@ static void emit_bitor(Node *node) {
     push("rax");
     emit_expr(node->right);
     pop("rcx");
-    emit("or %%rcx, %%rax");
+    emit("or #rcx, #rax");
 }
 
 static void emit_bitnot(Node *node) {
     SAVE;
     emit_expr(node->left);
-    emit("not %%rax");
+    emit("not #rax");
 }
 
 static void emit_cast(Node *node) {
@@ -1269,13 +1283,13 @@ static void emit_assign(Node *node) {
 
 static void emit_label_addr(Node *node) {
     SAVE;
-    emit("mov $%s, %%rax", node->newlabel);
+    emit("mov $%s, #rax", node->newlabel);
 }
 
 static void emit_computed_goto(Node *node) {
     SAVE;
     emit_expr(node->operand);
-    emit("jmp *%%rax");
+    emit("jmp *#rax");
 }
 
 static void emit_expr(Node *node) {
@@ -1494,21 +1508,21 @@ static void emit_global_var(Node *v) {
 
 static int emit_regsave_area(void) {
     int pos = -REGAREA_SIZE;
-    emit("mov %%rdi, %d(%%rsp)", pos);
-    emit("mov %%rsi, %d(%%rsp)", (pos += 8));
-    emit("mov %%rdx, %d(%%rsp)", (pos += 8));
-    emit("mov %%rcx, %d(%%rsp)", (pos += 8));
-    emit("mov %%r8, %d(%%rsp)", (pos += 8));
-    emit("mov %%r9, %d(%%rsp)", pos + 8);
+    emit("mov #rdi, %d(#rsp)", pos);
+    emit("mov #rsi, %d(#rsp)", (pos += 8));
+    emit("mov #rdx, %d(#rsp)", (pos += 8));
+    emit("mov #rcx, %d(#rsp)", (pos += 8));
+    emit("mov #r8, %d(#rsp)", (pos += 8));
+    emit("mov #r9, %d(#rsp)", pos + 8);
     char *end = make_label();
     for (int i = 0; i < 16; i++) {
-        emit("test %%al, %%al");
+        emit("test #al, #al");
         emit("jz %s", end);
-        emit("movsd %%xmm%d, %d(%%rsp)", i, (pos += 16));
-        emit("sub $1, %%al");
+        emit("movsd #xmm%d, %d(#rsp)", i, (pos += 16));
+        emit("sub $1, #al");
     }
     emit_label(end);
-    emit("sub $%d, %%rsp", REGAREA_SIZE);
+    emit("sub $%d, #rsp", REGAREA_SIZE);
     return REGAREA_SIZE;
 }
 
@@ -1519,13 +1533,13 @@ static void push_func_params(Vector *params, int off) {
     for (int i = 0; i < vec_len(params); i++) {
         Node *v = vec_get(params, i);
         if (v->ctype->type == CTYPE_STRUCT) {
-            emit("lea %d(%%rbp), %%rax", arg * 8);
+            emit("lea %d(#rbp), #rax", arg * 8);
             int size = push_struct(v->ctype->size);
             off -= size;
             arg += size / 8;
         } else if (is_flotype(v->ctype)) {
             if (xreg >= 8) {
-                emit("mov %d(%%rbp), %%rax", arg++ * 8);
+                emit("mov %d(#rbp), #rax", arg++ * 8);
                 push("rax");
             } else {
                 push_xmm(xreg++);
@@ -1534,15 +1548,15 @@ static void push_func_params(Vector *params, int off) {
         } else {
             if (ireg >= 6) {
                 if (v->ctype->type == CTYPE_BOOL) {
-                    emit("mov %d(%%rbp), %%al", arg++ * 8);
-                    emit("movzb %%al, %%eax");
+                    emit("mov %d(#rbp), #al", arg++ * 8);
+                    emit("movzb #al, #eax");
                 } else {
-                    emit("mov %d(%%rbp), %%rax", arg++ * 8);
+                    emit("mov %d(#rbp), #rax", arg++ * 8);
                 }
                 push("rax");
             } else {
                 if (v->ctype->type == CTYPE_BOOL)
-                    emit("movzb %%%s, %%%s", SREGS[ireg], MREGS[ireg]);
+                    emit("movzb #%s, #%s", SREGS[ireg], MREGS[ireg]);
                 push(REGS[ireg++]);
             }
             off -= 8;
@@ -1559,7 +1573,7 @@ static void emit_func_prologue(Node *func) {
     emit_noindent("%s:", func->fname);
     emit("nop");
     push("rbp");
-    emit("mov %%rsp, %%rbp");
+    emit("mov #rsp, #rbp");
     int off = 0;
     if (func->ctype->hasva) {
         set_reg_nums(func->params);
@@ -1578,7 +1592,7 @@ static void emit_func_prologue(Node *func) {
         localarea += size;
     }
     if (localarea) {
-        emit("sub $%d, %%rsp", localarea);
+        emit("sub $%d, #rsp", localarea);
         stackpos += localarea;
     }
 }
