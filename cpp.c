@@ -694,7 +694,7 @@ static void read_include(bool isimport) {
         if (try_include(dir, filename, isimport))
             return;
     }
-    for (int i = 0; i < vec_len(std_include_path); i++)
+    for (int i = vec_len(std_include_path) - 1; i >= 0; i--)
         if (try_include(vec_get(std_include_path, i), filename, isimport))
             return;
     error("Cannot find header file: %s", filename);
@@ -839,7 +839,7 @@ static char *drop_last_slash(char *s) {
 }
 
 void add_include_path(char *path) {
-    vec_unshift(std_include_path, drop_last_slash(path));
+    vec_push(std_include_path, drop_last_slash(path));
 }
 
 /*----------------------------------------------------------------------
@@ -855,12 +855,12 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
 }
 
 void cpp_init(void) {
-    vec_push(std_include_path, BUILD_DIR "/include");
-    vec_push(std_include_path, "/usr/local/lib/8cc/include");
-    vec_push(std_include_path, "/usr/local/include");
-    vec_push(std_include_path, "/usr/include");
-    vec_push(std_include_path, "/usr/include/linux");
     vec_push(std_include_path, "/usr/include/x86_64-linux-gnu");
+    vec_push(std_include_path, "/usr/include/linux");
+    vec_push(std_include_path, "/usr/include");
+    vec_push(std_include_path, "/usr/local/include");
+    vec_push(std_include_path, "/usr/local/lib/8cc/include");
+    vec_push(std_include_path, BUILD_DIR "/include");
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);

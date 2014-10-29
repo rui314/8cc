@@ -85,14 +85,6 @@ void *vec_shift(Vector *vec) {
     return r;
 }
 
-void vec_unshift(Vector *vec, void *elem) {
-    extend(vec, 1);
-    for (int i = 0; i < vec->len; i++)
-        vec->body[i] = vec->body[i + 1];
-    vec->body[0] = elem;
-    vec->len++;
-}
-
 void *vec_get(Vector *vec, int index) {
     assert(0 <= index && index < vec->len);
     return vec->body[index];
