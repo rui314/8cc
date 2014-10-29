@@ -7,7 +7,7 @@ ECC_CFLAGS=-DBUILD_DIR='"$(shell pwd)"'
 8cc: 8cc.h main.o $(OBJS)
 	$(CC) -o $@ main.o $(OBJS) $(LDFLAGS)
 
-$(OBJS) utiltest.o main.o: 8cc.h
+$(OBJS) utiltest.o main.o: 8cc.h keyword.h
 
 utiltest: 8cc.h utiltest.o $(OBJS)
 	$(CC) -o $@ utiltest.o $(OBJS) $(LDFLAGS)
