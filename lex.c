@@ -575,7 +575,7 @@ char *read_header_file_name(bool *std) {
             break;
         buf_write(b, c);
     }
-    if (buf_body(b)[0] == '\0')
+    if (buf_len(b) == 0)
         error("header name should not be empty");
     buf_write(b, '\0');
     return buf_body(b);
