@@ -531,12 +531,9 @@ static bool is_same_struct(Ctype *a, Ctype *b) {
         Vector *kb = dict_keys(b->fields);
         if (vec_len(ka) != vec_len(kb))
             return false;
-        Iter *ia = vec_iter(ka);
-        Iter *ib = vec_iter(kb);
-        while (!iter_end(ia)) {
-            if (!is_same_struct(iter_next(ia), iter_next(ib)))
+        for (int i = 0; i < vec_len(ka); i++)
+            if (!is_same_struct(vec_get(ka, i), vec_get(kb, i)))
                 return false;
-        }
         return true;
     }
     default:
@@ -762,12 +759,14 @@ static Node *read_va_arg(void) {
 
 static Vector *read_func_args(Vector *params) {
     Vector *args = make_vector();
-    Iter *iter = vec_iter(params);
+    int i = 0;
     for (;;) {
         if (next_token(')')) break;
         Node *arg = convert_funcdesg(read_assignment_expr());
-        Ctype *paramtype = iter_next(iter);
-        if (!paramtype) {
+        Ctype *paramtype;
+        if (i < vec_len(params)) {
+            paramtype = vec_get(params, i++);
+        } else {
             paramtype = is_flotype(arg->ctype) ? ctype_double :
                 is_inttype(arg->ctype) ? ctype_int :
                 arg->ctype;
@@ -847,9 +846,8 @@ static Node *read_generic(void) {
     expect(',');
     Node *defaultexpr = NULL;
     Vector *list = read_generic_list(&defaultexpr);
-    Iter *iter = vec_iter(list);
-    while (!iter_end(iter)) {
-        Pair *pair = iter_next(iter);
+    for (int i = 0; i < vec_len(list); i++) {
+        Pair *pair = vec_get(list, i);
         Ctype *ctype = pair->first;
         Node *expr = pair->second;
         if (type_compatible(conttype, ctype))
@@ -1297,8 +1295,9 @@ static int compute_padding(int offset, int align) {
 }
 
 static void squash_unnamed_struct(Dict *dict, Ctype *unnamed, int offset) {
-    for (Iter *i = vec_iter(dict_keys(unnamed->fields)); !iter_end(i);) {
-        char *name = iter_next(i);
+    Vector *keys = dict_keys(unnamed->fields);
+    for (int i = 0; i < vec_len(keys); i++) {
+        char *name = vec_get(keys, i);
         Ctype *type = copy_type(dict_get(unnamed->fields, name));
         type->offset += offset;
         dict_put(dict, name, type);
@@ -1355,15 +1354,14 @@ static Vector *read_rectype_fields_sub(int *align) {
 }
 
 static void fix_rectype_flexible_member(Vector *fields) {
-    Iter *iter = vec_iter(fields);
-    while (!iter_end(iter)) {
-        Pair *pair = iter_next(iter);
+    for (int i = 0; i < vec_len(fields); i++) {
+        Pair *pair = vec_get(fields, i);
         char *name = pair->first;
         Ctype *ctype = pair->second;
         if (ctype->type != CTYPE_ARRAY)
             continue;
         if (ctype->len == -1) {
-            if (!iter_end(iter))
+            if (i != vec_len(fields) - 1)
                 error("flexible member may only appear as the last member: %s %s", c2s(ctype), name);
             if (vec_len(fields) == 1)
                 error("flexible member with no other fields: %s %s", c2s(ctype), name);
@@ -1380,10 +1378,9 @@ static void finish_bitfield(int *off, int *bitoff) {
 
 static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
     int off = 0, bitoff = -1;
-    Iter *iter = vec_iter(fields);
     Dict *r = make_dict();
-    while (!iter_end(iter)) {
-        Pair *pair = iter_next(iter);
+    for (int i = 0; i < vec_len(fields); i++) {
+        Pair *pair = vec_get(fields, i);
         char *name = pair->first;
         Ctype *fieldtype = pair->second;
         *align = MAX(*align, fieldtype->align);
@@ -1428,10 +1425,9 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
 
 static Dict *update_union_offset(Vector *fields, int *align, int *rsize) {
     int maxsize = 0;
-    Iter *iter = vec_iter(fields);
     Dict *r = make_dict();
-    while (!iter_end(iter)) {
-        Pair *pair = iter_next(iter);
+    for (int i = 0; i < vec_len(fields); i++) {
+        Pair *pair = vec_get(fields, i);
         char *name = pair->first;
         Ctype *fieldtype = pair->second;
         maxsize = MAX(maxsize, fieldtype->size);
@@ -1589,12 +1585,11 @@ static int comp_init(const void *p, const void *q) {
 static void sort_inits(Vector *inits) {
     int len = vec_len(inits);
     Node **tmp = malloc(sizeof(Node *) * len);
-    Iter *iter = vec_iter(inits);
     int i = 0;
-    while (!iter_end(iter)) {
-        Node *init = iter_next(iter);
+    for (; i < vec_len(inits); i++) {
+        Node *init = vec_get(inits, i);
         assert(init->type == AST_INIT);
-        tmp[i++] = init;
+        tmp[i] = init;
     }
     qsort(tmp, len, sizeof(Node *), comp_init);
     vec_clear(inits);
@@ -1604,7 +1599,8 @@ static void sort_inits(Vector *inits) {
 
 static void read_struct_initializer_sub(Vector *inits, Ctype *ctype, int off, bool designated) {
     bool has_brace = maybe_read_brace();
-    Iter *iter = vec_iter(dict_keys(ctype->fields));
+    Vector *keys = dict_keys(ctype->fields);
+    int i = 0;
     for (;;) {
         Token *tok = read_token();
         if (is_punct(tok, '}')) {
@@ -1626,18 +1622,19 @@ static void read_struct_initializer_sub(Vector *inits, Ctype *ctype, int off, bo
             fieldtype = dict_get(ctype->fields, fieldname);
             if (!fieldtype)
                 error("field does not exist: %s", t2s(tok));
-            iter = vec_iter(dict_keys(ctype->fields));
-            while (!iter_end(iter)) {
-                char *s = iter_next(iter);
+            keys = dict_keys(ctype->fields);
+            i = 0;
+            while (i < vec_len(keys)) {
+                char *s = vec_get(keys, i++);
                 if (strcmp(fieldname, s) == 0)
                     break;
             }
             designated = true;
         } else {
             unget_token(tok);
-            if (iter_end(iter))
+            if (i == vec_len(keys))
                 break;
-            fieldname = iter_next(iter);
+            fieldname = vec_get(keys, i++);
             fieldtype = dict_get(ctype->fields, fieldname);
         }
         read_initializer_elem(inits, fieldtype, off + fieldtype->offset, designated);
@@ -2064,16 +2061,13 @@ static Vector *read_oldstyle_param_args(void) {
 }
 
 static void update_oldstyle_param_type(Vector *params, Vector *vars) {
-    Iter *iter = vec_iter(vars);
- found:
-    while (!iter_end(iter)) {
-        Node *decl = iter_next(iter);
+    for (int i = 0; i < vec_len(vars); i++) {
+        Node *decl = vec_get(vars, i);
         assert(decl->type == AST_DECL);
         Node *var = decl->declvar;
         assert(var->type == AST_LVAR);
-        Iter *iter2 = vec_iter(params);
-        while (!iter_end(iter2)) {
-            Node *param = iter_next(iter2);
+        for (int j = 0; j < vec_len(params); j++) {
+            Node *param = vec_get(params, j);
             assert(param->type == AST_LVAR);
             if (strcmp(param->varname, var->varname))
                 continue;
@@ -2081,6 +2075,7 @@ static void update_oldstyle_param_type(Vector *params, Vector *vars) {
             goto found;
         }
         error("missing parameter: %s", var->varname);
+    found:;
     }
 }
 
@@ -2091,9 +2086,8 @@ static void read_oldstyle_param_type(Vector *params) {
 
 static Vector *param_types(Vector *params) {
     Vector *r = make_vector();
-    Iter *iter = vec_iter(params);
-    while (!iter_end(iter)) {
-        Node *param = iter_next(iter);
+    for (int i = 0; i < vec_len(params); i++) {
+        Node *param = vec_get(params, i);
         vec_push(r, param->ctype);
     }
     return r;
@@ -2150,8 +2144,8 @@ static bool is_funcdef(void) {
 }
 
 static void backfill_labels(void) {
-    for (Iter *i = vec_iter(gotos); !iter_end(i);) {
-        Node *src = iter_next(i);
+    for (int i = 0; i < vec_len(gotos); i++) {
+        Node *src = vec_get(gotos, i);
         char *label = src->label;
         Node *dst = map_get(labels, label);
         if (!dst)

@@ -55,10 +55,10 @@ static void pop_function(void *ignore) {
 
 static char *get_caller_list(void) {
     Buffer *b = make_buffer();
-    for (Iter *i = vec_iter(functions); !iter_end(i);) {
-        buf_printf(b, "%s", iter_next(i));
-        if (!iter_end(i))
+    for (int i = 0; i < vec_len(functions); i++) {
+        if (i > 0)
             buf_printf(b, " -> ");
+        buf_printf(b, "%s", vec_get(functions, i));
     }
     buf_write(b, '\0');
     return buf_body(b);
@@ -606,9 +606,8 @@ static void emit_copy_struct(Node *left, Node *right) {
 }
 
 static void emit_decl_init(Vector *inits, int off) {
-    Iter *iter = vec_iter(inits);
-    while (!iter_end(iter)) {
-        Node *node = iter_next(iter);
+    for (int i = 0; i < vec_len(inits); i++) {
+        Node *node = vec_get(inits, i);
         assert(node->type == AST_INIT);
         if (node->initval->type == AST_LITERAL &&
             node->totype->bitsize <= 0) {
@@ -649,8 +648,8 @@ static void emit_post_inc_dec(Node *node, char *op) {
 
 static void set_reg_nums(Vector *args) {
     numgp = numfp = 0;
-    for (Iter *i = vec_iter(args); !iter_end(i);) {
-        Node *arg = iter_next(i);
+    for (int i = 0; i < vec_len(args); i++) {
+        Node *arg = vec_get(args, i);
         if (is_flotype(arg->ctype))
             numfp++;
         else
@@ -846,9 +845,8 @@ static void classify_args(Vector *ints, Vector *floats, Vector *rest, Vector *ar
     SAVE;
     int ireg = 0, xreg = 0;
     int imax = 6, xmax = 8;
-    Iter *iter = vec_iter(args);
-    while (!iter_end(iter)) {
-        Node *v = iter_next(iter);
+    for (int i = 0; i < vec_len(args); i++) {
+        Node *v = vec_get(args, i);
         if (v->ctype->type == CTYPE_STRUCT)
             vec_push(rest, v);
         else if (is_flotype(v->ctype))
@@ -879,9 +877,8 @@ static void restore_arg_regs(int nints, int nfloats) {
 static int emit_args(Vector *vals) {
     SAVE;
     int r = 0;
-    Iter *iter = vec_iter(vals);
-    while (!iter_end(iter)) {
-        Node *v = iter_next(iter);
+    for (int i = 0; i < vec_len(vals); i++) {
+        Node *v = vec_get(vals, i);
         if (v->ctype->type == CTYPE_STRUCT) {
             emit_addr(v);
             r += push_struct(v->ctype->size);
@@ -1143,8 +1140,8 @@ static void emit_continue(Node *node) {
 
 static void emit_compound_stmt(Node *node) {
     SAVE;
-    for (Iter *i = vec_iter(node->stmts); !iter_end(i);)
-        emit_expr(iter_next(i));
+    for (int i = 0; i < vec_len(node->stmts); i++)
+        emit_expr(vec_get(node->stmts, i));
 }
 
 static void emit_va_start(Node *node) {
@@ -1427,17 +1424,16 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
 
 static void do_emit_data(Vector *inits, int size, int off, int depth) {
     SAVE;
-    Iter *iter = vec_iter(inits);
-    while (!iter_end(iter) && 0 < size) {
-        Node *node = iter_next(iter);
+    for (int i = 0; i < vec_len(inits) && 0 < size; i++) {
+        Node *node = vec_get(inits, i);
         Node *v = node->initval;
         emit_padding(node, off);
         if (node->totype->bitsize > 0) {
             assert(node->totype->bitoff == 0);
             long data = eval_intexpr(v);
             Ctype *totype = node->totype;
-            while (!iter_end(iter)) {
-                node = iter_next(iter);
+            for (i++ ; i < vec_len(inits); i++) {
+                node = vec_get(inits, i);
                 if (node->totype->bitsize <= 0) {
                     break;
                 }
@@ -1448,7 +1444,7 @@ static void do_emit_data(Vector *inits, int size, int off, int depth) {
             emit_data_primtype(totype, &(Node){ AST_LITERAL, totype, .ival = data });
             off += totype->size;
             size -= totype->size;
-            if (iter_end(iter))
+            if (i == vec_len(inits))
                 break;
         } else {
             off += node->totype->size;
@@ -1521,8 +1517,8 @@ static void push_func_params(Vector *params, int off) {
     int ireg = 0;
     int xreg = 0;
     int arg = 2;
-    for (Iter *i = vec_iter(params); !iter_end(i);) {
-        Node *v = iter_next(i);
+    for (int i = 0; i < vec_len(params); i++) {
+        Node *v = vec_get(params, i);
         if (v->ctype->type == CTYPE_STRUCT) {
             emit("lea %d(%%rbp), %%rax", arg * 8);
             int size = push_struct(v->ctype->size);
@@ -1574,8 +1570,8 @@ static void emit_func_prologue(Node *func) {
     off -= vec_len(func->params) * 8;
 
     int localarea = 0;
-    for (Iter *i = vec_iter(func->localvars); !iter_end(i);) {
-        Node *v = iter_next(i);
+    for (int i = 0; i < vec_len(func->localvars); i++) {
+        Node *v = vec_get(func->localvars, i);
         int size = align(v->ctype->size, 8);
         assert(size % 8 == 0);
         off -= size;

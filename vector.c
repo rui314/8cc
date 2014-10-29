@@ -123,20 +123,3 @@ void vec_clear(Vector *vec) {
 int vec_len(Vector *vec) {
     return vec->len;
 }
-
-Iter *vec_iter(Vector *vec) {
-    Iter *r = malloc(sizeof(Iter));
-    r->vec = vec;
-    r->i = 0;
-    return r;
-}
-
-void *iter_next(Iter *iter) {
-    if (iter->i >= iter->vec->len)
-        return NULL;
-    return iter->vec->body[iter->i++];
-}
-
-bool iter_end(Iter *iter) {
-    return iter->i >= iter->vec->len;
-}

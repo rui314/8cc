@@ -58,8 +58,8 @@ void cpp_eval(char *buf) {
     FILE *fp = fmemopen(buf, strlen(buf), "r");
     set_input_file("(eval)", NULL, fp);
     Vector *toplevels = read_toplevels();
-    for (Iter *i = vec_iter(toplevels); !iter_end(i);)
-        emit_toplevel(iter_next(i));
+    for (int i = 0; i < vec_len(toplevels); i++)
+        emit_toplevel(vec_get(toplevels, i));
 }
 
 /*----------------------------------------------------------------------
@@ -243,8 +243,8 @@ static Map *map_append(Map *parent, char *k) {
 
 static Vector *add_hide_set(Vector *tokens, Map *hideset) {
     Vector *r = make_vector();
-    for (Iter *i = vec_iter(tokens); !iter_end(i);) {
-        Token *t = copy_token(iter_next(i));
+    for (int i = 0; i < vec_len(tokens); i++) {
+        Token *t = copy_token(vec_get(tokens, i));
         t->hideset = map_union(t->hideset, hideset);
         vec_push(r, t);
     }
@@ -282,8 +282,8 @@ static void glue_push(Vector *tokens, Token *tok) {
 
 static char *join_tokens(Vector *args, bool sep) {
     Buffer *b = make_buffer();
-    for (Iter *i = vec_iter(args); !iter_end(i);) {
-        Token *tok = iter_next(i);
+    for (int i = 0; i < vec_len(args); i++) {
+        Token *tok = vec_get(args, i);
         if (sep && buf_len(b) && tok->nspace)
             buf_printf(b, " ");
         switch (tok->type) {
@@ -382,8 +382,8 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
 }
 
 static void unget_all(Vector *tokens) {
-    for (Iter *i = vec_iter(vec_reverse(tokens)); !iter_end(i);)
-        unget_token(iter_next(i));
+    for (int i = vec_len(tokens) - 1; i >= 0; i--)
+        unget_token(vec_get(tokens, i));
 }
 
 static Token *read_expand(void) {
@@ -694,10 +694,9 @@ static void read_include(bool isimport) {
         if (try_include(dir, filename, isimport))
             return;
     }
-    for (Iter *i = vec_iter(std_include_path); !iter_end(i);) {
-        if (try_include(iter_next(i), filename, isimport))
+    for (int i = 0; i < vec_len(std_include_path); i++)
+        if (try_include(vec_get(std_include_path, i), filename, isimport))
             return;
-    }
     error("Cannot find header file: %s", filename);
 }
 

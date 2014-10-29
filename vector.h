@@ -12,11 +12,6 @@ typedef struct Vector {
     int nalloc;
 } Vector;
 
-typedef struct Iter {
-    Vector *vec;
-    int i;
-} Iter;
-
 #define EMPTY_VECTOR ((Vector){ .len = 0, .nalloc = 0 })
 
 extern Vector *make_vector(void);
@@ -33,8 +28,5 @@ extern void *vec_tail(Vector *vec);
 extern Vector *vec_reverse(Vector *vec);
 extern void vec_clear(Vector *vec);
 extern int vec_len(Vector *vec);
-extern Iter *vec_iter(Vector *vec);
-extern void *iter_next(Iter *iter);
-extern bool iter_end(Iter *iter);
 
 #endif

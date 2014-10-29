@@ -47,9 +47,8 @@ static void usage(void) {
 }
 
 static void delete_temp_files(void) {
-    Iter *iter = vec_iter(tmpfiles);
-    while (!iter_end(iter))
-        unlink(iter_next(iter));
+    for (int i = 0; i < vec_len(tmpfiles); i++)
+        unlink(vec_get(tmpfiles, i));
 }
 
 static char *replace_suffix(char *filename, char suffix) {
@@ -212,8 +211,8 @@ int main(int argc, char **argv) {
         preprocess();
 
     Vector *toplevels = read_toplevels();
-    for (Iter *i = vec_iter(toplevels); !iter_end(i);) {
-        Node *v = iter_next(i);
+    for (int i = 0; i < vec_len(toplevels); i++) {
+        Node *v = vec_get(toplevels, i);
         if (dumpast)
             printf("%s", a2s(v));
         else
