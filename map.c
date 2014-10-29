@@ -1,9 +1,7 @@
 // Copyright 2014 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
-// This is an implementation of hash table. Unlike Dict,
-// the order of values inserted to a hash table is not preserved.
-// Map should be faster than Dict.
+// This is an implementation of hash table.
 
 #include <assert.h>
 #include <inttypes.h>
