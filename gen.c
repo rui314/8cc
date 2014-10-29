@@ -60,6 +60,7 @@ static char *get_caller_list(void) {
         if (!iter_end(i))
             buf_printf(b, " -> ");
     }
+    buf_write(b, '\0');
     return buf_body(b);
 }
 
