@@ -624,7 +624,7 @@ Token *peek_cpp_token(void) {
     return tok;
 }
 
-static Token *do_read_cpp_token(void) {
+Token *read_cpp_token(void) {
     if (altbuffer) {
         if (vec_len(altbuffer) == 0)
             return NULL;
@@ -648,8 +648,4 @@ static Token *do_read_cpp_token(void) {
     }
     if (tok) tok->bol = bol;
     return tok;
-}
-
-Token *read_cpp_token(void) {
-    return do_read_cpp_token();
 }
