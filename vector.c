@@ -76,15 +76,6 @@ void *vec_pop(Vector *vec) {
     return vec->body[--vec->len];
 }
 
-void *vec_shift(Vector *vec) {
-    assert(vec->len > 0);
-    void *r = vec->body[0];
-    for (int i = 1; i < vec->len; i++)
-        vec->body[i - 1] = vec->body[i];
-    vec->len--;
-    return r;
-}
-
 void *vec_get(Vector *vec, int index) {
     assert(0 <= index && index < vec->len);
     return vec->body[index];

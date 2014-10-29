@@ -20,7 +20,6 @@ extern Vector *vec_copy(Vector *vec);
 extern void vec_push(Vector *vec, void *elem);
 extern void *vec_pop(Vector *vec);
 extern void vec_append(Vector *a, Vector *b);
-extern void *vec_shift(Vector *vec);
 extern void *vec_get(Vector *vec, int index);
 extern void *vec_head(Vector *vec);
 extern void *vec_tail(Vector *vec);

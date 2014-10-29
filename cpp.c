@@ -349,8 +349,9 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
                     vec_pop(r);
             } else if (vec_len(arg) > 0) {
                 glue_push(r, vec_head(arg));
-                Vector *tmp = vec_copy(arg);
-                vec_shift(tmp);
+                Vector *tmp = make_vector();
+                for (int i = 1; i < vec_len(arg); i++)
+                    vec_push(tmp, vec_get(arg, i));
                 vec_append(r, expand_all(tmp, t1));
             }
             i++;
@@ -563,7 +564,7 @@ static bool read_constexpr(void) {
     Node *expr = read_expr();
     Vector *buf = get_input_buffer();
     if (vec_len(buf) > 0)
-        error("Stray token: %s", t2s(vec_shift(buf)));
+        error("Stray token: %s", t2s(vec_get(buf, 0)));
     set_input_buffer(orig);
     return eval_intexpr(expr);
 }

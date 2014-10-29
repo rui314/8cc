@@ -63,12 +63,6 @@ static void test_list(void) {
     assert_int(2, (long)vec_pop(rev));
     assert_int(0, vec_len(rev));
 
-    Vector *list2 = make_vector();
-    vec_push(list2, (void *)5);
-    vec_push(list2, (void *)6);
-    assert_int(5, (long)vec_shift(list2));
-    assert_int(6, (long)vec_shift(list2));
-
     Vector *list3 = make_vector();
     vec_push(list3, (void *)1);
     assert_int(1, (long)vec_head(list3));
