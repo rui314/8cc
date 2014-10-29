@@ -2417,12 +2417,13 @@ Vector *read_toplevels(void) {
  * Initializer
  */
 
-void parse_init(void) {
-#define DEFINE_BUILTIN(name, rettype, paramtypes)                       \
-    map_put(globalenv, name, ast_gvar(make_func_type(rettype, paramtypes, true, false), name))
+static void define_builtin(char *name, Ctype *rettype, Vector *paramtypes) {
+    Node *v = ast_gvar(make_func_type(rettype, paramtypes, true, false), name);
+    map_put(globalenv, name, v);
+}
 
-    DEFINE_BUILTIN("__builtin_va_start", ctype_void, make_vector());
-    DEFINE_BUILTIN("__builtin_va_arg", ctype_void, make_vector());
-    DEFINE_BUILTIN("__builtin_return_address", make_ptr_type(ctype_void), make_vector1(ctype_uint));
-#undef DEFINE_BUILTIN
+void parse_init(void) {
+    define_builtin("__builtin_va_start", ctype_void, &EMPTY_VECTOR);
+    define_builtin("__builtin_va_arg", ctype_void, &EMPTY_VECTOR);
+    define_builtin("__builtin_return_address", make_ptr_type(ctype_void), make_vector1(ctype_uint));
 }
