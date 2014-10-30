@@ -32,7 +32,7 @@ extern char *buf_body(Buffer *b);
 
 enum {
     TIDENT,
-    TPUNCT,
+    TKEYWORD,
     TNUMBER,
     TCHAR,
     TSTRING,
@@ -53,7 +53,7 @@ typedef struct {
     Map *hideset;
     union {
         char *sval;
-        int punct;
+        int id;
         char c;
         int position;
     };
@@ -104,11 +104,11 @@ enum {
     OP_POST_INC,
     OP_POST_DEC,
     OP_LABEL_ADDR,
-#define punct(name, _1) name,
-#define keyword(name, _1, _2) name,
+#define op(name, _) name,
+#define keyword(name, x, y) name,
 #include "keyword.h"
 #undef keyword
-#undef punct
+#undef op
 };
 
 enum {
@@ -306,7 +306,7 @@ extern Token *read_token(void);
 extern void expect_newline(void);
 
 extern char *t2s(Token *tok);
-extern bool is_punct(Token *tok, int c);
+extern bool is_keyword(Token *tok, int c);
 extern bool is_ident(Token *tok, char *s);
 extern char *a2s(Node *node);
 extern char *c2s(Ctype *ctype);

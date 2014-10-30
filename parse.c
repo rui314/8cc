@@ -410,10 +410,10 @@ static void ensure_not_void(Ctype *ctype) {
         error("void is not allowed");
 }
 
-static void expect(char punct) {
+static void expect(char id) {
     Token *tok = read_token();
-    if (!is_punct(tok, punct))
-        error("'%c' expected, but got %s", punct, t2s(tok));
+    if (!is_keyword(tok, id))
+        error("'%c' expected, but got %s", id, t2s(tok));
 }
 
 static Ctype *copy_incomplete_type(Ctype *ctype) {
@@ -429,15 +429,14 @@ static Ctype *get_typedef(char *name) {
 static bool is_type_keyword(Token *tok) {
     if (tok->type == TIDENT)
         return get_typedef(tok->sval);
-    if (tok->type != TPUNCT)
+    if (tok->type != TKEYWORD)
         return false;
-    switch (tok->punct) {
-#define punct(x, y)
-#define keyword(ident, _, istype)               \
-        case ident: return istype;
+    switch (tok->id) {
+#define op(x, y)
+#define keyword(id, _, istype) case id: return istype;
 #include "keyword.h"
 #undef keyword
-#undef punct
+#undef op
     default:
         return false;
     }
@@ -445,7 +444,7 @@ static bool is_type_keyword(Token *tok) {
 
 static bool next_token(int type) {
     Token *tok = read_token();
-    if (is_punct(tok, type))
+    if (is_keyword(tok, type))
         return true;
     unget_token(tok);
     return false;
@@ -699,7 +698,7 @@ static Node *read_number(char *s) {
 
 static Ctype *read_sizeof_operand_sub(void) {
     Token *tok = read_token();
-    if (is_punct(tok, '(') && is_type_keyword(peek_token())) {
+    if (is_keyword(tok, '(') && is_type_keyword(peek_token())) {
         Ctype *r = read_func_param(NULL, true);
         expect(')');
         return r;
@@ -776,8 +775,8 @@ static Vector *read_func_args(Vector *params) {
             arg = ast_conv(paramtype, arg);
         vec_push(args, arg);
         Token *tok = read_token();
-        if (is_punct(tok, ')')) break;
-        if (!is_punct(tok, ','))
+        if (is_keyword(tok, ')')) break;
+        if (!is_keyword(tok, ','))
             error("Unexpected token: '%s'", t2s(tok));
     }
     return args;
@@ -895,9 +894,9 @@ static Node *convert_funcdesg(Node *node) {
 }
 
 static int get_compound_assign_op(Token *tok) {
-    if (tok->type != TPUNCT)
+    if (tok->type != TKEYWORD)
         return 0;
-    switch (tok->punct) {
+    switch (tok->id) {
     case OP_A_ADD: return '+';
     case OP_A_SUB: return '-';
     case OP_A_MUL: return '*';
@@ -929,14 +928,14 @@ static Node *read_stmt_expr(void) {
 static Node *read_primary_expr(void) {
     Token *tok = read_token();
     if (!tok) return NULL;
-    if (is_punct(tok, '(')) {
+    if (is_keyword(tok, '(')) {
         if (next_token('{'))
             return read_stmt_expr();
         Node *r = read_expr();
         expect(')');
         return r;
     }
-    if (is_punct(tok, KGENERIC)) {
+    if (is_keyword(tok, KGENERIC)) {
         return read_generic();
     }
     switch (tok->type) {
@@ -948,7 +947,7 @@ static Node *read_primary_expr(void) {
         return ast_inttype(ctype_int, tok->c);
     case TSTRING:
         return ast_string(tok->sval);
-    case TPUNCT:
+    case TKEYWORD:
         unget_token(tok);
         return NULL;
     default:
@@ -998,7 +997,7 @@ static Node *read_postfix_expr_tail(Node *node) {
         Token *tok = peek_token();
         if (next_token(OP_INC) || next_token(OP_DEC)) {
             ensure_lvalue(node);
-            int op = is_punct(tok, OP_INC) ? OP_POST_INC : OP_POST_DEC;
+            int op = is_keyword(tok, OP_INC) ? OP_POST_INC : OP_POST_DEC;
             return ast_uop(op, node->ctype, node);
         }
         return node;
@@ -1067,8 +1066,8 @@ static Node *read_unary_lognot(void) {
 
 static Node *read_unary_expr(void) {
     Token *tok = read_token();
-    if (tok->type == TPUNCT) {
-        switch (tok->punct) {
+    if (tok->type == TKEYWORD) {
+        switch (tok->id) {
         case KSIZEOF: return read_sizeof_operand();
         case KALIGNOF:
         case K__ALIGNOF__: return read_alignof_operand();
@@ -1102,10 +1101,10 @@ static Ctype *read_cast_type(void) {
 
 static Node *read_cast_expr(void) {
     Token *tok = read_token();
-    if (is_punct(tok, '(') && is_type_keyword(peek_token())) {
+    if (is_keyword(tok, '(') && is_type_keyword(peek_token())) {
         Ctype *ctype = read_cast_type();
         expect(')');
-        if (is_punct(peek_token(), '{')) {
+        if (is_keyword(peek_token(), '{')) {
             Node *node = read_compound_literal(ctype);
             return read_postfix_expr_tail(node);
         }
@@ -1226,16 +1225,16 @@ static Node *read_assignment_expr(void) {
     Token *tok = read_token();
     if (!tok)
         return node;
-    if (is_punct(tok, '?')) {
+    if (is_keyword(tok, '?')) {
         Node *then = read_comma_expr();
         expect(':');
         Node *els = read_conditional_expr();
         return ast_ternary(els->ctype, node, then, els);
     }
     int cop = get_compound_assign_op(tok);
-    if (is_punct(tok, '=') || cop) {
+    if (is_keyword(tok, '=') || cop) {
         Node *value = convert_funcdesg(read_assignment_expr());
-        if (is_punct(tok, '=') || cop)
+        if (is_keyword(tok, '=') || cop)
             ensure_lvalue(node);
         Node *right = cop ? usual_conv(cop, node, value) : value;
         if (is_arithtype(node->ctype) && node->ctype->type != right->ctype->type)
@@ -1342,7 +1341,7 @@ static Vector *read_rectype_fields_sub(int *align) {
             *align = MAX(*align, fieldtype->align);
             if (next_token(','))
                 continue;
-            if (is_punct(peek_token(), '}'))
+            if (is_keyword(peek_token(), '}'))
                 warn("missing ';' at the end of field list");
             else
                 expect(';');
@@ -1497,14 +1496,14 @@ static Ctype *read_enum_def(void) {
     Token *tok = read_token();
     if (tok->type == TIDENT)
         tok = read_token();
-    if (!is_punct(tok, '{')) {
+    if (!is_keyword(tok, '{')) {
         unget_token(tok);
         return ctype_int;
     }
     int val = 0;
     for (;;) {
         tok = read_token();
-        if (is_punct(tok, '}'))
+        if (is_keyword(tok, '}'))
             break;
         if (tok->type != TIDENT)
             error("Identifier expected, but got %s", t2s(tok));
@@ -1603,18 +1602,18 @@ static void read_struct_initializer_sub(Vector *inits, Ctype *ctype, int off, bo
     int i = 0;
     for (;;) {
         Token *tok = read_token();
-        if (is_punct(tok, '}')) {
+        if (is_keyword(tok, '}')) {
             if (!has_brace)
                 unget_token(tok);
             return;
         }
         char *fieldname;
         Ctype *fieldtype;
-        if ((is_punct(tok, '.') || is_punct(tok, '[')) && !has_brace && !designated) {
+        if ((is_keyword(tok, '.') || is_keyword(tok, '[')) && !has_brace && !designated) {
             unget_token(tok);
             return;
         }
-        if (is_punct(tok, '.')) {
+        if (is_keyword(tok, '.')) {
             tok = read_token();
             if (!tok || tok->type != TIDENT)
                 error("malformed desginated initializer: %s", t2s(tok));
@@ -1659,16 +1658,16 @@ static void read_array_initializer_sub(Vector *inits, Ctype *ctype, int off, boo
     int i;
     for (i = 0; flexible || i < ctype->len; i++) {
         Token *tok = read_token();
-        if (is_punct(tok, '}')) {
+        if (is_keyword(tok, '}')) {
             if (!has_brace)
                 unget_token(tok);
             goto finish;
         }
-        if ((is_punct(tok, '.') || is_punct(tok, '[')) && !has_brace && !designated) {
+        if ((is_keyword(tok, '.') || is_keyword(tok, '[')) && !has_brace && !designated) {
             unget_token(tok);
             return;
         }
-        if (is_punct(tok, '[')) {
+        if (is_keyword(tok, '[')) {
             int idx = read_intexpr();
             if (idx < 0 || (!flexible && ctype->len <= idx))
                 error("array designator exceeds array bounds: %d", idx);
@@ -1703,7 +1702,7 @@ static void read_initializer_list(Vector *inits, Ctype *ctype, int off, bool des
             assign_string(inits, ctype, tok->sval, off);
             return;
         }
-        if (is_punct(tok, '{') && peek_token()->type == TSTRING) {
+        if (is_keyword(tok, '{') && peek_token()->type == TSTRING) {
             tok = read_token();
             assign_string(inits, ctype, tok->sval, off);
             expect('}');
@@ -1723,7 +1722,7 @@ static void read_initializer_list(Vector *inits, Ctype *ctype, int off, bool des
 
 static Vector *read_decl_init(Ctype *ctype) {
     Vector *r = make_vector();
-    if (is_punct(peek_token(), '{') || is_string(ctype)) {
+    if (is_keyword(peek_token(), '{') || is_string(ctype)) {
         read_initializer_list(r, ctype, 0, false);
     } else {
         Node *init = convert_funcdesg(read_assignment_expr());
@@ -1767,9 +1766,9 @@ static Ctype *read_func_param_list(Vector *paramvars, Ctype *rettype) {
     bool typeonly = !paramvars;
     Vector *paramtypes = make_vector();
     Token *tok = read_token();
-    if (is_punct(tok, KVOID) && next_token(')'))
+    if (is_keyword(tok, KVOID) && next_token(')'))
         return make_func_type(rettype, paramtypes, false, false);
-    if (is_punct(tok, ')'))
+    if (is_keyword(tok, ')'))
         return make_func_type(rettype, paramtypes, true, false);
     unget_token(tok);
     bool oldstyle = true;
@@ -1793,9 +1792,9 @@ static Ctype *read_func_param_list(Vector *paramvars, Ctype *rettype) {
             vec_push(paramvars, node);
         }
         Token *tok = read_token();
-        if (is_punct(tok, ')'))
+        if (is_keyword(tok, ')'))
             return make_func_type(rettype, paramtypes, false, oldstyle);
-        if (!is_punct(tok, ','))
+        if (!is_keyword(tok, ','))
             error("comma expected, but got %s", t2s(tok));
     }
 }
@@ -1835,14 +1834,14 @@ static void skip_type_qualifiers(void) {
 static Ctype *read_direct_declarator1(char **rname, Ctype *basetype, Vector *params, int ctx) {
     Token *tok = read_token();
     Token *next = peek_token();
-    if (is_punct(tok, '(') && !is_type_keyword(next) && !is_punct(next, ')')) {
+    if (is_keyword(tok, '(') && !is_type_keyword(next) && !is_keyword(next, ')')) {
         Ctype *stub = make_stub_type();
         Ctype *t = read_direct_declarator1(rname, stub, params, ctx);
         expect(')');
         *stub = *read_direct_declarator2(basetype, params);
         return t;
     }
-    if (is_punct(tok, '*')) {
+    if (is_keyword(tok, '*')) {
         skip_type_qualifiers();
         return read_direct_declarator1(rname, make_ptr_type(basetype), params, ctx);
     }
@@ -1936,11 +1935,11 @@ static Ctype *read_decl_spec(int *rsclass) {
                 continue;
             }
         }
-        if (tok->type != TPUNCT) {
+        if (tok->type != TKEYWORD) {
             unget_token(tok);
             break;
         }
-        switch (tok->punct) {
+        switch (tok->id) {
         case KTYPEDEF:    setsclass(S_TYPEDEF); continue;
         case KEXTERN:     setsclass(S_EXTERN); continue;
         case KSTATIC:     setsclass(S_STATIC); continue;
@@ -2018,7 +2017,7 @@ static void read_decl(Vector *block, MakeVarFn *make_var) {
         Ctype *ctype = read_declarator(&name, copy_incomplete_type(basetype), NULL, DECL_BODY);
         ctype->isstatic = (sclass == S_STATIC);
         Token *tok = read_token();
-        if (is_punct(tok, '=')) {
+        if (is_keyword(tok, '=')) {
             if (sclass == S_TYPEDEF)
                 error("= after typedef");
             ensure_not_void(ctype);
@@ -2034,9 +2033,9 @@ static void read_decl(Vector *block, MakeVarFn *make_var) {
             if (sclass != S_EXTERN)
                 vec_push(block, ast_decl(var, NULL));
         }
-        if (is_punct(tok, ';'))
+        if (is_keyword(tok, ';'))
             return;
-        if (!is_punct(tok, ','))
+        if (!is_keyword(tok, ','))
             error("';' or ',' are expected, but got %s", t2s(tok));
     }
 }
@@ -2050,7 +2049,7 @@ static Vector *read_oldstyle_param_args(void) {
     localenv = NULL;
     Vector *r = make_vector();
     for (;;) {
-        if (is_punct(peek_token(), '{'))
+        if (is_keyword(peek_token(), '{'))
             break;
         if (!is_type_keyword(peek_token()))
             error("K&R-style declarator expected, but got %s", t2s(peek_token()));
@@ -2122,16 +2121,16 @@ static bool is_funcdef(void) {
         vec_push(buf, tok);
         if (!tok)
             error("premature end of input");
-        if (nest == 0 && paren && (is_punct(tok, '{') || tok->type == TIDENT))
+        if (nest == 0 && paren && (is_keyword(tok, '{') || tok->type == TIDENT))
             break;
-        if (nest == 0 && (is_punct(tok, ';') || is_punct(tok, ',') || is_punct(tok, '='))) {
+        if (nest == 0 && (is_keyword(tok, ';') || is_keyword(tok, ',') || is_keyword(tok, '='))) {
             r = false;
             break;
         }
-        if (is_punct(tok, '(')) {
+        if (is_keyword(tok, '(')) {
             nest++;
         }
-        if (is_punct(tok, ')')) {
+        if (is_keyword(tok, ')')) {
             if (nest == 0)
                 error("extra close parenthesis");
             paren = true;
@@ -2250,7 +2249,7 @@ static Node *read_while_stmt(void) {
 static Node *read_do_stmt(void) {
     Node *body = read_stmt();
     Token *tok = read_token();
-    if (!is_punct(tok, KWHILE))
+    if (!is_keyword(tok, KWHILE))
         error("'while' is expected, but got %s", t2s(tok));
     expect('(');
     Node *cond = read_boolean_expr();
@@ -2344,8 +2343,8 @@ static Node *read_label(Token *tok) {
 
 static Node *read_stmt(void) {
     Token *tok = read_token();
-    if (tok->type == TPUNCT) {
-        switch (tok->punct) {
+    if (tok->type == TKEYWORD) {
+        switch (tok->id) {
         case '{':       return read_compound_stmt();
         case KIF:       return read_if_stmt();
         case KFOR:      return read_for_stmt();
@@ -2360,7 +2359,7 @@ static Node *read_stmt(void) {
         case KGOTO:     return read_goto_stmt();
         }
     }
-    if (tok->type == TIDENT && is_punct(peek_token(), ':'))
+    if (tok->type == TIDENT && is_keyword(peek_token(), ':'))
         return read_label(tok);
     unget_token(tok);
     Node *r = read_expr_opt();

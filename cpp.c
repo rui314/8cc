@@ -117,9 +117,9 @@ static Token *make_number(char *s) {
     return r;
 }
 
-static void expect(char punct) {
+static void expect(char id) {
     Token *tok = read_cpp_token();
-    if (!tok || !is_punct(tok, punct))
+    if (!tok || !is_keyword(tok, id))
         error("%c expected, but got %s", t2s(tok));
 }
 
@@ -131,9 +131,9 @@ bool is_ident(Token *tok, char *s) {
     return tok->type == TIDENT && !strcmp(tok->sval, s);
 }
 
-static bool next(int punct) {
+static bool next(int id) {
     Token *tok = read_cpp_token();
-    if (is_punct(tok, punct))
+    if (is_keyword(tok, id))
         return true;
     unget_token(tok);
     return false;
@@ -173,21 +173,21 @@ static Vector *do_read_args(Macro *macro) {
             error("unterminated macro argument list");
         if (tok->type == TNEWLINE)
             continue;
-        if (is_punct(tok, '(')) {
+        if (is_keyword(tok, '(')) {
             depth++;
         } else if (depth) {
-            if (is_punct(tok, ')'))
+            if (is_keyword(tok, ')'))
                 depth--;
             vec_push(arg, tok);
             continue;
         }
-        if (is_punct(tok, ')')) {
+        if (is_keyword(tok, ')')) {
             unget_token(tok);
             vec_push(r, arg);
             return r;
         }
         bool in_threedots = macro->is_varg && vec_len(r) + 1 == macro->nargs;
-        if (is_punct(tok, ',') && !in_threedots) {
+        if (is_keyword(tok, ',') && !in_threedots) {
             vec_push(r, arg);
             arg = make_vector();
             continue;
@@ -259,7 +259,7 @@ static void paste(Buffer *b, Token *tok) {
     case TNUMBER:
         buf_printf(b, "%s", tok->sval);
         return;
-    case TPUNCT:
+    case TKEYWORD:
         buf_printf(b, "%s", t2s(tok));
         return;
     default:
@@ -293,7 +293,7 @@ static char *join_tokens(Vector *args, bool sep) {
         case TNUMBER:
             buf_printf(b, "%s", tok->sval);
             break;
-        case TPUNCT:
+        case TKEYWORD:
             buf_printf(b, "%s", t2s(tok));
             break;
         case TCHAR:
@@ -337,14 +337,14 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
         bool t0_param = (t0->type == TMACRO_PARAM);
         bool t1_param = (!islast && t1->type == TMACRO_PARAM);
 
-        if (is_punct(t0, '#') && t1_param) {
+        if (is_keyword(t0, '#') && t1_param) {
             vec_push(r, stringize(t0, vec_get(args, t1->position)));
             i++;
             continue;
         }
         if (is_ident(t0, "##") && t1_param) {
             Vector *arg = vec_get(args, t1->position);
-            if (t1->is_vararg && vec_len(r) > 0 && is_punct(vec_tail(r), ',')) {
+            if (t1->is_vararg && vec_len(r) > 0 && is_keyword(vec_tail(r), ',')) {
                 if (vec_len(arg) > 0)
                     vec_append(r, expand_all(arg, t1));
                 else
@@ -414,7 +414,7 @@ static Token *read_expand(void) {
             return tok;
         Vector *args = read_args(macro);
         Token *rparen = read_cpp_token();
-        if (!is_punct(rparen, ')'))
+        if (!is_keyword(rparen, ')'))
             error("internal error: %s", t2s(rparen));
         Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
         Vector *tokens = subst(macro, args, hideset);
@@ -435,10 +435,10 @@ static bool read_funclike_macro_params(Map *param) {
     int pos = 0;
     for (;;) {
         Token *tok = read_cpp_token();
-        if (is_punct(tok, ')'))
+        if (is_keyword(tok, ')'))
             return false;
         if (pos) {
-            if (!is_punct(tok, ','))
+            if (!is_keyword(tok, ','))
                 error("',' expected, but got '%s'", t2s(tok));
             tok = read_cpp_token();
         }
@@ -509,7 +509,7 @@ static void read_obj_macro(char *name) {
 static void read_define(void) {
     Token *name = read_ident();
     Token *tok = read_cpp_token();
-    if (tok && is_punct(tok, '(') && !tok->nspace) {
+    if (tok && is_keyword(tok, '(') && !tok->nspace) {
         read_funclike_macro(name->sval);
         return;
     }
@@ -533,7 +533,7 @@ static void read_undef(void) {
 
 static Token *read_defined_op(void) {
     Token *tok = read_cpp_token();
-    if (is_punct(tok, '(')) {
+    if (is_keyword(tok, '(')) {
         tok = read_cpp_token();
         expect(')');
     }
@@ -659,14 +659,14 @@ static char *read_cpp_header_name(bool *std) {
         *std = false;
         return tok->sval;
     }
-    if (!is_punct(tok, '<'))
+    if (!is_keyword(tok, '<'))
         error("'<' expected, but got %s", t2s(tok));
     Vector *tokens = make_vector();
     for (;;) {
         Token *tok = read_expand();
         if (!tok || tok->type == TNEWLINE)
             error("premature end of header name");
-        if (is_punct(tok, '>'))
+        if (is_keyword(tok, '>'))
             break;
         vec_push(tokens, tok);
     }
@@ -858,11 +858,11 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
 }
 
 static void init_keywords(void) {
-#define punct(ident, str)      map_put(keywords, str, (void *)ident);
-#define keyword(ident, str, _) map_put(keywords, str, (void *)ident);
+#define op(id, str)         map_put(keywords, str, (void *)id);
+#define keyword(id, str, _) map_put(keywords, str, (void *)id);
 #include "keyword.h"
 #undef keyword
-#undef punct
+#undef id
 }
 
 static void init_predefined_macros(void) {
@@ -915,12 +915,12 @@ static Token *maybe_convert_keyword(Token *tok) {
         return NULL;
     if (tok->type != TIDENT)
         return tok;
-    int k = (intptr_t)map_get(keywords, tok->sval);
-    if (!k)
+    int id = (intptr_t)map_get(keywords, tok->sval);
+    if (!id)
         return tok;
     Token *r = copy_token(tok);
-    r->type = TPUNCT;
-    r->punct = k;
+    r->type = TKEYWORD;
+    r->id = id;
     return r;
 }
 
@@ -948,13 +948,13 @@ static Token *read_token_sub(bool return_at_eol) {
                 return NULL;
             continue;
         }
-        if (tok->bol && is_punct(tok, '#')) {
+        if (tok->bol && is_keyword(tok, '#')) {
             read_directive();
             continue;
         }
         unget_token(tok);
         Token *r = read_expand();
-        if (r && r->bol && is_punct(r, '#') && map_size(r->hideset) == 0) {
+        if (r && r->bol && is_keyword(r, '#') && map_size(r->hideset) == 0) {
             read_directive();
             continue;
         }

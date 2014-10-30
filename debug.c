@@ -278,15 +278,13 @@ char *t2s(Token *tok) {
     switch (tok->type) {
     case TIDENT:
         return tok->sval;
-    case TPUNCT:
-        switch (tok->punct) {
-#define punct(ident, str)                       \
-            case ident: return str;
-#define keyword(ident, str, _)                  \
-            case ident: return str;
+    case TKEYWORD:
+        switch (tok->id) {
+#define op(id, str)         case id: return str;
+#define keyword(id, str, _) case id: return str;
 #include "keyword.h"
 #undef keyword
-#undef punct
+#undef op
         default: return format("%c", tok->c);
         }
     case TCHAR:

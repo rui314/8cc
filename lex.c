@@ -73,8 +73,8 @@ static Token *make_strtok(char *s) {
     return make_token(&(Token){ TSTRING, .nspace = 0, .sval = s });
 }
 
-static Token *make_punct(int punct) {
-    return make_token(&(Token){ TPUNCT, .nspace = 0, .punct = punct });
+static Token *make_keyword(int id) {
+    return make_token(&(Token){ TKEYWORD, .nspace = 0, .id = id });
 }
 
 static Token *make_number(char *s) {
@@ -280,7 +280,7 @@ void skip_cond_incl(void) {
         }
         if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
             unget_cpp_token(tok);
-            Token *sharp = make_punct('#');
+            Token *sharp = make_keyword('#');
             sharp->bol = true;
             unget_cpp_token(sharp);
             return;
@@ -446,16 +446,16 @@ static void skip_block_comment(void) {
 
 static Token *read_rep(char expect, int t1, int els) {
     if (next(expect))
-        return make_punct(t1);
-    return make_punct(els);
+        return make_keyword(t1);
+    return make_keyword(els);
 }
 
 static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
     if (next(expect1))
-        return make_punct(t1);
+        return make_keyword(t1);
     if (next(expect2))
-        return make_punct(t2);
-    return make_punct(els);
+        return make_keyword(t2);
+    return make_keyword(els);
 }
 
 static Token *do_read_token(void) {
@@ -487,45 +487,45 @@ static Token *do_read_token(void) {
             return make_space(1);
         }
         if (next('='))
-            return make_punct(OP_A_DIV);
-        return make_punct('/');
+            return make_keyword(OP_A_DIV);
+        return make_keyword('/');
     case '.':
         if (isdigit(peek()))
             return read_number(c);
         if (next('.'))
             return make_ident(format("..%c", get()));
-        return make_punct('.');
+        return make_keyword('.');
     case '(': case ')': case ',': case ';': case '[': case ']': case '{':
     case '}': case '?': case '~':
-        return make_punct(c);
+        return make_keyword(c);
     case ':':
-        return make_punct(next('>') ? ']' : ':');
+        return make_keyword(next('>') ? ']' : ':');
     case '#':
         if (next('#'))
             return make_ident("##");
-        return make_punct('#');
+        return make_keyword('#');
     case '+':
         return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '-':
         if (next('-'))
-            return make_punct(OP_DEC);
+            return make_keyword(OP_DEC);
         if (next('>'))
-            return make_punct(OP_ARROW);
+            return make_keyword(OP_ARROW);
         if (next('='))
-            return make_punct(OP_A_SUB);
-        return make_punct('-');
+            return make_keyword(OP_A_SUB);
+        return make_keyword('-');
     case '*':
         return read_rep('=', OP_A_MUL, '*');
     case '%':
         if (next('>'))
-            return make_punct('}');
+            return make_keyword('}');
         if (next(':')) {
             if (next('%')) {
                 if (next(':'))
                     return make_ident("##");
                 unget('%');
             }
-            return make_punct('#');
+            return make_keyword('#');
         }
         return read_rep('=', OP_A_MOD, '%');
     case '=': return read_rep('=', OP_EQ, '=');
@@ -535,16 +535,16 @@ static Token *do_read_token(void) {
     case '^': return read_rep('=', OP_A_XOR, '^');
     case '<':
         if (next('<')) return read_rep('=', OP_A_SAL, OP_SAL);
-        if (next('=')) return make_punct(OP_LE);
-        if (next(':')) return make_punct('[');
-        if (next('%')) return make_punct('{');
-        return make_punct('<');
+        if (next('=')) return make_keyword(OP_LE);
+        if (next(':')) return make_keyword('[');
+        if (next('%')) return make_keyword('{');
+        return make_keyword('<');
     case '>':
         if (next('='))
-            return make_punct(OP_GE);
+            return make_keyword(OP_GE);
         if (next('>'))
             return read_rep('=', OP_A_SAR, OP_SAR);
-        return make_punct('>');
+        return make_keyword('>');
     case '"': return read_string();
     case '\'': return read_char();
     case EOF:
@@ -581,8 +581,8 @@ char *read_header_file_name(bool *std) {
     return buf_body(b);
 }
 
-bool is_punct(Token *tok, int c) {
-    return tok && (tok->type == TPUNCT) && (tok->punct == c);
+bool is_keyword(Token *tok, int c) {
+    return tok && (tok->type == TKEYWORD) && (tok->id == c);
 }
 
 void set_input_buffer(Vector *tokens) {
