@@ -133,6 +133,10 @@ static void test_struct(void) {
     expect(14, sum((MyType){ 2, 3, 4, 5 }));
 }
 
+static void test_funcdesg(void) {
+    test_funcdesg;
+}
+
 void testmain(void) {
     print("function");
 
@@ -152,4 +156,5 @@ void testmain(void) {
     empty2();
     test_bool();
     test_struct();
+    test_funcdesg();
 }

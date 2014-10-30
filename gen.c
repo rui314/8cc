@@ -1301,6 +1301,7 @@ static void emit_expr(Node *node) {
     case AST_STRING:  emit_literal_string(node); return;
     case AST_LVAR:    emit_lvar(node); return;
     case AST_GVAR:    emit_gvar(node); return;
+    case AST_FUNCDESG: return;
     case AST_FUNCALL:
         if (maybe_emit_builtin(node))
             return;

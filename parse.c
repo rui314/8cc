@@ -2030,11 +2030,9 @@ static void read_decl(Vector *block, MakeVarFn *make_var) {
             tok = read_token();
         } else if (sclass == S_TYPEDEF) {
             ast_typedef(ctype, name);
-        } else if (ctype->type == CTYPE_FUNC) {
-            make_var(ctype, name);
         } else {
             Node *var = make_var(ctype, name);
-            if (sclass != S_EXTERN)
+            if (sclass != S_EXTERN && ctype->type != CTYPE_FUNC)
                 vec_push(block, ast_decl(var, NULL));
         }
         if (is_keyword(tok, ';'))
