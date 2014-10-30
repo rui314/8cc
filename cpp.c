@@ -14,6 +14,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
+#include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
 #include <libgen.h>

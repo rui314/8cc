@@ -14,11 +14,6 @@ extern bool warning_is_error;
 #define error(...) errorf(__FILE__, __LINE__, __VA_ARGS__)
 #define warn(...)  warnf(__FILE__, __LINE__, __VA_ARGS__)
 
-#define assert(expr)                                    \
-    do {                                                \
-        if (!(expr)) error("Assertion failed: " #expr); \
-    } while (0)
-
 #ifndef __8cc__
 #define NORETURN __attribute__((noreturn))
 #else
