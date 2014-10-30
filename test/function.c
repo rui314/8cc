@@ -103,6 +103,28 @@ static void func_name(void) {
     expect_string("func_name", __FUNCTION__);
 }
 
+static int local_static2(void) {
+    static int x = 1;
+    static char y[] = "2";
+    static int z;
+    z = 3;
+    return x++ + (y[0] - '0') + z;
+}
+
+static void local_static3(void) {
+    static int x = 5;
+    static char y[] = "8";
+    static int z;
+    z = 100;
+}
+
+static void local_static(void) {
+    expect(6, local_static2());
+    expect(7, local_static2());
+    local_static3();
+    expect(8, local_static2());
+}
+
 static void empty(void) {
 }
 
@@ -154,6 +176,7 @@ void testmain(void) {
     expect(7, t10(3, 4.0));
     func_ptr_call();
     func_name();
+    local_static();
     empty();
     empty2();
     test_bool();

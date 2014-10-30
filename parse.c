@@ -34,6 +34,7 @@ static Map *struct_defs = &EMPTY_MAP;
 static Map *union_defs = &EMPTY_MAP;
 static Map *labels;
 
+static Vector *toplevels;
 static Vector *localvars;
 static Vector *gotos;
 static Ctype *current_func_type;
@@ -57,8 +58,7 @@ static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, 8, false };
 
 // The counter to make a unique identifier for labels.
 static int labelseq = 0;
-
-typedef Node *MakeVarFn(Ctype *ctype, char *name);
+static int staticseq = 0;
 
 static Ctype* make_ptr_type(Ctype *ctype);
 static Ctype* make_array_type(Ctype *ctype, int size);
@@ -70,7 +70,7 @@ static Node *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Node *read_unary_expr(void);
 static Ctype *read_func_param(char **name, bool optional);
-static void read_decl(Vector *toplevel, MakeVarFn *make_var);
+static void read_decl(Vector *toplevel, bool isglobal);
 static Ctype *read_declarator(char **name, Ctype *basetype, Vector *params, int ctx);
 static Ctype *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
@@ -122,6 +122,10 @@ char *make_label(void) {
     return format(".L%d", labelseq++);
 }
 
+static char *make_static_label(char *name) {
+    return format(".S%d.%s", staticseq++, name);
+}
+
 static Map *env(void) {
     return localenv ? localenv : globalenv;
 }
@@ -164,6 +168,17 @@ static Node *ast_lvar(Ctype *ctype, char *name) {
 static Node *ast_gvar(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_GVAR, ctype, .varname = name, .glabel = name });
     map_put(globalenv, name, r);
+    return r;
+}
+
+static Node *ast_static_lvar(Ctype *ctype, char *name) {
+    Node *r = make_ast(&(Node){
+        .type = AST_GVAR,
+        .ctype = ctype,
+        .varname = name,
+        .glabel = make_static_label(name) });
+    assert(localenv);
+    map_put(localenv, name, r);
     return r;
 }
 
@@ -2012,7 +2027,19 @@ static Ctype *read_decl_spec(int *rsclass) {
  * Declaration
  */
 
-static void read_decl(Vector *block, MakeVarFn *make_var) {
+static void read_static_local_var(Ctype *ctype, char *name) {
+    Node *var = ast_static_lvar(ctype, name);
+    Vector *init = NULL;
+    if (next_token('=')) {
+        Map *orig = localenv;
+        localenv = NULL;
+        init = read_decl_init(ctype);
+        localenv = orig;
+    }
+    vec_push(toplevels, ast_decl(var, init));
+}
+
+static void read_decl(Vector *block, bool isglobal) {
     int sclass;
     Ctype *basetype = read_decl_spec(&sclass);
     if (next_token(';'))
@@ -2021,25 +2048,24 @@ static void read_decl(Vector *block, MakeVarFn *make_var) {
         char *name = NULL;
         Ctype *ctype = read_declarator(&name, copy_incomplete_type(basetype), NULL, DECL_BODY);
         ctype->isstatic = (sclass == S_STATIC);
-        Token *tok = read_token();
-        if (is_keyword(tok, '=')) {
-            if (sclass == S_TYPEDEF)
-                error("= after typedef");
-            ensure_not_void(ctype);
-            Node *var = make_var(ctype, name);
-            vec_push(block, ast_decl(var, read_decl_init(var->ctype)));
-            tok = read_token();
-        } else if (sclass == S_TYPEDEF) {
+        if (sclass == S_TYPEDEF) {
             ast_typedef(ctype, name);
+        } else if (ctype->isstatic && !isglobal) {
+            ensure_not_void(ctype);
+            read_static_local_var(ctype, name);
         } else {
-            Node *var = make_var(ctype, name);
-            if (sclass != S_EXTERN && ctype->type != CTYPE_FUNC)
+            ensure_not_void(ctype);
+            Node *var = (isglobal ? ast_gvar : ast_lvar)(ctype, name);
+            if (next_token('=')) {
+                vec_push(block, ast_decl(var, read_decl_init(ctype)));
+            } else if (sclass != S_EXTERN && ctype->type != CTYPE_FUNC) {
                 vec_push(block, ast_decl(var, NULL));
+            }
         }
-        if (is_keyword(tok, ';'))
+        if (next_token(';'))
             return;
-        if (!is_keyword(tok, ','))
-            error("';' or ',' are expected, but got %s", t2s(tok));
+        if (!next_token(','))
+            error("';' or ',' are expected, but got %s", t2s(read_token()));
     }
 }
 
@@ -2056,7 +2082,7 @@ static Vector *read_oldstyle_param_args(void) {
             break;
         if (!is_type_keyword(peek_token()))
             error("K&R-style declarator expected, but got %s", t2s(peek_token()));
-        read_decl(r, ast_lvar);
+        read_decl(r, false);
     }
     localenv = orig;
     return r;
@@ -2389,7 +2415,7 @@ static void read_decl_or_stmt(Vector *list) {
     if (tok == NULL)
         error("premature end of input");
     if (is_type_keyword(tok)) {
-        read_decl(list, ast_lvar);
+        read_decl(list, false);
     } else if (next_token(KSTATIC_ASSERT)) {
         read_static_assert();
     } else {
@@ -2404,14 +2430,14 @@ static void read_decl_or_stmt(Vector *list) {
  */
 
 Vector *read_toplevels(void) {
-    Vector *r = make_vector();
+    toplevels = make_vector();
     for (;;) {
         if (!peek_token())
-            return r;
+            return toplevels;
         if (is_funcdef())
-            vec_push(r, read_funcdef());
+            vec_push(toplevels, read_funcdef());
         else
-            read_decl(r, ast_gvar);
+            read_decl(toplevels, true);
     }
 }
 

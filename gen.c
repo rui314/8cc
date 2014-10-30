@@ -354,7 +354,7 @@ static void emit_assign_struct_ref(Node *struc, Ctype *field, int off) {
         emit_lsave(field, struc->loff + field->offset + off);
         break;
     case AST_GVAR:
-        emit_gsave(struc->varname, field, field->offset + off);
+        emit_gsave(struc->glabel, field, field->offset + off);
         break;
     case AST_STRUCT_REF:
         emit_assign_struct_ref(struc->struc, field, off + struc->ctype->offset);
@@ -377,7 +377,7 @@ static void emit_load_struct_ref(Node *struc, Ctype *field, int off) {
         emit_lload(field, "rbp", struc->loff + field->offset + off);
         break;
     case AST_GVAR:
-        emit_gload(field, struc->varname, field->offset + off);
+        emit_gload(field, struc->glabel, field->offset + off);
         break;
     case AST_STRUCT_REF:
         emit_load_struct_ref(struc->struc, field, struc->ctype->offset + off);
@@ -400,7 +400,7 @@ static void emit_store(Node *var) {
         ensure_lvar_init(var);
         emit_lsave(var->ctype, var->loff);
         break;
-    case AST_GVAR: emit_gsave(var->varname, var->ctype, 0); break;
+    case AST_GVAR: emit_gsave(var->glabel, var->ctype, 0); break;
     default: error("internal error");
     }
 }
@@ -1384,7 +1384,7 @@ static void emit_data_addr(Node *operand, int depth) {
         return;
     }
     case AST_GVAR:
-        emit(".quad %s", operand->varname);
+        emit(".quad %s", operand->glabel);
         return;
     default:
         error("internal error");
@@ -1428,7 +1428,7 @@ static void emit_data_primtype(Ctype *ctype, Node *val) {
     case CTYPE_LLONG:
     case CTYPE_PTR:
         if (val->type == AST_GVAR)
-            emit(".quad %s", val->varname);
+            emit(".quad %s", val->glabel);
         else
             emit(".quad %d", eval_intexpr(val));
         break;
@@ -1487,8 +1487,8 @@ static void emit_data(Node *v, int off, int depth) {
     SAVE;
     emit(".data %d", depth);
     if (!v->declvar->ctype->isstatic)
-        emit_noindent(".global %s", v->declvar->varname);
-    emit_noindent("%s:", v->declvar->varname);
+        emit_noindent(".global %s", v->declvar->glabel);
+    emit_noindent("%s:", v->declvar->glabel);
     do_emit_data(v->declinit, v->declvar->ctype->size, off, depth);
 }
 
@@ -1496,8 +1496,8 @@ static void emit_bss(Node *v) {
     SAVE;
     emit(".data");
     if (!v->declvar->ctype->isstatic)
-        emit(".global %s", v->declvar->varname);
-    emit(".lcomm %s, %d", v->declvar->varname, v->declvar->ctype->size);
+        emit(".global %s", v->declvar->glabel);
+    emit(".lcomm %s, %d", v->declvar->glabel, v->declvar->ctype->size);
 }
 
 static void emit_global_var(Node *v) {
