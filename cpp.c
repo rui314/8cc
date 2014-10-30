@@ -15,6 +15,7 @@
 #endif
 
 #include <ctype.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,7 @@
 bool debug_cpp;
 static Map *macros = &EMPTY_MAP;
 static Map *imported = &EMPTY_MAP;
+static Map *keywords = &EMPTY_MAP;
 static Vector *cond_incl_stack = &EMPTY_VECTOR;
 static Vector *std_include_path = &EMPTY_VECTOR;
 static Token *cpp_token_zero = &(Token){ .type = TNUMBER, .sval = "0" };
@@ -855,7 +857,15 @@ static void define_special_macro(char *name, special_macro_handler *fn) {
     map_put(macros, name, make_special_macro(fn));
 }
 
-void cpp_init(void) {
+static void init_keywords(void) {
+#define punct(ident, str)      map_put(keywords, str, (void *)ident);
+#define keyword(ident, str, _) map_put(keywords, str, (void *)ident);
+#include "keyword.h"
+#undef keyword
+#undef punct
+}
+
+static void init_predefined_macros(void) {
     vec_push(std_include_path, "/usr/include/x86_64-linux-gnu");
     vec_push(std_include_path, "/usr/include/linux");
     vec_push(std_include_path, "/usr/include");
@@ -891,32 +901,27 @@ void cpp_init(void) {
     define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));
 }
 
+void cpp_init(void) {
+    init_keywords();
+    init_predefined_macros();
+}
+
 /*----------------------------------------------------------------------
  * Keyword
  */
-
-static Token *convert_punct(Token *tmpl, int punct) {
-    Token *r = copy_token(tmpl);
-    r->type = TPUNCT;
-    r->punct = punct;
-    return r;
-}
 
 static Token *maybe_convert_keyword(Token *tok) {
     if (!tok)
         return NULL;
     if (tok->type != TIDENT)
         return tok;
-#define punct(ident, str)                       \
-    if (!strcmp(str, tok->sval))                \
-        return convert_punct(tok, ident);
-#define keyword(ident, str, _)                  \
-    if (!strcmp(str, tok->sval))                \
-        return convert_punct(tok, ident);
-#include "keyword.h"
-#undef keyword
-#undef punct
-    return tok;
+    int k = (intptr_t)map_get(keywords, tok->sval);
+    if (!k)
+        return tok;
+    Token *r = copy_token(tok);
+    r->type = TPUNCT;
+    r->punct = k;
+    return r;
 }
 
 /*----------------------------------------------------------------------
