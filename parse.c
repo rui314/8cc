@@ -99,7 +99,7 @@ enum {
     DECL_CAST,
 };
 
-/*----------------------------------------------------------------------
+/*
  * Source location
  */
 
@@ -114,7 +114,7 @@ static void mark_location(void) {
     source_loc->line = tok->line;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Constructors
  */
 
@@ -355,7 +355,7 @@ static Ctype *make_stub_type(void) {
     return make_type(&(Ctype){ CTYPE_STUB });
 }
 
-/*----------------------------------------------------------------------
+/*
  * Predicates and type checking routines
  */
 
@@ -457,7 +457,7 @@ void *make_pair(void *first, void *second) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Type conversion
  */
 
@@ -556,7 +556,7 @@ static Ctype *convert_array(Ctype *ctype) {
     return make_ptr_type(ctype->ptr);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Integer constant expression
  */
 
@@ -624,7 +624,7 @@ static int read_intexpr() {
     return eval_intexpr(read_conditional_expr());
 }
 
-/*----------------------------------------------------------------------
+/*
  * Numeric literal
  */
 
@@ -692,7 +692,7 @@ static Node *read_number(char *s) {
     return isfloat ? read_float(s) : read_int(s);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Sizeof operator
  */
 
@@ -716,7 +716,7 @@ static Node *read_sizeof_operand(void) {
     return ast_inttype(ctype_ulong, size);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Alignof operator
  */
 
@@ -732,7 +732,7 @@ static Node *read_alignof_operand(void) {
     return ast_inttype(ctype_long, get_alignment(ctype));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Builtin functions for varargs
  */
 
@@ -752,7 +752,7 @@ static Node *read_va_arg(void) {
     return ast_va_arg(ctype, ap);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Function arguments
  */
 
@@ -804,7 +804,7 @@ static Node *read_funcptr_call(Node *fptr) {
     return ast_funcptr_call(fptr, args);
 }
 
-/*----------------------------------------------------------------------
+/*
  * _Generic
  */
 
@@ -857,7 +857,7 @@ static Node *read_generic(void) {
    return defaultexpr;
 }
 
-/*----------------------------------------------------------------------
+/*
  * _Static_assert
  */
 
@@ -874,7 +874,7 @@ static void read_static_assert(void) {
         error("_Static_assert failure: %s", tok->sval);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Expression
  */
 
@@ -1265,7 +1265,7 @@ static Node *read_expr_opt(void) {
     return read_comma_expr();
 }
 
-/*----------------------------------------------------------------------
+/*
  * Struct or union
  */
 
@@ -1488,7 +1488,7 @@ static Ctype *read_union_def(void) {
     return read_rectype_def(union_defs, false);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Enum
  */
 
@@ -1522,7 +1522,7 @@ static Ctype *read_enum_def(void) {
     return ctype_int;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Initializer
  */
 
@@ -1733,7 +1733,7 @@ static Vector *read_decl_init(Ctype *ctype) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Declarator
  *
  * C's syntax for declaration is not only hard to read for humans but also
@@ -1875,7 +1875,7 @@ static Ctype *read_declarator(char **rname, Ctype *basetype, Vector *params, int
     return t;
 }
 
-/*----------------------------------------------------------------------
+/*
  * typeof()
  */
 
@@ -1888,7 +1888,7 @@ static Ctype *read_typeof(void) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Declaration specifier
  */
 
@@ -2003,7 +2003,7 @@ static Ctype *read_decl_spec(int *rsclass) {
     error("type mismatch: %s", t2s(tok));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Declaration
  */
 
@@ -2040,7 +2040,7 @@ static void read_decl(Vector *block, MakeVarFn *make_var) {
     }
 }
 
-/*----------------------------------------------------------------------
+/*
  * K&R-style parameter types
  */
 
@@ -2092,7 +2092,7 @@ static Vector *param_types(Vector *params) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Function definition
  */
 
@@ -2182,7 +2182,7 @@ static Node *read_funcdef(void) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * If
  */
 
@@ -2202,7 +2202,7 @@ static Node *read_if_stmt(void) {
     return ast_if(cond, then, els);
 }
 
-/*----------------------------------------------------------------------
+/*
  * For
  */
 
@@ -2230,7 +2230,7 @@ static Node *read_for_stmt(void) {
     return ast_for(init, cond, step, body);
 }
 
-/*----------------------------------------------------------------------
+/*
  * While
  */
 
@@ -2242,7 +2242,7 @@ static Node *read_while_stmt(void) {
     return ast_while(cond, body);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Do
  */
 
@@ -2258,7 +2258,7 @@ static Node *read_do_stmt(void) {
     return ast_do(cond, body);
 }
 
-/*----------------------------------------------------------------------
+/*
  * Switch
  */
 
@@ -2289,7 +2289,7 @@ static Node *read_default_label(void) {
     return make_ast(&(Node){ AST_DEFAULT });
 }
 
-/*----------------------------------------------------------------------
+/*
  * Jump statements
  */
 
@@ -2337,7 +2337,7 @@ static Node *read_label(Token *tok) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Statement
  */
 
@@ -2396,7 +2396,7 @@ static void read_decl_or_stmt(Vector *list) {
     }
 }
 
-/*----------------------------------------------------------------------
+/*
  * Compilation unit
  */
 
@@ -2412,7 +2412,7 @@ Vector *read_toplevels(void) {
     }
 }
 
-/*----------------------------------------------------------------------
+/*
  * Initializer
  */
 

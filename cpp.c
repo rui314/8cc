@@ -53,7 +53,7 @@ static Macro *make_special_macro(special_macro_handler *fn);
 static Token *read_token_sub(bool return_at_eol);
 static Token *read_expand(void);
 
-/*----------------------------------------------------------------------
+/*
  * Eval
  */
 
@@ -65,7 +65,7 @@ void cpp_eval(char *buf) {
         emit_toplevel(vec_get(toplevels, i));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Constructors
  */
 
@@ -124,7 +124,7 @@ static void expect(char id) {
         error("%c expected, but got %s", t2s(tok));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Utility functions
  */
 
@@ -147,7 +147,7 @@ static void set_vec_nspace(Vector *tokens, Token *tmpl) {
     tok->nspace = tmpl->nspace;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Macro expander
  */
 
@@ -503,7 +503,7 @@ static void read_obj_macro(char *name) {
     map_put(macros, name, make_obj_macro(body));
 }
 
-/*----------------------------------------------------------------------
+/*
  * #define
  */
 
@@ -518,7 +518,7 @@ static void read_define(void) {
     read_obj_macro(name->sval);
 }
 
-/*----------------------------------------------------------------------
+/*
  * #undef
  */
 
@@ -528,7 +528,7 @@ static void read_undef(void) {
     map_remove(macros, name->sval);
 }
 
-/*----------------------------------------------------------------------
+/*
  * defined()
  */
 
@@ -543,7 +543,7 @@ static Token *read_defined_op(void) {
     return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
-/*----------------------------------------------------------------------
+/*
  * #if and the like
  */
 
@@ -631,7 +631,7 @@ static void read_endif(void) {
     expect_newline();
 }
 
-/*----------------------------------------------------------------------
+/*
  * #error and #warning
  */
 
@@ -643,7 +643,7 @@ static void read_warning(void) {
     warn("#warning: %s", read_error_directive());
 }
 
-/*----------------------------------------------------------------------
+/*
  * #include
  */
 
@@ -704,7 +704,7 @@ static void read_include(bool isimport) {
     error("Cannot find header file: %s", filename);
 }
 
-/*----------------------------------------------------------------------
+/*
  * #pragma
  */
 
@@ -722,7 +722,7 @@ static void read_pragma(void) {
     parse_pragma_operand(tok->sval);
 }
 
-/*----------------------------------------------------------------------
+/*
  * #line
  */
 
@@ -751,7 +751,7 @@ static void read_line(void) {
         set_current_displayname(filename);
 }
 
-/*----------------------------------------------------------------------
+/*
  * #-directive
  */
 
@@ -775,7 +775,7 @@ static void read_directive(void) {
         error("unsupported preprocessor directive: %s", t2s(tok));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Special macros
  */
 
@@ -830,7 +830,7 @@ static void handle_counter_macro(Token *tmpl) {
     make_token_pushback(tmpl, TNUMBER, format("%d", macro_counter++));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Initializer
  */
 
@@ -846,7 +846,7 @@ void add_include_path(char *path) {
     vec_push(std_include_path, drop_last_slash(path));
 }
 
-/*----------------------------------------------------------------------
+/*
  * Initializer
  */
 
@@ -907,7 +907,7 @@ void cpp_init(void) {
     init_predefined_macros();
 }
 
-/*----------------------------------------------------------------------
+/*
  * Keyword
  */
 
@@ -925,7 +925,7 @@ static Token *maybe_convert_keyword(Token *tok) {
     return r;
 }
 
-/*----------------------------------------------------------------------
+/*
  * Public intefaces
  */
 
