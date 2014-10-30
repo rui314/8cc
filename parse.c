@@ -56,10 +56,6 @@ static Ctype *ctype_ulong = &(Ctype){ CTYPE_LONG, 8, 8, false };
 static Ctype *ctype_llong = &(Ctype){ CTYPE_LLONG, 8, 8, true };
 static Ctype *ctype_ullong = &(Ctype){ CTYPE_LLONG, 8, 8, false };
 
-// The counter to make a unique identifier for labels.
-static int labelseq = 0;
-static int staticseq = 0;
-
 static Ctype* make_ptr_type(Ctype *ctype);
 static Ctype* make_array_type(Ctype *ctype, int size);
 static Node *read_compound_stmt(void);
@@ -119,11 +115,13 @@ static void mark_location(void) {
  */
 
 char *make_label(void) {
-    return format(".L%d", labelseq++);
+    static int c = 0;
+    return format(".L%d", c++);
 }
 
 static char *make_static_label(char *name) {
-    return format(".S%d.%s", staticseq++, name);
+    static int c = 0;
+    return format(".S%d.%s", c++, name);
 }
 
 static Map *env(void) {
