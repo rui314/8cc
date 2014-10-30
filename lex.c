@@ -25,7 +25,7 @@ static int line_mark = -1;
 static int column_mark = -1;
 static int ungotten = -1;
 
-static Token *newline_token = &(Token){ .type = TNEWLINE, .nspace = 0 };
+static Token *newline_token = &(Token){ .kind = TNEWLINE, .nspace = 0 };
 
 static void skip_block_comment(void);
 
@@ -272,9 +272,9 @@ void skip_cond_incl(void) {
         }
         skip_space();
         Token *tok = read_cpp_token();
-        if (tok->type == TNEWLINE)
+        if (tok->kind == TNEWLINE)
             continue;
-        if (tok->type != TIDENT) {
+        if (tok->kind != TIDENT) {
             skip_line();
             continue;
         }
@@ -583,7 +583,7 @@ char *read_header_file_name(bool *std) {
 }
 
 bool is_keyword(Token *tok, int c) {
-    return tok && (tok->type == TKEYWORD) && (tok->id == c);
+    return tok && (tok->kind == TKEYWORD) && (tok->id == c);
 }
 
 void set_input_buffer(Vector *tokens) {
@@ -635,7 +635,7 @@ Token *read_cpp_token(void) {
         return vec_pop(buffer);
     bool bol = at_bol;
     Token *tok = do_read_token();
-    while (tok && tok->type == TSPACE) {
+    while (tok && tok->kind == TSPACE) {
         Token *tok2 = do_read_token();
         if (tok2)
             tok2->nspace += tok->nspace;

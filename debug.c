@@ -3,65 +3,65 @@
 
 #include "8cc.h"
 
-static char *maybe_add_bitfield(char *name, Ctype *ctype) {
-    if (ctype->bitsize > 0)
-        return format("%s:%d:%d", name, ctype->bitoff, ctype->bitoff + ctype->bitsize);
+static char *maybe_add_bitfield(char *name, Type *ty) {
+    if (ty->bitsize > 0)
+        return format("%s:%d:%d", name, ty->bitoff, ty->bitoff + ty->bitsize);
     return name;
 }
 
-static char *do_c2s(Dict *dict, Ctype *ctype) {
-    if (!ctype)
+static char *do_c2s(Dict *dict, Type *ty) {
+    if (!ty)
         return "(nil)";
-    switch (ctype->type) {
-    case CTYPE_VOID: return "void";
-    case CTYPE_BOOL: return "_Bool";
-    case CTYPE_CHAR: return maybe_add_bitfield("char", ctype);
-    case CTYPE_SHORT: return maybe_add_bitfield("short", ctype);
-    case CTYPE_INT:  return maybe_add_bitfield("int", ctype);
-    case CTYPE_LONG: return maybe_add_bitfield("long", ctype);
-    case CTYPE_LLONG: return maybe_add_bitfield("long long", ctype);
-    case CTYPE_FLOAT: return "float";
-    case CTYPE_DOUBLE: return "double";
-    case CTYPE_LDOUBLE: return "long double";
-    case CTYPE_PTR:
-        return format("*%s", do_c2s(dict, ctype->ptr));
-    case CTYPE_ARRAY:
-        return format("[%d]%s", ctype->len, do_c2s(dict, ctype->ptr));
-    case CTYPE_STRUCT: {
-        char *type = ctype->is_struct ? "struct" : "union";
-        if (dict_get(dict, format("%p", ctype)))
-            return format("(%s)", type);
-        dict_put(dict, format("%p", ctype), (void *)1);
+    switch (ty->kind) {
+    case KIND_VOID: return "void";
+    case KIND_BOOL: return "_Bool";
+    case KIND_CHAR: return maybe_add_bitfield("char", ty);
+    case KIND_SHORT: return maybe_add_bitfield("short", ty);
+    case KIND_INT:  return maybe_add_bitfield("int", ty);
+    case KIND_LONG: return maybe_add_bitfield("long", ty);
+    case KIND_LLONG: return maybe_add_bitfield("long long", ty);
+    case KIND_FLOAT: return "float";
+    case KIND_DOUBLE: return "double";
+    case KIND_LDOUBLE: return "long double";
+    case KIND_PTR:
+        return format("*%s", do_c2s(dict, ty->ptr));
+    case KIND_ARRAY:
+        return format("[%d]%s", ty->len, do_c2s(dict, ty->ptr));
+    case KIND_STRUCT: {
+        char *kind = ty->is_struct ? "struct" : "union";
+        if (dict_get(dict, format("%p", ty)))
+            return format("(%s)", kind);
+        dict_put(dict, format("%p", ty), (void *)1);
         Buffer *b = make_buffer();
-        buf_printf(b, "(%s", type);
-        Vector *keys = dict_keys(ctype->fields);
+        buf_printf(b, "(%s", kind);
+        Vector *keys = dict_keys(ty->fields);
         for (int i = 0; i < vec_len(keys); i++) {
             char *key = vec_get(keys, i);
-            Ctype *fieldtype = dict_get(ctype->fields, key);
+            Type *fieldtype = dict_get(ty->fields, key);
             buf_printf(b, " (%s)", do_c2s(dict, fieldtype));
         }
         buf_printf(b, ")");
         return buf_body(b);
     }
-    case CTYPE_FUNC: {
+    case KIND_FUNC: {
         Buffer *b = make_buffer();
         buf_printf(b, "(");
-        for (int i = 0; i < vec_len(ctype->params); i++) {
+        for (int i = 0; i < vec_len(ty->params); i++) {
             if (i > 0)
                 buf_printf(b, ",");
-            Ctype *t = vec_get(ctype->params, i);
+            Type *t = vec_get(ty->params, i);
             buf_printf(b, "%s", do_c2s(dict, t));
         }
-        buf_printf(b, ")=>%s", do_c2s(dict, ctype->rettype));
+        buf_printf(b, ")=>%s", do_c2s(dict, ty->rettype));
         return buf_body(b);
     }
     default:
-        return format("(Unknown ctype: %d)", ctype->type);
+        return format("(Unknown ty: %d)", ty->kind);
     }
 }
 
-char *c2s(Ctype *ctype) {
-    return do_c2s(make_dict(), ctype);
+char *c2s(Type *ty) {
+    return do_c2s(make_dict(), ty);
 }
 
 static void uop_to_string(Buffer *b, char *op, Node *node) {
@@ -86,23 +86,23 @@ static void do_a2s(Buffer *b, Node *node) {
         buf_printf(b, "(nil)");
         return;
     }
-    switch (node->type) {
+    switch (node->kind) {
     case AST_LITERAL:
-        switch (node->ctype->type) {
-        case CTYPE_CHAR:
+        switch (node->ty->kind) {
+        case KIND_CHAR:
             if (node->ival == '\n')      buf_printf(b, "'\n'");
             else if (node->ival == '\\') buf_printf(b, "'\\\\'");
             else if (node->ival == '\0') buf_printf(b, "'\\0'");
             else buf_printf(b, "'%c'", node->ival);
             break;
-        case CTYPE_INT:
+        case KIND_INT:
             buf_printf(b, "%d", node->ival);
             break;
-        case CTYPE_LONG:
+        case KIND_LONG:
             buf_printf(b, "%ldL", node->ival);
             break;
-        case CTYPE_FLOAT:
-        case CTYPE_DOUBLE:
+        case KIND_FLOAT:
+        case KIND_DOUBLE:
             buf_printf(b, "%f", node->fval);
             break;
         default:
@@ -125,8 +125,8 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     case AST_FUNCALL:
     case AST_FUNCPTR_CALL: {
-        buf_printf(b, "(%s)%s(", c2s(node->ctype),
-                   node->type == AST_FUNCALL ? node->fname : a2s(node));
+        buf_printf(b, "(%s)%s(", c2s(node->ty),
+                   node->kind == AST_FUNCALL ? node->fname : a2s(node));
         for (int i = 0; i < vec_len(node->args); i++) {
             if (i > 0)
                 buf_printf(b, ",");
@@ -140,12 +140,12 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     }
     case AST_FUNC: {
-        buf_printf(b, "(%s)%s(", c2s(node->ctype), node->fname);
+        buf_printf(b, "(%s)%s(", c2s(node->ty), node->fname);
         for (int i = 0; i < vec_len(node->params); i++) {
             if (i > 0)
                 buf_printf(b, ",");
             Node *param = vec_get(node->params, i);
-            buf_printf(b, "%s %s", c2s(param->ctype), a2s(param));
+            buf_printf(b, "%s %s", c2s(param->ty), a2s(param));
         }
         buf_printf(b, ")");
         do_a2s(b, node->body);
@@ -153,7 +153,7 @@ static void do_a2s(Buffer *b, Node *node) {
     }
     case AST_DECL:
         buf_printf(b, "(decl %s %s",
-                   c2s(node->declvar->ctype),
+                   c2s(node->declvar->ty),
                    node->declvar->varname);
         if (node->declinit) {
             buf_printf(b, " ");
@@ -165,7 +165,7 @@ static void do_a2s(Buffer *b, Node *node) {
         buf_printf(b, "%s@%d", a2s(node->initval), node->initoff, c2s(node->totype));
         break;
     case AST_CONV:
-        buf_printf(b, "(conv %s=>%s)", a2s(node->operand), c2s(node->ctype));
+        buf_printf(b, "(conv %s=>%s)", a2s(node->operand), c2s(node->ty));
         break;
     case AST_IF:
         buf_printf(b, "(if %s %s",
@@ -246,8 +246,8 @@ static void do_a2s(Buffer *b, Node *node) {
     case '|': binop_to_string(b, "|", node); break;
     case OP_CAST: {
         buf_printf(b, "((%s)=>(%s) %s)",
-                   c2s(node->operand->ctype),
-                   c2s(node->ctype),
+                   c2s(node->operand->ty),
+                   c2s(node->ty),
                    a2s(node->operand));
         break;
     }
@@ -257,10 +257,10 @@ static void do_a2s(Buffer *b, Node *node) {
     default: {
         char *left = a2s(node->left);
         char *right = a2s(node->right);
-        if (node->type == OP_EQ)
+        if (node->kind == OP_EQ)
             buf_printf(b, "(== ");
         else
-            buf_printf(b, "(%c ", node->type);
+            buf_printf(b, "(%c ", node->kind);
         buf_printf(b, "%s %s)", left, right);
     }
     }
@@ -275,7 +275,7 @@ char *a2s(Node *node) {
 char *t2s(Token *tok) {
     if (!tok)
         return "(null)";
-    switch (tok->type) {
+    switch (tok->kind) {
     case TIDENT:
         return tok->sval;
     case TKEYWORD:
@@ -300,5 +300,5 @@ char *t2s(Token *tok) {
     case TMACRO_PARAM:
         return "(macro-param)";
     }
-    error("internal error: unknown token type: %d", tok->type);
+    error("internal error: unknown token kind: %d", tok->kind);
 }

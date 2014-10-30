@@ -25,7 +25,7 @@ enum {
 };
 
 typedef struct {
-    int type;
+    int kind;
     int nspace;
     bool bol;
     bool is_vararg;
@@ -94,33 +94,33 @@ enum {
 };
 
 enum {
-    CTYPE_VOID,
-    CTYPE_BOOL,
-    CTYPE_CHAR,
-    CTYPE_SHORT,
-    CTYPE_INT,
-    CTYPE_LONG,
-    CTYPE_LLONG,
-    CTYPE_FLOAT,
-    CTYPE_DOUBLE,
-    CTYPE_LDOUBLE,
-    CTYPE_ARRAY,
-    CTYPE_PTR,
-    CTYPE_STRUCT,
-    CTYPE_FUNC,
+    KIND_VOID,
+    KIND_BOOL,
+    KIND_CHAR,
+    KIND_SHORT,
+    KIND_INT,
+    KIND_LONG,
+    KIND_LLONG,
+    KIND_FLOAT,
+    KIND_DOUBLE,
+    KIND_LDOUBLE,
+    KIND_ARRAY,
+    KIND_PTR,
+    KIND_STRUCT,
+    KIND_FUNC,
     // used only in parser
-    CTYPE_STUB,
+    KIND_STUB,
 };
 
-typedef struct Ctype {
-    int type;
+typedef struct Type {
+    int kind;
     int size;
     int align;
     // true if signed
     bool sig;
     bool isstatic;
     // pointer or array
-    struct Ctype *ptr;
+    struct Type *ptr;
     // array length
     int len;
     // struct
@@ -131,11 +131,11 @@ typedef struct Ctype {
     int bitoff;
     int bitsize;
     // function
-    struct Ctype *rettype;
+    struct Type *rettype;
     Vector *params;
     bool hasva;
     bool oldstyle;
-} Ctype;
+} Type;
 
 typedef struct {
     char *file;
@@ -143,8 +143,8 @@ typedef struct {
 } SourceLoc;
 
 typedef struct Node {
-    int type;
-    Ctype *ctype;
+    int kind;
+    Type *ty;
     SourceLoc *sourceLoc;
     union {
         // Char, int, or long
@@ -184,7 +184,7 @@ typedef struct Node {
             char *fname;
             // Function call
             struct Vector *args;
-            struct Ctype *ftype;
+            struct Type *ftype;
             // Functoin pointer or function designator
             struct Node *fptr;
             // Function declaration
@@ -201,7 +201,7 @@ typedef struct Node {
         struct {
             struct Node *initval;
             int initoff;
-            Ctype *totype;
+            Type *totype;
         };
         // If statement or ternary operator
         struct {
@@ -239,7 +239,7 @@ typedef struct Node {
         struct {
             struct Node *struc;
             char *field;
-            Ctype *fieldtype;
+            Type *fieldtype;
         };
         // Builtin functions for varargs
         struct Node *ap;
@@ -254,12 +254,12 @@ typedef struct {
 
 extern void *make_pair(void *first, void *second);
 
-extern Ctype *ctype_char;
-extern Ctype *ctype_short;
-extern Ctype *ctype_int;
-extern Ctype *ctype_long;
-extern Ctype *ctype_float;
-extern Ctype *ctype_double;
+extern Type *type_char;
+extern Type *type_short;
+extern Type *type_int;
+extern Type *type_long;
+extern Type *type_float;
+extern Type *type_double;
 
 extern void cpp_init(void);
 extern void lex_init(char *filename);
@@ -292,14 +292,14 @@ extern char *make_label(void);
 extern Vector *read_toplevels(void);
 extern Node *read_expr(void);
 extern int eval_intexpr(Node *node);
-extern bool is_inttype(Ctype *ctype);
-extern bool is_flotype(Ctype *ctype);
+extern bool is_inttype(Type *ty);
+extern bool is_flotype(Type *ty);
 
 // Debug
 extern bool debug_cpp;
 extern char *t2s(Token *tok);
 extern char *a2s(Node *node);
-extern char *c2s(Ctype *ctype);
+extern char *c2s(Type *ty);
 
 // Gen
 extern void emit_toplevel(Node *v);
