@@ -1819,7 +1819,7 @@ static Ctype *read_direct_declarator2(Ctype *basetype, Vector *params) {
     }
     if (next_token('(')) {
         if (basetype->type == CTYPE_FUNC)
-            error("function returning an function");
+            error("function returning a function");
         if (basetype->type == CTYPE_ARRAY)
             error("function returning an array");
         return read_func_param_list(params, basetype);
