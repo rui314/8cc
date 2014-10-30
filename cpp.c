@@ -342,7 +342,7 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
             i++;
             continue;
         }
-        if (is_ident(t0, "##") && t1_param) {
+        if (is_keyword(t0, KSHARPSHARP) && t1_param) {
             Vector *arg = vec_get(args, t1->position);
             if (t1->is_vararg && vec_len(r) > 0 && is_keyword(vec_tail(r), ',')) {
                 if (vec_len(arg) > 0)
@@ -359,13 +359,13 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
             i++;
             continue;
         }
-        if (is_ident(t0, "##") && !islast) {
+        if (is_keyword(t0, KSHARPSHARP) && !islast) {
             hideset = t1->hideset;
             glue_push(r, t1);
             i++;
             continue;
         }
-        if (t0_param && !islast && is_ident(t1, "##")) {
+        if (t0_param && !islast && is_keyword(t1, KSHARPSHARP)) {
             hideset = t1->hideset;
             Vector *arg = vec_get(args, t0->position);
             if (vec_len(arg) == 0)
@@ -444,7 +444,7 @@ static bool read_funclike_macro_params(Map *param) {
         }
         if (!tok || tok->type == TNEWLINE)
             error("missing ')' in macro parameter list");
-        if (is_ident(tok, "...")) {
+        if (is_keyword(tok, KTHREEDOTS)) {
             map_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
             expect(')');
             return true;
@@ -453,7 +453,7 @@ static bool read_funclike_macro_params(Map *param) {
             error("identifier expected, but got '%s'", t2s(tok));
         char *arg = tok->sval;
         tok = read_cpp_token();
-        if (is_ident(tok, "...")) {
+        if (is_keyword(tok, KTHREEDOTS)) {
             expect(')');
             map_put(param, arg, make_macro_token(pos++, true));
             return true;

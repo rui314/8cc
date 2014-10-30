@@ -492,8 +492,11 @@ static Token *do_read_token(void) {
     case '.':
         if (isdigit(peek()))
             return read_number(c);
-        if (next('.'))
-            return make_ident(format("..%c", get()));
+        if (next('.')) {
+            if (next('.'))
+                return make_keyword(KTHREEDOTS);
+            return make_ident("..");
+        }
         return make_keyword('.');
     case '(': case ')': case ',': case ';': case '[': case ']': case '{':
     case '}': case '?': case '~':
@@ -501,9 +504,7 @@ static Token *do_read_token(void) {
     case ':':
         return make_keyword(next('>') ? ']' : ':');
     case '#':
-        if (next('#'))
-            return make_ident("##");
-        return make_keyword('#');
+        return make_keyword(next('#') ? KSHARPSHARP : '#');
     case '+':
         return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '-':
