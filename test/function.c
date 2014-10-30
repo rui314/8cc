@@ -147,6 +147,8 @@ void testmain(void) {
     t5();
     expect(3, t6());
     expect(12, t7(3, 4));
+    expect(77, (1 ? t1 : t6)());
+    expect(3, (0 ? t1 : t6)());
     t8(23);
     t9();
     expect(7, t10(3, 4.0));

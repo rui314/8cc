@@ -893,7 +893,7 @@ static Node *convert_funcdesg(Node *node) {
     if (!node)
         return NULL;
     if (node->type == AST_FUNCDESG)
-        return ast_uop(AST_ADDR, make_ptr_type(node->fptr->ftype), node->fptr);
+        return ast_uop(AST_ADDR, make_ptr_type(node->fptr->ctype), node->fptr);
     return node;
 }
 
@@ -1214,14 +1214,19 @@ static Node *read_logor_expr(void) {
     return node;
 }
 
-static Node *read_conditional_expr(void) {
-    Node *node = read_logor_expr();
-    if (!next_token('?'))
-        return node;
-    Node *then = read_comma_expr();
+static Node *do_read_conditional_expr(Node *cond) {
+    Node *then = convert_funcdesg(read_comma_expr());
     expect(':');
-    Node *els = read_conditional_expr();
-    return ast_ternary(els->ctype, node, then, els);
+    Node *els = convert_funcdesg(read_conditional_expr());
+    // TODO: fix expression type
+    return ast_ternary(els->ctype, cond, then, els);
+}
+
+static Node *read_conditional_expr(void) {
+    Node *cond = read_logor_expr();
+    if (!next_token('?'))
+        return cond;
+    return do_read_conditional_expr(cond);
 }
 
 static Node *read_assignment_expr(void) {
@@ -1229,12 +1234,8 @@ static Node *read_assignment_expr(void) {
     Token *tok = read_token();
     if (!tok)
         return node;
-    if (is_keyword(tok, '?')) {
-        Node *then = read_comma_expr();
-        expect(':');
-        Node *els = read_conditional_expr();
-        return ast_ternary(els->ctype, node, then, els);
-    }
+    if (is_keyword(tok, '?'))
+        return do_read_conditional_expr(node);
     int cop = get_compound_assign_op(tok);
     if (is_keyword(tok, '=') || cop) {
         Node *value = convert_funcdesg(read_assignment_expr());
