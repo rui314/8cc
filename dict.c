@@ -2,7 +2,6 @@
 // This program is free software licensed under the MIT license.
 
 #include <stdlib.h>
-#include <string.h>
 #include "dict.h"
 
 Dict *make_dict(void) {

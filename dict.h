@@ -12,9 +12,9 @@ typedef struct Dict {
     Vector *key;
 } Dict;
 
-Dict *make_dict(void);
-void *dict_get(Dict *dict, char *key);
-void dict_put(Dict *dict, char *key, void *val);
-Vector *dict_keys(Dict *dict);
+extern Dict *make_dict(void);
+extern void *dict_get(Dict *dict, char *key);
+extern void dict_put(Dict *dict, char *key, void *val);
+extern Vector *dict_keys(Dict *dict);
 
 #endif

@@ -1,10 +1,11 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
-#include <string.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <stdarg.h>
-#include "8cc.h"
+#include <stdlib.h>
+#include <string.h>
+#include "buffer.h"
 
 #define INIT_SIZE 8
 

@@ -6,29 +6,11 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include "buffer.h"
 #include "dict.h"
-#include "vector.h"
-#include "map.h"
 #include "error.h"
-
-typedef struct {
-    char *body;
-    int nalloc;
-    int len;
-} Buffer;
-
-extern bool enable_warning;
-extern bool dumpstack;
-extern bool dumpsource;
-extern bool warning_is_error;
-
-extern Buffer *make_buffer(void);
-extern char *format(char *fmt, ...);
-extern char *vformat(char *fmt, va_list args);
-extern int buf_len(Buffer *b);
-extern void buf_write(Buffer *b, char c);
-extern void buf_printf(Buffer *b, char *fmt, ...);
-extern char *buf_body(Buffer *b);
+#include "map.h"
+#include "vector.h"
 
 enum {
     TIDENT,
@@ -264,6 +246,7 @@ typedef struct Node {
     };
 } Node;
 
+// Parse
 typedef struct {
     void *first;
     void *second;
@@ -298,19 +281,13 @@ extern void set_current_displayname(char *name);
 extern void set_current_line(int line);
 extern void cpp_eval(char *buf);
 extern void add_include_path(char *path);
-
 extern void parse_init(void);
 extern void unget_token(Token *tok);
 extern Token *peek_token(void);
 extern Token *read_token(void);
 extern void expect_newline(void);
-
-extern char *t2s(Token *tok);
 extern bool is_keyword(Token *tok, int c);
 extern bool is_ident(Token *tok, char *s);
-extern char *a2s(Node *node);
-extern char *c2s(Ctype *ctype);
-extern void print_asm_header(void);
 extern char *make_label(void);
 extern Vector *read_toplevels(void);
 extern Node *read_expr(void);
@@ -318,10 +295,15 @@ extern int eval_intexpr(Node *node);
 extern bool is_inttype(Ctype *ctype);
 extern bool is_flotype(Ctype *ctype);
 
+// Debug
+extern bool debug_cpp;
+extern char *t2s(Token *tok);
+extern char *a2s(Node *node);
+extern char *c2s(Ctype *ctype);
+
+// Gen
 extern void emit_toplevel(Node *v);
 extern void set_output_file(FILE *fp);
 extern void close_output_file(void);
-
-extern bool debug_cpp;
 
 #endif

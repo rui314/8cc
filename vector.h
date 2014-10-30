@@ -4,8 +4,6 @@
 #ifndef EIGHTCC_VECTOR_H
 #define EIGHTCC_VECTOR_H
 
-#include <stdbool.h>
-
 typedef struct Vector {
     void **body;
     int len;

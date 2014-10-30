@@ -4,11 +4,15 @@
 #ifndef EIGHTCC_UTIL_H
 #define EIGHTCC_UTIL_H
 
-#define error(...)                              \
-    errorf(__FILE__, __LINE__, __VA_ARGS__)
+#include <stdbool.h>
 
-#define warn(...)                               \
-    warnf(__FILE__, __LINE__, __VA_ARGS__)
+extern bool enable_warning;
+extern bool dumpstack;
+extern bool dumpsource;
+extern bool warning_is_error;
+
+#define error(...) errorf(__FILE__, __LINE__, __VA_ARGS__)
+#define warn(...)  warnf(__FILE__, __LINE__, __VA_ARGS__)
 
 #define assert(expr)                                    \
     do {                                                \
