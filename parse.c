@@ -122,6 +122,10 @@ char *make_label(void) {
     return format(".L%d", labelseq++);
 }
 
+static Map *env(void) {
+    return localenv ? localenv : globalenv;
+}
+
 static Node *make_ast(Node *tmpl) {
     Node *r = malloc(sizeof(Node));
     *r = *tmpl;
@@ -165,7 +169,7 @@ static Node *ast_gvar(Ctype *ctype, char *name) {
 
 static Node *ast_typedef(Ctype *ctype, char *name) {
     Node *r = make_ast(&(Node){ AST_TYPEDEF, ctype, .typedefname = name });
-    map_put(localenv ? localenv : globalenv, name, r);
+    map_put(env(), name, r);
     return r;
 }
 
@@ -422,7 +426,7 @@ static Ctype *copy_incomplete_type(Ctype *ctype) {
 }
 
 static Ctype *get_typedef(char *name) {
-    Node *node = map_get(localenv ? localenv : globalenv, name);
+    Node *node = map_get(env(), name);
     return (node && node->type == AST_TYPEDEF) ? node->ctype : NULL;
 }
 
@@ -879,7 +883,7 @@ static void read_static_assert(void) {
  */
 
 static Node *read_var_or_func(char *name) {
-    Node *v = map_get(localenv ? localenv : globalenv, name);
+    Node *v = map_get(env(), name);
     if (!v || v->ctype->type == CTYPE_FUNC)
         return ast_funcdesg(name, v);
     return v;
@@ -1512,7 +1516,7 @@ static Ctype *read_enum_def(void) {
         if (next_token('='))
             val = read_intexpr();
         Node *constval = ast_inttype(ctype_int, val++);
-        map_put(localenv ? localenv : globalenv, name, constval);
+        map_put(env(), name, constval);
         if (next_token(','))
             continue;
         if (next_token('}'))
