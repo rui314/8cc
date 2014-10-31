@@ -3,7 +3,8 @@
 
 #include "test.h"
 
-#define stringify(x) #x
+#define stringify(x) %:x
+#define paste(x, y) x%:%:y
 
 static void digraph(void) {
     expect_string("[", stringify(<:));
@@ -14,6 +15,7 @@ static void digraph(void) {
     expect_string("% :", stringify(% :));
     expect_string("##", stringify(%:%:));
     expect_string("#%", stringify(%:%));
+    expect(12, paste(1, 2));
 }
 
 static void escape(void) {

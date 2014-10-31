@@ -523,7 +523,7 @@ static Token *do_read_token(void) {
         if (next(':')) {
             if (next('%')) {
                 if (next(':'))
-                    return make_ident("##");
+                    return make_keyword(KSHARPSHARP);
                 unget('%');
             }
             return make_keyword('#');
