@@ -392,9 +392,11 @@ static int read_escaped_char(void) {
 static Token *read_char(void) {
     int c = get();
     char r = (c == '\\') ? read_escaped_char() : c;
-    int c2 = get();
-    if (c2 != '\'')
-        error("unterminated string: %c", c2);
+    c = get();
+    if (c == EOF)
+        error("premature end of input");
+    if (c != '\'')
+        error("unterminated string: %c", c);
     return make_char(r);
 }
 
