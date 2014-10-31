@@ -7,6 +7,13 @@
 #define paste(x, y) x%:%:y
 
 static void digraph(void) {
+    // These tests don't conform to the C standard.
+    // N1570 6.4.6.3 says that the digraphs behave the same
+    // as the corresponding tokens except for their spellings.
+    // That implies the compiler should preserve the original
+    // spelling instead of replacing digraphs with regular tokens.
+    // I intentionally leave this bug because that's really a minor
+    // bug which doesn't worth the complexity to be handled correctly.
     expect_string("[", stringify(<:));
     expect_string("]", stringify(:>));
     expect_string("{", stringify(<%));
