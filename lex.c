@@ -25,7 +25,7 @@ static int line_mark = -1;
 static int column_mark = -1;
 static int ungotten = -1;
 
-static Token *newline_token = &(Token){ .kind = TNEWLINE, .nspace = 0 };
+static Token *newline_token = &(Token){ .kind = TNEWLINE, .space = false };
 
 static void skip_block_comment(void);
 
@@ -66,27 +66,27 @@ static Token *make_token(Token *tmpl) {
 }
 
 static Token *make_ident(char *p) {
-    return make_token(&(Token){ TIDENT, .nspace = 0, .sval = p });
+    return make_token(&(Token){ TIDENT, .space = false, .sval = p });
 }
 
 static Token *make_strtok(char *s) {
-    return make_token(&(Token){ TSTRING, .nspace = 0, .sval = s });
+    return make_token(&(Token){ TSTRING, .space = false, .sval = s });
 }
 
 static Token *make_keyword(int id) {
-    return make_token(&(Token){ TKEYWORD, .nspace = 0, .id = id });
+    return make_token(&(Token){ TKEYWORD, .space = false, .id = id });
 }
 
 static Token *make_number(char *s) {
-    return make_token(&(Token){ TNUMBER, .nspace = 0, .sval = s });
+    return make_token(&(Token){ TNUMBER, .space = false, .sval = s });
 }
 
 static Token *make_char(char c) {
-    return make_token(&(Token){ TCHAR, .nspace = 0, .c = c });
+    return make_token(&(Token){ TCHAR, .space = false, .c = c });
 }
 
-static Token *make_space(int nspace) {
-    return make_token(&(Token){ TSPACE, .nspace = nspace });
+static Token *make_space() {
+    return make_token(&(Token){ TSPACE });
 }
 
 void push_input_file(char *displayname, char *realname, FILE *fp) {
@@ -225,27 +225,24 @@ static void skip_line(void) {
     }
 }
 
-static int skip_space(void) {
-    int nspace = 0;
+static bool skip_space(void) {
+    bool r = false;
     for (;;) {
         int c = get();
-        if (c == EOF) break;
-        if (c == '\t'){
-            nspace += 4;
-            continue;
-        }
+        if (c == EOF)
+            break;
         if (iswhitespace(c)) {
-            nspace++;
+            r = true;
             continue;
         }
         if (c == '/') {
             if (next('*')) {
                 skip_block_comment();
-                nspace++;
+                r = true;
                 continue;
             } else if (next('/')) {
                 skip_line();
-                nspace++;
+                r = true;
                 continue;
             }
             unget('/');
@@ -254,7 +251,7 @@ static int skip_space(void) {
         unget(c);
         break;
     }
-    return nspace;
+    return r;
 }
 
 void skip_cond_incl(void) {
@@ -460,10 +457,9 @@ static Token *do_read_token(void) {
     mark_input();
     int c = get();
     switch (c) {
-    case ' ': case '\v': case '\f':
-        return make_space(skip_space() + 1);
-    case '\t':
-        return make_space(skip_space() + 4);
+    case ' ': case '\t': case '\v': case '\f':
+        skip_space();
+        return make_space();
     case '\n': case '\r':
         skip_newline(c);
         return newline_token;
@@ -478,11 +474,11 @@ static Token *do_read_token(void) {
     case '/':
         if (next('/')) {
             skip_line();
-            return make_space(1);
+            return make_space();
         }
         if (next('*')) {
             skip_block_comment();
-            return make_space(1);
+            return make_space();
         }
         return make_keyword(next('=') ? OP_A_DIV : '/');
     case '.':
@@ -627,10 +623,9 @@ Token *read_cpp_token(void) {
     bool bol = at_bol;
     Token *tok = do_read_token();
     while (tok && tok->kind == TSPACE) {
-        Token *tok2 = do_read_token();
-        if (tok2)
-            tok2->nspace += tok->nspace;
-        tok = tok2;
+        tok = do_read_token();
+        if (tok)
+            tok->space = true;
     }
     if (!tok && vec_len(file_stack) > 0) {
         fclose(file->fp);

@@ -26,7 +26,7 @@ enum {
 
 typedef struct {
     int kind;
-    int nspace;
+    int space;
     bool bol;
     bool is_vararg;
     char *file;

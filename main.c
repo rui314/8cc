@@ -186,8 +186,8 @@ static void preprocess(void) {
             break;
         if (tok->bol)
             printf("\n");
-        if (tok->nspace)
-            printf("%*c", tok->nspace, ' ');
+        if (tok->space)
+            printf(" ");
         printf("%s", t2s(tok));
     }
     printf("\n");

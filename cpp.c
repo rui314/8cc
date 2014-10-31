@@ -101,7 +101,7 @@ static Token *make_macro_token(int position, bool is_vararg) {
     r->is_vararg = is_vararg;
     r->hideset = make_map();
     r->position = position;
-    r->nspace = 0;
+    r->space = false;
     r->bol = false;
     return r;
 }
@@ -140,11 +140,11 @@ static bool next(int id) {
     return false;
 }
 
-static void set_vec_nspace(Vector *tokens, Token *tmpl) {
+static void set_vec_space(Vector *tokens, Token *tmpl) {
     if (vec_len(tokens) == 0)
         return;
     Token *tok = vec_head(tokens);
-    tok->nspace = tmpl->nspace;
+    tok->space = tmpl->space;
 }
 
 /*
@@ -287,7 +287,7 @@ static char *join_tokens(Vector *args, bool sep) {
     Buffer *b = make_buffer();
     for (int i = 0; i < vec_len(args); i++) {
         Token *tok = vec_get(args, i);
-        if (sep && buf_len(b) && tok->nspace)
+        if (sep && buf_len(b) && tok->space)
             buf_printf(b, " ");
         switch (tok->kind) {
         case TIDENT:
@@ -324,7 +324,7 @@ static Vector *expand_all(Vector *tokens, Token *tmpl) {
     Token *tok;
     while ((tok = read_expand()) != NULL)
         vec_push(r, tok);
-    set_vec_nspace(r, tmpl);
+    set_vec_space(r, tmpl);
     set_input_buffer(orig);
     return r;
 }
@@ -406,7 +406,7 @@ static Token *read_expand(void) {
     case MACRO_OBJ: {
         Map *hideset = map_append(tok->hideset, name);
         Vector *tokens = subst(macro, make_vector(), hideset);
-        set_vec_nspace(tokens, tok);
+        set_vec_space(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
@@ -419,7 +419,7 @@ static Token *read_expand(void) {
             error("internal error: %s", t2s(rparen));
         Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
         Vector *tokens = subst(macro, args, hideset);
-        set_vec_nspace(tokens, tok);
+        set_vec_space(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
@@ -474,7 +474,7 @@ static Vector *read_funclike_macro_body(Map *param) {
             Token *subst = map_get(param, tok->sval);
             if (subst) {
                 subst = copy_token(subst);
-                subst->nspace = tok->nspace;
+                subst->space = tok->space;
                 vec_push(r, subst);
                 continue;
             }
@@ -510,7 +510,7 @@ static void read_obj_macro(char *name) {
 static void read_define(void) {
     Token *name = read_ident();
     Token *tok = read_cpp_token();
-    if (tok && is_keyword(tok, '(') && !tok->nspace) {
+    if (tok && is_keyword(tok, '(') && !tok->space) {
         read_funclike_macro(name->sval);
         return;
     }
