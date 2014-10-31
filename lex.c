@@ -268,7 +268,7 @@ void skip_cond_incl(void) {
             continue;
         }
         skip_space();
-        Token *tok = read_cpp_token();
+        Token *tok = lex();
         if (tok->kind == TNEWLINE)
             continue;
         if (tok->kind != TIDENT) {
@@ -612,7 +612,7 @@ Token *peek_cpp_token(void) {
     return tok;
 }
 
-Token *read_cpp_token(void) {
+Token *lex(void) {
     if (altbuffer) {
         if (vec_len(altbuffer) == 0)
             return NULL;

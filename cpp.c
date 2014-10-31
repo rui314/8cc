@@ -119,7 +119,7 @@ static Token *make_number(char *s) {
 }
 
 static void expect(char id) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (!tok || !is_keyword(tok, id))
         error("%c expected, but got %s", t2s(tok));
 }
@@ -133,7 +133,7 @@ bool is_ident(Token *tok, char *s) {
 }
 
 static bool next(int id) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (is_keyword(tok, id))
         return true;
     unget_token(tok);
@@ -152,14 +152,14 @@ static void set_vec_space(Vector *tokens, Token *tmpl) {
  */
 
 static Token *read_ident(void) {
-    Token *r = read_cpp_token();
+    Token *r = lex();
     if (r->kind != TIDENT)
         error("identifier expected, but got %s", t2s(r));
     return r;
 }
 
 void expect_newline(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (!tok || tok->kind != TNEWLINE)
         error("Newline expected, but got %s", t2s(tok));
 }
@@ -169,7 +169,7 @@ static Vector *do_read_args(Macro *macro) {
     Vector *arg = make_vector();
     int depth = 0;
     for (;;) {
-        Token *tok = read_cpp_token();
+        Token *tok = lex();
         if (!tok)
             error("unterminated macro argument list");
         if (tok->kind == TNEWLINE)
@@ -391,7 +391,7 @@ static void unget_all(Vector *tokens) {
 }
 
 static Token *read_expand(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (!tok) return NULL;
     if (tok->kind == TNEWLINE)
         return read_expand();
@@ -414,7 +414,7 @@ static Token *read_expand(void) {
         if (!next('('))
             return tok;
         Vector *args = read_args(macro);
-        Token *rparen = read_cpp_token();
+        Token *rparen = lex();
         if (!is_keyword(rparen, ')'))
             error("internal error: %s", t2s(rparen));
         Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
@@ -435,13 +435,13 @@ static Token *read_expand(void) {
 static bool read_funclike_macro_params(Map *param) {
     int pos = 0;
     for (;;) {
-        Token *tok = read_cpp_token();
+        Token *tok = lex();
         if (is_keyword(tok, ')'))
             return false;
         if (pos) {
             if (!is_keyword(tok, ','))
                 error("',' expected, but got '%s'", t2s(tok));
-            tok = read_cpp_token();
+            tok = lex();
         }
         if (!tok || tok->kind == TNEWLINE)
             error("missing ')' in macro parameter list");
@@ -453,7 +453,7 @@ static bool read_funclike_macro_params(Map *param) {
         if (tok->kind != TIDENT)
             error("identifier expected, but got '%s'", t2s(tok));
         char *arg = tok->sval;
-        tok = read_cpp_token();
+        tok = lex();
         if (is_keyword(tok, KTHREEDOTS)) {
             expect(')');
             map_put(param, arg, make_macro_token(pos++, true));
@@ -467,7 +467,7 @@ static bool read_funclike_macro_params(Map *param) {
 static Vector *read_funclike_macro_body(Map *param) {
     Vector *r = make_vector();
     for (;;) {
-        Token *tok = read_cpp_token();
+        Token *tok = lex();
         if (!tok || tok->kind == TNEWLINE)
             return r;
         if (tok->kind == TIDENT) {
@@ -495,7 +495,7 @@ static void read_funclike_macro(char *name) {
 static void read_obj_macro(char *name) {
     Vector *body = make_vector();
     for (;;) {
-        Token *tok = read_cpp_token();
+        Token *tok = lex();
         if (!tok || tok->kind == TNEWLINE)
             break;
         vec_push(body, tok);
@@ -509,7 +509,7 @@ static void read_obj_macro(char *name) {
 
 static void read_define(void) {
     Token *name = read_ident();
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (tok && is_keyword(tok, '(') && !tok->space) {
         read_funclike_macro(name->sval);
         return;
@@ -533,9 +533,9 @@ static void read_undef(void) {
  */
 
 static Token *read_defined_op(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (is_keyword(tok, '(')) {
-        tok = read_cpp_token();
+        tok = lex();
         expect(')');
     }
     if (tok->kind != TIDENT)
@@ -583,7 +583,7 @@ static void read_if(void) {
 }
 
 static void read_ifdef_generic(bool is_ifdef) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (!tok || tok->kind != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
     bool cond = map_get(macros, tok->sval);
@@ -734,11 +734,11 @@ static bool is_digit_sequence(char *p) {
 }
 
 static void read_line(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (!tok || tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
         error("number expected after #line, but got %s", t2s(tok));
     int line = atoi(tok->sval);
-    tok = read_cpp_token();
+    tok = lex();
     char *filename = NULL;
     if (tok && tok->kind == TSTRING) {
         filename = tok->sval;
@@ -756,7 +756,7 @@ static void read_line(void) {
  */
 
 static void read_directive(void) {
-    Token *tok = read_cpp_token();
+    Token *tok = lex();
     if (is_ident(tok, "define"))       read_define();
     else if (is_ident(tok, "undef"))   read_undef();
     else if (is_ident(tok, "if"))      read_if();
@@ -941,7 +941,7 @@ Token *peek_token(void) {
 
 static Token *read_token_sub(bool return_at_eol) {
     for (;;) {
-        Token *tok = read_cpp_token();
+        Token *tok = lex();
         if (!tok)
             return NULL;
         if (tok && tok->kind == TNEWLINE) {
