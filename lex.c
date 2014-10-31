@@ -162,10 +162,10 @@ static bool skip_newline(int c) {
     if (c == '\n')
         return true;
     if (c == '\r') {
-        int c2 = getc(file->fp);
-        if (c2 == '\n')
+        c = getc(file->fp);
+        if (c == '\n')
             return true;
-        ungetc(c2, file->fp);
+        ungetc(c, file->fp);
         return true;
     }
     return false;
@@ -418,14 +418,14 @@ static Token *read_ident(char c) {
     Buffer *b = make_buffer();
     buf_write(b, c);
     for (;;) {
-        int c2 = get();
-        if (isalnum(c2) || c2 == '_' || c2 == '$') {
-            buf_write(b, c2);
-        } else {
-            unget(c2);
-            buf_write(b, '\0');
-            return make_ident(buf_body(b));
+        c = get();
+        if (isalnum(c) || c == '_' || c == '$') {
+            buf_write(b, c);
+            continue;
         }
+        unget(c);
+        buf_write(b, '\0');
+        return make_ident(buf_body(b));
     }
 }
 
@@ -445,17 +445,13 @@ static void skip_block_comment(void) {
 }
 
 static Token *read_rep(char expect, int t1, int els) {
-    if (next(expect))
-        return make_keyword(t1);
-    return make_keyword(els);
+    return make_keyword(next(expect) ? t1 : els);
 }
 
 static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
     if (next(expect1))
         return make_keyword(t1);
-    if (next(expect2))
-        return make_keyword(t2);
-    return make_keyword(els);
+    return make_keyword(next(expect2) ? t2 : els);
 }
 
 static Token *do_read_token(void) {
@@ -472,11 +468,11 @@ static Token *do_read_token(void) {
     case 'L':
         if (next('"'))  return read_string();
         if (next('\'')) return read_char();
-        return read_ident('L');
-    case '0' ... '9':
-        return read_number(c);
+        // fallthrough
     case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_': case '$':
         return read_ident(c);
+    case '0' ... '9':
+        return read_number(c);
     case '/':
         if (next('/')) {
             skip_line();
@@ -486,9 +482,7 @@ static Token *do_read_token(void) {
             skip_block_comment();
             return make_space(1);
         }
-        if (next('='))
-            return make_keyword(OP_A_DIV);
-        return make_keyword('/');
+        return make_keyword(next('=') ? OP_A_DIV : '/');
     case '.':
         if (isdigit(peek()))
             return read_number(c);
@@ -508,12 +502,9 @@ static Token *do_read_token(void) {
     case '+':
         return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '-':
-        if (next('-'))
-            return make_keyword(OP_DEC);
-        if (next('>'))
-            return make_keyword(OP_ARROW);
-        if (next('='))
-            return make_keyword(OP_A_SUB);
+        if (next('-')) return make_keyword(OP_DEC);
+        if (next('>')) return make_keyword(OP_ARROW);
+        if (next('=')) return make_keyword(OP_A_SUB);
         return make_keyword('-');
     case '*':
         return read_rep('=', OP_A_MUL, '*');
@@ -541,10 +532,8 @@ static Token *do_read_token(void) {
         if (next('%')) return make_keyword('{');
         return make_keyword('<');
     case '>':
-        if (next('='))
-            return make_keyword(OP_GE);
-        if (next('>'))
-            return read_rep('=', OP_A_SAR, OP_SAR);
+        if (next('=')) return make_keyword(OP_GE);
+        if (next('>')) return read_rep('=', OP_A_SAR, OP_SAR);
         return make_keyword('>');
     case '"': return read_string();
     case '\'': return read_char();
