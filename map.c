@@ -10,6 +10,12 @@
 
 #define INIT_SIZE 16
 
+typedef struct Bucket {
+    char *key;
+    void *val;
+    struct Bucket *next;
+} Bucket;
+
 static Bucket *make_bucket(char *key, void *val, void *next) {
     Bucket *b = malloc(sizeof(Bucket));
     b->key = key;

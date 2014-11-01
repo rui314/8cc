@@ -7,15 +7,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct Bucket {
-    char *key;
-    void *val;
-    struct Bucket *next;
-} Bucket;
+struct Bucket;
 
 typedef struct Map {
     struct Map *parent;
-    Bucket **buckets;
+    struct Bucket **buckets;
     int nelem;
     int cap;
 } Map;
@@ -23,7 +19,7 @@ typedef struct Map {
 typedef struct MapIter {
     Map *map;
     Map *cur;
-    Bucket *bucket;
+    struct Bucket *bucket;
     int i;
 } MapIter;
 
