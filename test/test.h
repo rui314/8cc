@@ -9,10 +9,17 @@ size_t strlen(const char *);
 extern int externvar1;
 extern int externvar2;
 
-void print(char *s);
-void fail(char *msg);
-void expect(int a, int b);
-void expect_string(char *a, char *b);
-void expectf(float a, float b);
-void expectd(double a, double b);
-void expectl(long a, long b);
+extern void print(char *s);
+extern void ffail(char *file, int line, char *msg);
+extern void fexpect(char *file, int line, int a, int b);
+extern void fexpect_string(char *file, int line, char *a, char *b);
+extern void fexpectf(char *file, int line, float a, float b);
+extern void fexpectd(char *file, int line, double a, double b);
+extern void fexpectl(char *file, int line, long a, long b);
+
+#define fail(msg) ffail(__FILE__, __LINE__, msg)
+#define expect(a, b) fexpect(__FILE__, __LINE__, a, b);
+#define expect_string(a, b) fexpect_string(__FILE__, __LINE__, a, b);
+#define expectf(a, b) fexpectf(__FILE__, __LINE__, a, b);
+#define expectd(a, b) fexpectd(__FILE__, __LINE__, a, b);
+#define expectl(a, b) fexpectl(__FILE__, __LINE__, a, b);

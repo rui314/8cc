@@ -67,9 +67,9 @@ struct g4 { char x; struct g4a { int y[2]; } *z; } *g4 = &(struct g4){ 83, &(str
 
 static void test_compound(void) {
     expect(1, (int){ 1 });
-    expect(3, (int[]){ 1, 2, 3 }[2]);
+    expect(3, ((int[]){ 1, 2, 3 }[2]));
     expect(12, sizeof((int[]){ 1, 2, 3 }));
-    expect(6, (struct { int x[3]; }){ 5, 6, 7 }.x[1]);
+    expect(6, ((struct { int x[3]; }){ 5, 6, 7 }.x[1]));
 
     expect(80, g1);
     expect(81, *g2);

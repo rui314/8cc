@@ -24,51 +24,51 @@ void print(char *s) {
 }
 
 void printfail(void) {
-    printf(isatty(fileno(stdout)) ? "\e[1;31mFailed\e[0m" : "Failed");
+    printf(isatty(fileno(stdout)) ? "\e[1;31mFailed\e[0m\n" : "Failed\n");
 }
 
-void fail(char *msg) {
+void ffail(char *file, int line, char *msg) {
     printfail();
-    printf(": %s\n", msg);
+    printf("%s:%d: %s\n", file, line, msg);
     exit(1);
 }
 
-void expect(int a, int b) {
+void fexpect(char *file, int line, int a, int b) {
     if (!(a == b)) {
         printfail();
-        printf("\n  %d expected, but got %d\n", a, b);
+        printf("%s:%d: %d expected, but got %d\n", file, line, a, b);
         exit(1);
     }
 }
 
-void expect_string(char *a, char *b) {
+void fexpect_string(char *file, int line, char *a, char *b) {
     if (strcmp(a, b)) {
         printfail();
-        printf("\n  \"%s\" expected, but got \"%s\"\n", a, b);
+        printf("%s:%d: \"%s\" expected, but got \"%s\"\n", file, line, a, b);
         exit(1);
     }
 }
 
-void expectf(float a, float b) {
+void fexpectf(char *file, int line, float a, float b) {
     if (!(a == b)) {
         printfail();
-        printf("\n  %f expected, but got %f\n", a, b);
+        printf("%s:%d: %f expected, but got %f\n", file, line, a, b);
         exit(1);
     }
 }
 
-void expectd(double a, double b) {
+void fexpectd(char *file, int line, double a, double b) {
     if (!(a == b)) {
         printfail();
-        printf("\n  %lf expected, but got %lf\n", a, b);
+        printf("%s:%d: %lf expected, but got %lf\n", file, line, a, b);
         exit(1);
     }
 }
 
-void expectl(long a, long b) {
+void fexpectl(char *file, int line, long a, long b) {
     if (!(a == b)) {
         printfail();
-        printf("\n  %ld expected, but got %ld\n", a, b);
+        printf("%s:%d: %ld expected, but got %ld\n", file, line, a, b);
         exit(1);
     }
 }
