@@ -1593,10 +1593,11 @@ static void read_initializer_elem(Vector *inits, Type *ty, int off, bool designa
 }
 
 static int comp_init(const void *p, const void *q) {
-    Node * const *a = p;
-    Node * const *b = q;
-    return (*a)->initoff < (*b)->initoff ? -1
-        : (*a)->initoff == (*b)->initoff ? 0 : 1;
+    int x = (*(Node **)p)->initoff;
+    int y = (*(Node **)q)->initoff;
+    if (x < y) return -1;
+    if (x > y) return 1;
+    return 0;
 }
 
 static void sort_inits(Vector *inits) {
