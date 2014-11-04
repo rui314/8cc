@@ -37,7 +37,7 @@ static uint32_t hash(char *p) {
 static Map *do_make_map(Map *parent, int cap) {
     Map *r = malloc(sizeof(Map));
     r->parent = parent;
-    r->buckets = malloc(sizeof(Bucket) * cap);
+    r->buckets = malloc(sizeof(r->buckets[0]) * cap);
     for (int i = 0; i < cap; i++)
         r->buckets[i] = NULL;
     r->nelem = 0;
