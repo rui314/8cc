@@ -47,7 +47,10 @@ static void test_string(void) {
 }
 
 static void test_float(void) {
+    expectf(1.0, 1.0);
     expectd(1.0, 1.0L);
+    expectf(1.0, 0x1p+0);
+    expectf(1.0, 0x1p-0);
 }
 
 static void test_ucn(void) {

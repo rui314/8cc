@@ -293,14 +293,17 @@ void skip_cond_incl(void) {
 static Token *read_number(char c) {
     Buffer *b = make_buffer();
     buf_write(b, c);
+    char last = c;
     for (;;) {
         int c = get();
-        if (!isdigit(c) && !isalpha(c) && c != '.') {
+        bool flonum = strchr("eEpP", last) && strchr("+-", c);
+        if (!isdigit(c) && !isalpha(c) && c != '.' && !flonum) {
             unget(c);
             buf_write(b, '\0');
             return make_number(buf_body(b));
         }
         buf_write(b, c);
+        last = c;
     }
 }
 
