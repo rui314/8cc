@@ -509,7 +509,7 @@ static void emit_load_convert(Type *to, Type *from) {
         emit("cvtsi2sd #eax, #xmm0");
     else if (from->kind == KIND_FLOAT && to->kind == KIND_DOUBLE)
         emit("cvtps2pd #xmm0, #xmm0");
-    else if (from->kind == KIND_DOUBLE && to->kind == KIND_FLOAT)
+    else if ((from->kind == KIND_DOUBLE || from->kind == KIND_LDOUBLE) && to->kind == KIND_FLOAT)
         emit("cvtpd2ps #xmm0, #xmm0");
     else if (to->kind == KIND_BOOL)
         emit_to_bool(from);
@@ -565,8 +565,9 @@ static void emit_save_literal(Node *node, Type *totype, int off) {
         emit("movl $%u, %d(#rbp)", *p, off);
         break;
     }
-    case KIND_DOUBLE: {
-        long *p = (long *)&node->fval;
+    case KIND_DOUBLE:
+    case KIND_LDOUBLE: {
+        unsigned long *p = (unsigned long *)&node->fval;
         emit("movl $%lu, %d(#rbp)", *p & ((1L << 32) - 1), off);
         emit("movl $%lu, %d(#rbp)", *p >> 32, off + 4);
         break;
@@ -717,11 +718,10 @@ static void emit_literal(Node *node) {
     case KIND_LDOUBLE: {
         if (!node->flabel) {
             node->flabel = make_label();
-            int *fval = (int *)&node->fval;
+            unsigned long *fval = (unsigned long *)&node->fval;
             emit_noindent(".data");
             emit_label(node->flabel);
-            emit(".long %d", fval[0]);
-            emit(".long %d", fval[1]);
+            emit(".quad %lu", *fval);
             emit_noindent(".text");
         }
         emit("movsd %s(#rip), #xmm0", node->flabel);
@@ -789,6 +789,9 @@ static void maybe_print_source_line(char *file, int line) {
             return;
         map_put(source_lines, file, lines);
     }
+    int len = 0;
+    for (char **p = lines; *p; p++)
+        len++;
     emit_nostack("# %s", lines[line - 1]);
 }
 

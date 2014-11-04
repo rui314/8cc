@@ -56,7 +56,7 @@ static void predefined(void) {
     expect(8, __SIZEOF_POINTER__);
     expect(8, __SIZEOF_PTRDIFF_T__);
     expect(8, __SIZEOF_SIZE_T__);
-    expect(16, __SIZEOF_LONG_DOUBLE__);
+    expect(8, __SIZEOF_LONG_DOUBLE__);
 
     expect(sizeof(short), __SIZEOF_SHORT__);
     expect(sizeof(int), __SIZEOF_INT__);

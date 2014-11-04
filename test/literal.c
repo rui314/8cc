@@ -46,6 +46,10 @@ static void test_string(void) {
     expect(123, L123);
 }
 
+static void test_float(void) {
+    expectd(1.0, 1.0L);
+}
+
 static void test_ucn(void) {
     expect('$', L'\u0024');
     expect('$', L'\U00000024');
@@ -76,6 +80,7 @@ void testmain(void) {
     print("literal");
     test_char();
     test_string();
+    test_float();
     test_ucn();
     test_compound();
 }

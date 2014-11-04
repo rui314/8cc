@@ -103,6 +103,7 @@ static void do_a2s(Buffer *b, Node *node) {
             break;
         case KIND_FLOAT:
         case KIND_DOUBLE:
+        case KIND_LDOUBLE:
             buf_printf(b, "%f", node->fval);
             break;
         default:

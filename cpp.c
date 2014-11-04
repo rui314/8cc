@@ -896,7 +896,7 @@ static void init_predefined_macros(void) {
     define_obj_macro("__SIZEOF_LONG_LONG__", make_number("8"));
     define_obj_macro("__SIZEOF_FLOAT__", make_number("4"));
     define_obj_macro("__SIZEOF_DOUBLE__", make_number("8"));
-    define_obj_macro("__SIZEOF_LONG_DOUBLE__", make_number("16"));
+    define_obj_macro("__SIZEOF_LONG_DOUBLE__", make_number("8"));
     define_obj_macro("__SIZEOF_POINTER__", make_number("8"));
     define_obj_macro("__SIZEOF_PTRDIFF_T__", make_number("8"));
     define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));

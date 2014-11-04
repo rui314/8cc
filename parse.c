@@ -50,7 +50,7 @@ Type *type_int = &(Type){ KIND_INT, 4, 4, true };
 Type *type_long = &(Type){ KIND_LONG, 8, 8, true };
 Type *type_float = &(Type){ KIND_FLOAT, 4, 4, true };
 Type *type_double = &(Type){ KIND_DOUBLE, 8, 8, true };
-Type *type_ldouble = &(Type){ KIND_LDOUBLE, 16, 16, true };
+Type *type_ldouble = &(Type){ KIND_LDOUBLE, 8, 8, true };
 static Type *type_uint = &(Type){ KIND_INT, 4, 4, false };
 static Type *type_ulong = &(Type){ KIND_LONG, 8, 8, false };
 static Type *type_llong = &(Type){ KIND_LLONG, 8, 8, true };
@@ -332,7 +332,7 @@ static Type *make_numtype(int kind, bool sig) {
     else if (kind == KIND_LLONG)   r->size = r->align = 8;
     else if (kind == KIND_FLOAT)   r->size = r->align = 4;
     else if (kind == KIND_DOUBLE)  r->size = r->align = 8;
-    else if (kind == KIND_LDOUBLE) r->size = r->align = 16;
+    else if (kind == KIND_LDOUBLE) r->size = r->align = 8;
     else error("internal error");
     return r;
 }
@@ -692,7 +692,7 @@ static Node *read_float(char *s) {
     while (p[1]) p++;
     Node *r;
     if (*p == 'l' || *p == 'L') {
-        r = ast_floattype(type_ldouble, strtold(s, &endptr));
+        r = ast_floattype(type_ldouble, strtof(s, &endptr));
     } else if (*p == 'f' || *p == 'F') {
         r = ast_floattype(type_float, strtof(s, &endptr));
     } else {

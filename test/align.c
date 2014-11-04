@@ -13,7 +13,7 @@ static void test_alignof(void) {
     expect(2, alignof(short));
     expect(4, alignof(int));
     expect(8, alignof(double));
-    expect(16, alignof(long double));
+    expect(8, alignof(long double));
 
     expect(1, alignof(char[10]));
     expect(8, alignof(double[10]));
