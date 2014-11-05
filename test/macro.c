@@ -232,23 +232,26 @@ static void const_expr(void) {
 #endif
     expect(9, a);
 
-#ifdef __8cc__ // BUG
+#if NO_SUCH_MACRO
+    a = 14;
+#else
+    a = 15;
+#endif
+    expect(15, a);
+
 #if LOOP
     a = 10;
 #else
     a = 11;
 #endif
-    expect(10, a);
-#endif
+    expect(11, a);
 
-#ifdef __8cc__ // BUG
 #if LOOP - 1
     a = 12;
 #else
     a = 13;
 #endif
-    expect(13, a);
-#endif
+    expect(12, a);
 }
 
 static void defined(void) {
