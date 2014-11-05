@@ -31,8 +31,6 @@ static Vector *cond_incl_stack = &EMPTY_VECTOR;
 static Vector *std_include_path = &EMPTY_VECTOR;
 static Token *cpp_token_zero = &(Token){ .kind = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
-static struct tm *current_time;
-static int macro_counter;
 
 typedef void special_macro_handler(Token *tok);
 typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
@@ -780,12 +778,14 @@ static void read_directive(void) {
  */
 
 static struct tm *gettime(void) {
-    if (current_time)
-        return current_time;
+    static struct tm tm;
+    static bool init = false;
+    if (init)
+        return &tm;
+    init = true;
     time_t timet = time(NULL);
-    current_time = malloc(sizeof(struct tm));
-    localtime_r(&timet, current_time);
-    return current_time;
+    localtime_r(&timet, &tm);
+    return &tm;
 }
 
 static void make_token_pushback(Token *tmpl, int kind, char *sval) {
@@ -827,7 +827,8 @@ static void handle_pragma_macro(Token *tmpl) {
 }
 
 static void handle_counter_macro(Token *tmpl) {
-    make_token_pushback(tmpl, TNUMBER, format("%d", macro_counter++));
+    static int counter = 0;
+    make_token_pushback(tmpl, TNUMBER, format("%d", counter++));
 }
 
 /*
