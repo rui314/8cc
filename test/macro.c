@@ -1,13 +1,19 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <string.h>
 #include "test.h"
 
 static void special(void) {
     expect_string("test/macro.c", __FILE__);
-    expect(8, __LINE__);
+    expect(9, __LINE__);
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));
+    expect(24, strlen(__TIMESTAMP__));
+    expect(1, !!strstr(__TIMESTAMP__, __TIME__));
+    char date[] = __DATE__;
+    date[7] = '\0';
+    expect(1, !!strstr(__TIMESTAMP__, date));
 }
 
 static void include(void) {

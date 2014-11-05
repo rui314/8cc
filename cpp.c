@@ -808,6 +808,14 @@ static void handle_time_macro(Token *tmpl) {
     make_token_pushback(tmpl, TSTRING, sval);
 }
 
+static void handle_timestamp_macro(Token *tmpl) {
+    char buf[30];
+    asctime_r(gettime(), buf);
+    // Remove the trailing '\n'.
+    buf[strlen(buf) - 1] = '\0';
+    make_token_pushback(tmpl, TSTRING, format("%s", buf));
+}
+
 static void handle_file_macro(Token *tmpl) {
     make_token_pushback(tmpl, TSTRING, get_current_displayname());
 }
@@ -877,6 +885,7 @@ static void init_predefined_macros(void) {
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);
+    define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
     define_special_macro("__FILE__", handle_file_macro);
     define_special_macro("__LINE__", handle_line_macro);
     define_special_macro("_Pragma",  handle_pragma_macro);
