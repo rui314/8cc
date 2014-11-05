@@ -737,16 +737,11 @@ static Node *read_sizeof_operand(void) {
  * Alignof operator
  */
 
-static int get_alignment(Type *ty) {
-    int size = ty->kind == KIND_ARRAY ? ty->ptr->size : ty->size;
-    return MIN(size, MAX_ALIGN);
-}
-
 static Node *read_alignof_operand(void) {
     expect('(');
     Type *ty = read_func_param(NULL, true);
     expect(')');
-    return ast_inttype(type_long, get_alignment(ty));
+    return ast_inttype(type_long, ty->align);
 }
 
 /*
@@ -1487,13 +1482,10 @@ static Type *read_rectype_def(Map *env, bool is_struct) {
     }
     int size = 0, align = 1;
     Dict *fields = read_rectype_fields(&size, &align, is_struct);
-    if (r && !fields)
-        return r;
-    if (r && fields) {
+    r->align = align;
+    if (fields) {
         r->fields = fields;
         r->size = size;
-        r->align = align;
-        return r;
     }
     return r;
 }
