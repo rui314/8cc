@@ -24,9 +24,7 @@ void testmain(void) {
 
     expectd(55.3, 55.3);
     expectd(200, 2e2);
-#ifdef __8cc__ // BUG
-    expectd(0x0.DE488631p8, 0xDE.488631);
-#endif
+    expectd(0x0.DE488631p8, 0xDE.488631p0);
 
     expect(4, sizeof(5));
     expect(8, sizeof(5L));
