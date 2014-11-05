@@ -3,6 +3,8 @@
 
 #include "test.h"
 
+#ifdef __8cc__
+
 static void test_basic(void) {
     expect(1, _Generic(5, int: 1, float: 2));
     expectd(3.0, _Generic(5.0, int: 1, float: 2.0, double: 3.0));
@@ -34,3 +36,11 @@ void testmain(void) {
     test_struct();
     test_array();
 }
+
+#else
+
+void testmain(void) {
+    print("_Generic");
+}
+
+#endif

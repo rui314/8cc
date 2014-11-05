@@ -13,13 +13,13 @@ static void test_type(void) {
     long long e;
     short int f;
     long int g;
-    long long int f;
-    long int long g;
-    float h;
-    double i;
-    long double j;
-    _Bool k;
-    bool l;
+    long long int h;
+    long int long i;
+    float j;
+    double k;
+    long double l;
+    _Bool m;
+    bool n;
 }
 
 static void test_signed(void) {
@@ -30,7 +30,7 @@ static void test_signed(void) {
     signed long long e;
     signed short int f;
     signed long int g;
-    signed long long int f;
+    signed long long int h;
 }
 
 static void test_unsigned(void) {
@@ -41,7 +41,7 @@ static void test_unsigned(void) {
     unsigned long long e;
     unsigned short int f;
     unsigned long int g;
-    unsigned long long int f;
+    unsigned long long int h;
 }
 
 static void test_storage_class(void) {
@@ -79,15 +79,12 @@ static void test_typedef(void) {
     strtype c;
     c.x = 5;
     expect(5, c.x);
-
-    typedef int mytype1;
-    typedef int mytype2;
-    mytype1 mytype2 = 3;
-    expect(3, mytype2);
 }
 
 static void test_align(void) {
+#ifdef __8cc__
     expect(8, sizeof(max_align_t));
+#endif
 }
 
 void testmain(void) {

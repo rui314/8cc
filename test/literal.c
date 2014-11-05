@@ -37,7 +37,9 @@ static void test_string(void) {
     expect_string(expected, "Aa\a\b\f\n\r\t\v\e\7\17\235\xff\x012");
 
     expect('c', L'c');
+#ifdef __8cc__
     expect_string("asdf", L"asdf");
+#endif
 
     // make sure we can handle an identifier starting with "L"
     int L = 7;
@@ -60,7 +62,7 @@ static void test_ucn(void) {
     expect_string("$", "\U00000024");
 }
 
-int g1 = (int){ 80 };
+int g1 = 80;
 int *g2 = &(int){ 81 };
 struct g3 { int x; } *g3 = &(struct g3){ 82 };
 struct g4 { char x; struct g4a { int y[2]; } *z; } *g4 = &(struct g4){ 83, &(struct g4a){ 84, 85 } };

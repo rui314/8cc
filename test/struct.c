@@ -1,6 +1,7 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <stddef.h>
 #include "test.h"
 
 static void t1(void) {
@@ -109,7 +110,7 @@ static void t12(void) {
     expect(84, a[0].b);
     a[1].b = 85;
     expect(85, a[1].b);
-    int *p = a;
+    int *p = (int *)a;
     expect(85, p[3]);
 }
 
@@ -203,6 +204,7 @@ static void bitfield_basic(void) {
         int i;
         struct { int a:5; int b:5; };
     } x;
+    x.i = 0;
     x.a = 10;
     x.b = 11;
     expect(10, x.a);
@@ -280,6 +282,7 @@ static void flexible_member(void) {
     struct { int a[0]; } z;
     expect(0, sizeof(z));
 
+#ifdef __8cc__ // BUG
     struct t { int a, b[]; };
     struct t x2 = { 1, 2, 3 };
     struct t x3 = { 1, 2, 3, 4, 5 };
@@ -287,13 +290,14 @@ static void flexible_member(void) {
     expect(3, x3.b[1]);
     expect(4, x3.b[2]);
     expect(5, x3.b[3]);
+#endif
 }
 
 static void empty_struct(void) {
     struct tag15 {};
     expect(0, sizeof(struct tag15));
     union tag16 {};
-    expect(0, sizeof(struct tag16));
+    expect(0, sizeof(union tag16));
 }
 
 void testmain(void) {

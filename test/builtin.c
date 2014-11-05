@@ -8,13 +8,14 @@ static void *test_return_address_sub2(void) {
 }
 
 static void *test_return_address_sub1(void) {
-    expect(__builtin_return_address(0), test_return_address_sub2());
+    expect((long)__builtin_return_address(0), (long)test_return_address_sub2());
     return __builtin_return_address(0);
 }
 
 static void test_return_address(void) {
+    void *ptr;
  L1:
-    void *ptr = test_return_address_sub1();
+    ptr = test_return_address_sub1();
  L2:
     expect(1, &&L1 < ptr && ptr <= &&L2);
 }

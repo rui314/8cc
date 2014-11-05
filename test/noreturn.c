@@ -7,7 +7,7 @@
 // _Noreturn is ignored
 _Noreturn void f1();
 noreturn void f2();
-inline void f3();
+inline void f3() {}
 
 void testmain(void) {
     print("noreturn");

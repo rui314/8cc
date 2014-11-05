@@ -14,6 +14,7 @@ static void digraph(void) {
     // spelling instead of replacing digraphs with regular tokens.
     // I intentionally leave this bug because that's really a minor
     // bug which doesn't worth the complexity to be handled correctly.
+#ifdef __8cc__
     expect_string("[", stringify(<:));
     expect_string("]", stringify(:>));
     expect_string("{", stringify(<%));
@@ -23,6 +24,7 @@ static void digraph(void) {
     expect_string("##", stringify(%:%:));
     expect_string("#%", stringify(%:%));
     expect(12, paste(1, 2));
+#endif
 }
 
 static void escape(void) {

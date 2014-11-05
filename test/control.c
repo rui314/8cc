@@ -124,7 +124,7 @@ static void test_do(void) {
     expect(6 + 7 + 8 + 9, acc);
 
     i = 0;
-    do 1; while (i++ < 100);
+    do {} while (i++ < 100);
 
     i = 0;
     do; while (i++ < 100);
@@ -214,6 +214,7 @@ static void test_goto(void) {
     i++;
     goto y;
  a:
+    ;
 }
 
 static void test_computed_goto(void) {
@@ -233,6 +234,7 @@ static void test_computed_goto(void) {
     i++;
     goto *t.y;
  a:
+    ;
 }
 
 static void test_logor(void) {
