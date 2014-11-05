@@ -884,12 +884,14 @@ static void init_predefined_macros(void) {
     char *predefined[] = {
         "__8cc__", "__amd64", "__amd64__", "__x86_64", "__x86_64__",
         "linux", "__linux", "__linux__", "__gnu_linux__", "__unix", "__unix__",
-        "_LP64", "__LP64__", "__ELF__", "__STDC__", "__STDC_HOSTED__" };
+        "_LP64", "__LP64__", "__ELF__", "__STDC__", "__STDC_HOSTED__",
+        "__STDC_NO_ATOMICS__", "__STDC_NO_COMPLEX__", "__STDC_NO_THREADS__",
+        "__STDC_NO_VLA__", };
 
     for (int i = 0; i < sizeof(predefined) / sizeof(*predefined); i++)
         define_obj_macro(predefined[i], cpp_token_one);
 
-    define_obj_macro("__STDC_VERSION__", make_number("199901L"));
+    define_obj_macro("__STDC_VERSION__", make_number("201112L"));
     define_obj_macro("__SIZEOF_SHORT__", make_number("2"));
     define_obj_macro("__SIZEOF_INT__", make_number("4"));
     define_obj_macro("__SIZEOF_LONG__", make_number("8"));

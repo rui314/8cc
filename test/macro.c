@@ -45,7 +45,11 @@ static void predefined(void) {
     expect(1, __ELF__);
     expect(1, __STDC__);
     expect(1, __STDC_HOSTED__);
-    expect(199901, __STDC_VERSION__);
+    expect(1, __STDC_NO_ATOMICS__);
+    expect(1, __STDC_NO_COMPLEX__);
+    expect(1, __STDC_NO_THREADS__);
+    expect(1, __STDC_NO_VLA__);
+    expect(201112, __STDC_VERSION__);
 
     expect(2, __SIZEOF_SHORT__);
     expect(4, __SIZEOF_INT__);
