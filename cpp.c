@@ -403,7 +403,7 @@ static Token *read_expand(void) {
     switch (macro->kind) {
     case MACRO_OBJ: {
         Map *hideset = map_append(tok->hideset, name);
-        Vector *tokens = subst(macro, make_vector(), hideset);
+        Vector *tokens = subst(macro, NULL, hideset);
         set_vec_space(tokens, tok);
         unget_all(tokens);
         return read_expand();
