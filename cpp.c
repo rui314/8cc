@@ -343,6 +343,9 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
         }
         if (is_keyword(t0, KSHARPSHARP) && t1_param) {
             Vector *arg = vec_get(args, t1->position);
+            // [GNU] [,##__VA_ARG__] is expanded to the empty token sequence
+            // if __VA_ARG__ is empty. Otherwise it's expanded to
+            // [,<tokens in __VA_ARG__>].
             if (t1->is_vararg && vec_len(r) > 0 && is_keyword(vec_tail(r), ',')) {
                 if (vec_len(arg) > 0)
                     vec_append(r, arg);
@@ -386,6 +389,7 @@ static void unget_all(Vector *tokens) {
         unget_token(vec_get(tokens, i));
 }
 
+// This is "expand" function in the Dave Prosser's document.
 static Token *read_expand(void) {
     Token *tok = lex();
     if (!tok) return NULL;
