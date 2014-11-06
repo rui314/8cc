@@ -318,7 +318,7 @@ static Token *stringize(Token *tmpl, Vector *args) {
 static Vector *expand_all(Vector *tokens, Token *tmpl) {
     Vector *r = make_vector();
     Vector *orig = get_input_buffer();
-    set_input_buffer(tokens);
+    set_input_buffer(vec_reverse(tokens));
     Token *tok;
     while ((tok = read_expand()) != NULL)
         vec_push(r, tok);
@@ -565,7 +565,7 @@ static Vector *read_intexpr_line(void) {
 
 static bool read_constexpr(void) {
     Vector *orig = get_input_buffer();
-    set_input_buffer(read_intexpr_line());
+    set_input_buffer(vec_reverse(read_intexpr_line()));
     Node *expr = read_expr();
     Vector *buf = get_input_buffer();
     if (vec_len(buf) > 0)
@@ -912,7 +912,7 @@ void cpp_init(void) {
 }
 
 /*
- * Keyword
+ * Public intefaces
  */
 
 static Token *maybe_convert_keyword(Token *tok) {
@@ -928,10 +928,6 @@ static Token *maybe_convert_keyword(Token *tok) {
     r->id = id;
     return r;
 }
-
-/*
- * Public intefaces
- */
 
 void unget_token(Token *tok) {
     unget_cpp_token(tok);

@@ -577,11 +577,11 @@ bool is_keyword(Token *tok, int c) {
 }
 
 void set_input_buffer(Vector *tokens) {
-    altbuffer = tokens ? vec_reverse(tokens) : NULL;
+    altbuffer = tokens;
 }
 
 Vector *get_input_buffer(void) {
-    return altbuffer ? vec_reverse(altbuffer) : NULL;
+    return altbuffer;
 }
 
 char *read_error_directive(void) {
