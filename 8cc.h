@@ -265,7 +265,6 @@ extern void cpp_init(void);
 extern void lex_init(char *filename);
 extern char *read_error_directive(void);
 extern void unget_cpp_token(Token *tok);
-extern Token *peek_cpp_token(void);
 extern Token *lex(void);
 extern void set_input_buffer(Vector *tokens);
 extern Vector *get_input_buffer(void);

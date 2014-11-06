@@ -609,12 +609,6 @@ void unget_cpp_token(Token *tok) {
     vec_push(altbuffer ? altbuffer : buffer, tok);
 }
 
-Token *peek_cpp_token(void) {
-    Token *tok = read_token();
-    unget_cpp_token(tok);
-    return tok;
-}
-
 Token *lex(void) {
     if (altbuffer) {
         if (vec_len(altbuffer) == 0)
