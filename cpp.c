@@ -32,7 +32,7 @@ static Vector *std_include_path = &EMPTY_VECTOR;
 static Token *cpp_token_zero = &(Token){ .kind = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
 
-typedef void special_macro_handler(Token *tok);
+typedef void SpecialMacroHandler(Token *tok);
 typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
 typedef enum { MACRO_OBJ, MACRO_FUNC, MACRO_SPECIAL } MacroType;
 typedef struct { CondInclCtx ctx; bool wastrue; } CondIncl;
@@ -42,12 +42,12 @@ typedef struct {
     int nargs;
     Vector *body;
     bool is_varg;
-    special_macro_handler *fn;
+    SpecialMacroHandler *fn;
 } Macro;
 
 static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
-static Macro *make_special_macro(special_macro_handler *fn);
+static Macro *make_special_macro(SpecialMacroHandler *fn);
 static Token *read_token_sub(bool return_at_eol);
 static Token *read_expand(void);
 
@@ -89,7 +89,7 @@ static Macro *make_func_macro(Vector *body, int nargs, bool is_varg) {
             MACRO_FUNC, .nargs = nargs, .body = body, .is_varg = is_varg });
 }
 
-static Macro *make_special_macro(special_macro_handler *fn) {
+static Macro *make_special_macro(SpecialMacroHandler *fn) {
     return make_macro(&(Macro){ MACRO_SPECIAL, .fn = fn });
 }
 
@@ -865,7 +865,7 @@ static void define_obj_macro(char *name, Token *value) {
     map_put(macros, name, make_obj_macro(make_vector1(value)));
 }
 
-static void define_special_macro(char *name, special_macro_handler *fn) {
+static void define_special_macro(char *name, SpecialMacroHandler *fn) {
     map_put(macros, name, make_special_macro(fn));
 }
 
