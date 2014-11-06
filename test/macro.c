@@ -391,10 +391,8 @@ static void funclike(void) {
 #define identity(x) stringify(x)
     expect_string("aa A B aa C", identity(m10(a) A B m10(a) C));
 
-#ifdef __8cc__ // BUG
 #define identity2(x) stringify(z ## x)
-    expect_string("zA aa A B aa C", identity2(A m10(a) A B m10(a) C));
-#endif
+    expect_string("zA m10(a) A B m10(a) C", identity2(A m10(a) A B m10(a) C));
 
 #define m15(x) x x
     expect_string("a a", identity(m15(a)));

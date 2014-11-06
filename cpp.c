@@ -345,15 +345,13 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
             Vector *arg = vec_get(args, t1->position);
             if (t1->is_vararg && vec_len(r) > 0 && is_keyword(vec_tail(r), ',')) {
                 if (vec_len(arg) > 0)
-                    vec_append(r, expand_all(arg, t1));
+                    vec_append(r, arg);
                 else
                     vec_pop(r);
             } else if (vec_len(arg) > 0) {
                 glue_push(r, vec_head(arg));
-                Vector *tmp = make_vector();
                 for (int i = 1; i < vec_len(arg); i++)
-                    vec_push(tmp, vec_get(arg, i));
-                vec_append(r, expand_all(tmp, t1));
+                    vec_push(r, vec_get(arg, i));
             }
             i++;
             continue;
