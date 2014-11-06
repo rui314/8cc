@@ -847,21 +847,9 @@ static void handle_counter_macro(Token *tmpl) {
  * Initializer
  */
 
-static char *drop_last_slash(char *s) {
-    char *r = format("%s", s);
-    char *p = r + strlen(r) - 1;
-    if (*p == '/')
-        *p = '\0';
-    return r;
-}
-
 void add_include_path(char *path) {
-    vec_push(std_include_path, drop_last_slash(path));
+    vec_push(std_include_path, path);
 }
-
-/*
- * Initializer
- */
 
 static void define_obj_macro(char *name, Token *value) {
     map_put(macros, name, make_obj_macro(make_vector1(value)));
