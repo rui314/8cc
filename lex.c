@@ -307,20 +307,19 @@ static Token *read_number(char c) {
     }
 }
 
+bool nextoct(void) {
+    int c = peek();
+    return '0' <= c && c <= '7';
+}
+
 static int read_octal_char(int c) {
     int r = c - '0';
-    c = get();
-    if ('0' <= c && c <= '7') {
-        r = (r << 3) | (c - '0');
-        c = get();
-        if ('0' <= c && c <= '7')
-            r = (r << 3) | (c - '0');
-        else
-            unget(c);
-    } else {
-        unget(c);
-    }
-    return r;
+    if (!nextoct())
+        return r;
+    r = (r << 3) | (get() - '0');
+    if (!nextoct())
+        return r;
+    return (r << 3) | (get() - '0');
 }
 
 static int read_hex_char(void) {
