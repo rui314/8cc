@@ -929,10 +929,6 @@ static Token *maybe_convert_keyword(Token *tok) {
     return r;
 }
 
-void unget_token(Token *tok) {
-    unget_cpp_token(tok);
-}
-
 Token *peek_token(void) {
     Token *r = read_token();
     unget_token(r);

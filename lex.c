@@ -276,10 +276,10 @@ void skip_cond_incl(void) {
             continue;
         }
         if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
-            unget_cpp_token(tok);
+            unget_token(tok);
             Token *sharp = make_keyword('#');
             sharp->bol = true;
-            unget_cpp_token(sharp);
+            unget_token(sharp);
             return;
         }
         if (is_ident(tok, "if") || is_ident(tok, "ifdef") || is_ident(tok, "ifndef"))
@@ -604,7 +604,7 @@ char *read_error_directive(void) {
     return buf_body(b);
 }
 
-void unget_cpp_token(Token *tok) {
+void unget_token(Token *tok) {
     if (!tok) return;
     vec_push(altbuffer ? altbuffer : buffer, tok);
 }
