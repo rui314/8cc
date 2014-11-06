@@ -329,12 +329,12 @@ static Vector *expand_all(Vector *tokens, Token *tmpl) {
 
 static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
     Vector *r = make_vector();
-    for (int i = 0; i < vec_len(macro->body); i++) {
-        bool islast = (i == vec_len(macro->body) - 1);
+    int len = vec_len(macro->body);
+    for (int i = 0; i < len; i++) {
         Token *t0 = vec_get(macro->body, i);
-        Token *t1 = islast ? NULL : vec_get(macro->body, i + 1);
+        Token *t1 = (i == len - 1) ? NULL : vec_get(macro->body, i + 1);
         bool t0_param = (t0->kind == TMACRO_PARAM);
-        bool t1_param = (!islast && t1->kind == TMACRO_PARAM);
+        bool t1_param = (t1 && t1->kind == TMACRO_PARAM);
 
         if (is_keyword(t0, '#') && t1_param) {
             vec_push(r, stringize(t0, vec_get(args, t1->position)));
@@ -356,13 +356,13 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
             i++;
             continue;
         }
-        if (is_keyword(t0, KSHARPSHARP) && !islast) {
+        if (is_keyword(t0, KSHARPSHARP) && t1) {
             hideset = t1->hideset;
             glue_push(r, t1);
             i++;
             continue;
         }
-        if (t0_param && !islast && is_keyword(t1, KSHARPSHARP)) {
+        if (t0_param && t1 && is_keyword(t1, KSHARPSHARP)) {
             hideset = t1->hideset;
             Vector *arg = vec_get(args, t0->position);
             if (vec_len(arg) == 0)
