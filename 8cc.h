@@ -26,18 +26,21 @@ enum {
 
 typedef struct {
     int kind;
-    int space;
-    bool bol;
-    bool is_vararg;
+    int space; // true if the token has a leading space
+    bool bol;  // true if the token is at the beginning of a line
     char *file;
     int line;
     int column;
     Map *hideset;
     union {
-        char *sval;
-        int id;
-        char c;
-        int position;
+        int id;     // TKEYWORD
+        char *sval; // TSTRING
+        char c;     // TCHAR
+        // TMACRO_PARAM
+        struct {
+            bool is_vararg;
+            int position;
+        };
     };
 } Token;
 
