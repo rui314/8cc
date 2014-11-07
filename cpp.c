@@ -554,8 +554,8 @@ static Vector *read_intexpr_line(void) {
         if (!tok) return r;
         if (is_ident(tok, "defined"))
             vec_push(r, read_defined_op());
-	// N1570 6.10.1.4 says that remaining identifiers should be
-	// replaced with pp-number 0.
+        // N1570 6.10.1.4 says that remaining identifiers should be
+        // replaced with pp-number 0.
         else if (tok->kind == TIDENT)
             vec_push(r, cpp_token_zero);
         else
