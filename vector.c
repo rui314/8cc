@@ -81,6 +81,11 @@ void *vec_get(Vector *vec, int index) {
     return vec->body[index];
 }
 
+void vec_set(Vector *vec, int index, void *val) {
+    assert(0 <= index && index < vec->len);
+    vec->body[index] = val;
+}
+
 void *vec_head(Vector *vec) {
     assert(vec->len > 0);
     return vec->body[0];

@@ -401,6 +401,9 @@ static void funclike(void) {
 
 #define m16(x) (x,x)
     expect_string("(a,a)", identity(m16(a)));
+
+#define m17(x) stringify(.x . x)
+    expect_string(".3 . 3", m17(3));
 }
 
 static void empty(void) {

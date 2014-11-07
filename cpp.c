@@ -137,11 +137,12 @@ static bool next(int id) {
     return false;
 }
 
-static void set_vec_space(Vector *tokens, Token *tmpl) {
+static void propagate_space(Vector *tokens, Token *tmpl) {
     if (vec_len(tokens) == 0)
         return;
-    Token *tok = vec_head(tokens);
+    Token *tok = copy_token(vec_head(tokens));
     tok->space = tmpl->space;
+    vec_set(tokens, 0, tok);
 }
 
 /*
@@ -321,7 +322,7 @@ static Vector *expand_all(Vector *tokens, Token *tmpl) {
     Token *tok;
     while ((tok = read_expand()) != NULL)
         vec_push(r, tok);
-    set_vec_space(r, tmpl);
+    propagate_space(r, tmpl);
     set_input_buffer(orig);
     return r;
 }
@@ -405,7 +406,7 @@ static Token *read_expand(void) {
     case MACRO_OBJ: {
         Map *hideset = map_append(tok->hideset, name);
         Vector *tokens = subst(macro, NULL, hideset);
-        set_vec_space(tokens, tok);
+        propagate_space(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
@@ -418,7 +419,7 @@ static Token *read_expand(void) {
             error("internal error: %s", t2s(rparen));
         Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
         Vector *tokens = subst(macro, args, hideset);
-        set_vec_space(tokens, tok);
+        propagate_space(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
