@@ -7,8 +7,6 @@
 #include <string.h>
 #include "8cc.h"
 
-static bool at_bol = true;
-
 typedef struct {
     char *displayname;
     char *realname;
@@ -17,6 +15,7 @@ typedef struct {
     FILE *fp;
 } File;
 
+static bool at_bol = true;
 static Vector *buffer = &EMPTY_VECTOR;
 static Vector *altbuffer = NULL;
 static Vector *file_stack = &EMPTY_VECTOR;
@@ -24,7 +23,7 @@ static File *file;
 static int line_mark = -1;
 static int column_mark = -1;
 static int ungotten = -1;
-
+static Token *space_token = &(Token){ .kind = TSPACE, .space = false };
 static Token *newline_token = &(Token){ .kind = TNEWLINE, .space = false };
 
 static void skip_block_comment(void);
@@ -83,10 +82,6 @@ static Token *make_number(char *s) {
 
 static Token *make_char(char c) {
     return make_token(&(Token){ TCHAR, .space = false, .c = c });
-}
-
-static Token *make_space() {
-    return make_token(&(Token){ TSPACE });
 }
 
 void push_input_file(char *displayname, char *realname, FILE *fp) {
@@ -461,7 +456,7 @@ static Token *do_read_token(void) {
     switch (c) {
     case ' ': case '\t': case '\v': case '\f':
         skip_space();
-        return make_space();
+        return space_token;
     case '\n': case '\r':
         skip_newline(c);
         return newline_token;
@@ -476,11 +471,11 @@ static Token *do_read_token(void) {
     case '/':
         if (next('/')) {
             skip_line();
-            return make_space();
+            return space_token;
         }
         if (next('*')) {
             skip_block_comment();
-            return make_space();
+            return space_token;
         }
         return make_keyword(next('=') ? OP_A_DIV : '/');
     case '.':
