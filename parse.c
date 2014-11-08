@@ -502,6 +502,12 @@ static bool same_arith_type(Type *t, Type *u) {
     return t->kind == u->kind && t->usig == u->usig;
 }
 
+static Node *wrap(Type *t, Node *node) {
+    if (same_arith_type(t, node->ty))
+        return node;
+    return ast_uop(AST_CONV, t, node);
+}
+
 // C11 6.3.1.8: Usual arithmetic conversions
 static Type *usual_arith_conv(Type *t, Type *u) {
     assert(is_arithtype(t));
@@ -534,11 +540,7 @@ static Node *binop(int op, Node *lhs, Node *rhs) {
     assert(is_arithtype(lhs->ty));
     assert(is_arithtype(rhs->ty));
     Type *r = usual_arith_conv(lhs->ty, rhs->ty);
-    if (!same_arith_type(lhs->ty, r))
-        lhs = ast_uop(AST_CONV, r, lhs);
-    if (!same_arith_type(rhs->ty, r))
-        rhs = ast_uop(AST_CONV, r, rhs);
-    return ast_binop(r, op, lhs, rhs);
+    return ast_binop(r, op, wrap(r, lhs), wrap(r, rhs));
 }
 
 static bool is_same_struct(Type *a, Type *b) {
@@ -1232,11 +1234,7 @@ static Node *do_read_conditional_expr(Node *cond) {
     // type is the result of the usual arithmetic conversions.
     if (is_arithtype(t) && is_arithtype(u)) {
         Type *r = usual_arith_conv(t, u);
-        if (!same_arith_type(t, r))
-            then = ast_uop(AST_CONV, r, then);
-        if (!same_arith_type(u, t))
-            els = ast_uop(AST_CONV, r, els);
-        return ast_ternary(r, cond, then, els);
+        return ast_ternary(r, cond, (then ? wrap(r, then) : NULL), wrap(r, els));
     }
     return ast_ternary(u, cond, then, els);
 }
