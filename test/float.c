@@ -3,6 +3,7 @@
 
 #include <float.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include "test.h"
 
 float tf1(float a)  { return a; }
@@ -31,6 +32,8 @@ char *fmtint(int x) { return fmt("%d", x); }
 char *fmtdbl(double x) { return fmt("%a", x); }
 
 void std() {
+    expect_string("21", fmtint(DECIMAL_DIG));
+    expect_string("0", fmtint(FLT_EVAL_METHOD));
     expect_string("2", fmtint(FLT_RADIX));
     expect_string("1", fmtint(FLT_ROUNDS));
 
@@ -43,6 +46,8 @@ void std() {
     expect_string("0x1p-126", fmtdbl(FLT_MIN));
     expect_string("-37", fmtint(FLT_MIN_10_EXP));
     expect_string("-125", fmtint(FLT_MIN_EXP));
+    expectd(*(float *)&(uint32_t){1}, FLT_TRUE_MIN);
+    expect_string("0x1p-149", fmtdbl(FLT_TRUE_MIN));
 
     expect_string("15", fmtint(DBL_DIG));
     expect_string("0x1p-52", fmtdbl(DBL_EPSILON));
@@ -53,6 +58,8 @@ void std() {
     expect_string("0x1p-1022", fmtdbl(DBL_MIN));
     expect_string("-307", fmtint(DBL_MIN_10_EXP));
     expect_string("-1021", fmtint(DBL_MIN_EXP));
+    expectd(*(double *)&(uint64_t){1}, DBL_TRUE_MIN);
+    expect_string("0x0.0000000000001p-1022", fmtdbl(DBL_TRUE_MIN));
 
 #ifdef __8cc__
     expect_string("15", fmtint(LDBL_DIG));
@@ -64,6 +71,8 @@ void std() {
     expect_string("0x1p-1022", fmtdbl(LDBL_MIN));
     expect_string("-307", fmtint(LDBL_MIN_10_EXP));
     expect_string("-1021", fmtint(LDBL_MIN_EXP));
+    expectd(*(double *)&(uint64_t){1}, LDBL_TRUE_MIN);
+    expect_string("0x0.0000000000001p-1022", fmtdbl(LDBL_TRUE_MIN));
 #endif
 }
 
