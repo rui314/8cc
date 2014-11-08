@@ -532,9 +532,7 @@ static void emit_binop(Node *node) {
     }
     switch (node->kind) {
     case '<': emit_comp("setl", "setb", node); return;
-    case '>': emit_comp("setg", "seta", node); return;
     case OP_EQ: emit_comp("sete", "sete", node); return;
-    case OP_GE: emit_comp("setge", "setae", node); return;
     case OP_LE: emit_comp("setle", "setna", node); return;
     case OP_NE: emit_comp("setne", "setne", node); return;
     }

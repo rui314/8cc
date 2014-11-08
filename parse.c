@@ -623,13 +623,11 @@ int eval_intexpr(Node *node) {
     case '*': return L * R;
     case '/': return L / R;
     case '<': return L < R;
-    case '>': return L > R;
     case '^': return L ^ R;
     case '&': return L & R;
     case '|': return L | R;
     case '%': return L % R;
     case OP_EQ: return L == R;
-    case OP_GE: return L >= R;
     case OP_LE: return L <= R;
     case OP_NE: return L != R;
     case OP_SAL: return L << R;
@@ -1195,9 +1193,9 @@ static Node *read_relational_expr(void) {
     Node *node = read_shift_expr();
     for (;;) {
         if      (next_token('<'))   node = binop('<',   conv(node), conv(read_shift_expr()));
-        else if (next_token('>'))   node = binop('>',   conv(node), conv(read_shift_expr()));
+        else if (next_token('>'))   node = binop('<',   conv(read_shift_expr()), conv(node));
         else if (next_token(OP_LE)) node = binop(OP_LE, conv(node), conv(read_shift_expr()));
-        else if (next_token(OP_GE)) node = binop(OP_GE, conv(node), conv(read_shift_expr()));
+        else if (next_token(OP_GE)) node = binop(OP_LE, conv(read_shift_expr()), conv(node));
         else break;
         node->ty = type_int;
     }
