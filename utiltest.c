@@ -5,6 +5,8 @@
 #include <inttypes.h>
 #include "8cc.h"
 
+char *get_base_file(void) { return NULL; }
+
 #define assert_true(expr) assert_true2(__LINE__, #expr, (expr))
 #define assert_null(...) assert_null2(__LINE__, __VA_ARGS__)
 #define assert_string(...) assert_string2(__LINE__, __VA_ARGS__)

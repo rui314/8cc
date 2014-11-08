@@ -837,6 +837,10 @@ static void handle_pragma_macro(Token *tmpl) {
     make_token_pushback(tmpl, TNUMBER, "1");
 }
 
+static void handle_base_file_macro(Token *tmpl) {
+    make_token_pushback(tmpl, TSTRING, get_base_file());
+}
+
 static void handle_counter_macro(Token *tmpl) {
     static int counter = 0;
     make_token_pushback(tmpl, TNUMBER, format("%d", counter++));
@@ -876,11 +880,13 @@ static void init_predefined_macros(void) {
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);
-    define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
     define_special_macro("__FILE__", handle_file_macro);
     define_special_macro("__LINE__", handle_line_macro);
     define_special_macro("_Pragma",  handle_pragma_macro);
+    // [GNU] Non-standard macros
+    define_special_macro("__BASE_FILE__", handle_base_file_macro);
     define_special_macro("__COUNTER__", handle_counter_macro);
+    define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
 
     char *predefined[] = {
         "__8cc__", "__amd64", "__amd64__", "__x86_64", "__x86_64__",

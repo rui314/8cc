@@ -262,6 +262,7 @@ extern Type *type_double;
 
 extern void cpp_init(void);
 extern void lex_init(char *filename);
+extern char *get_base_file(void);
 extern char *read_error_directive(void);
 extern void unget_token(Token *tok);
 extern Token *lex(void);

@@ -179,6 +179,10 @@ static void parseopt(int argc, char **argv) {
     inputfile = argv[optind];
 }
 
+char *get_base_file(void) {
+    return inputfile;
+}
+
 static void preprocess(void) {
     for (;;) {
         Token *tok = read_token();
