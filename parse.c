@@ -657,10 +657,10 @@ static int read_intexpr() {
     ({                                                       \
         errno = 0;                                           \
         char *endptr;                                        \
-        long r = f(nptr, &endptr, base);                     \
+        long r = f((nptr), &endptr, (base));                 \
         if (errno)                                           \
             error("invalid constant: %s", strerror(errno));  \
-        if (endptr != end)                                   \
+        if (endptr != (end))                                 \
             error("invalid digit '%c'", *endptr);            \
         r;                                                   \
     })
@@ -716,22 +716,27 @@ static Node *read_int(char *s) {
     return ast_inttype(t, val);
 }
 
+
+#define strtofloat(f, nptr, end)                                \
+    ({                                                          \
+        errno = 0;                                              \
+        char *endptr;                                           \
+        double r = f((nptr), &endptr);                          \
+        if (errno)                                              \
+            error("invalid constant: %s", strerror(errno));     \
+        if (endptr != (end))                                    \
+            error("invalid digit '%c' in %s", *endptr, nptr);   \
+        r;                                                      \
+    })
+
 static Node *read_float(char *s) {
-    char *p = s;
-    char *endptr;
-    while (p[1]) p++;
-    Node *r;
-    if (*p == 'l' || *p == 'L') {
-        r = ast_floattype(type_ldouble, strtof(s, &endptr));
-    } else if (*p == 'f' || *p == 'F') {
-        r = ast_floattype(type_float, strtof(s, &endptr));
-    } else {
-        r = ast_floattype(type_double, strtod(s, &endptr));
-        p++;
-    }
-    if (endptr != p)
-        error("malformed floating constant: %s", s);
-    return r;
+    char *last = s + strlen(s) - 1;
+    // C11 6.4.4.2p4: the default type for flonum is double.
+    if (strchr("lL", *last))
+        return ast_floattype(type_ldouble, strtofloat(strtof, s, last));
+    if (strchr("fF", *last))
+        return ast_floattype(type_float, strtofloat(strtof, s, last));
+    return ast_floattype(type_double, strtofloat(strtod, s, last + 1));
 }
 
 static Node *read_number(char *s) {
