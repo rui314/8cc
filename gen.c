@@ -421,7 +421,7 @@ static void emit_to_bool(Type *ty) {
     emit("movzb #al, #eax");
 }
 
-static void emit_comp(char *inst, Node *node) {
+static void emit_comp(char *inst, char *usiginst, Node *node) {
     SAVE;
     if (is_flotype(node->left->ty)) {
         emit_expr(node->left);
@@ -443,7 +443,7 @@ static void emit_comp(char *inst, Node *node) {
         else
           emit("cmp #eax, #ecx");
     }
-    emit("%s #al", inst);
+    emit("%s #al", node->left->ty->usig ? usiginst : inst);
     emit("movzb #al, #eax");
 }
 
@@ -531,12 +531,12 @@ static void emit_binop(Node *node) {
         return;
     }
     switch (node->kind) {
-    case '<': emit_comp("setl", node); return;
-    case '>': emit_comp("setg", node); return;
-    case OP_EQ: emit_comp("sete", node); return;
-    case OP_GE: emit_comp("setge", node); return;
-    case OP_LE: emit_comp("setle", node); return;
-    case OP_NE: emit_comp("setne", node); return;
+    case '<': emit_comp("setl", "setb", node); return;
+    case '>': emit_comp("setg", "seta", node); return;
+    case OP_EQ: emit_comp("sete", "sete", node); return;
+    case OP_GE: emit_comp("setge", "setae", node); return;
+    case OP_LE: emit_comp("setle", "setna", node); return;
+    case OP_NE: emit_comp("setne", "setne", node); return;
     }
     if (is_inttype(node->ty))
         emit_binop_int_arith(node);

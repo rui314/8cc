@@ -26,6 +26,24 @@ static void test_basic(void) {
 static void test_relative(void) {
     expect(1, 1 > 0);
     expect(1, 0 < 1);
+    expect(0, 1 < 0);
+    expect(0, 0 > 1);
+    expect(0, 1 > 1);
+    expect(0, 1 < 1);
+    expect(1, 1 >= 0);
+    expect(1, 0 <= 1);
+    expect(0, 1 <= 0);
+    expect(0, 0 >= 1);
+    expect(1, 1 >= 1);
+    expect(1, 1 <= 1);
+    expect(1, 0xFFFFFFFFU > 1);
+    expect(1, 1 < 0xFFFFFFFFU);
+    expect(1, 0xFFFFFFFFU >= 1);
+    expect(1, 1 <= 0xFFFFFFFFU);
+    expect(1, -1 > 1U);
+    expect(1, -1 >= 1U);
+    expect(0, -1L > 1U);
+    expect(0, -1L >= 1U);
 }
 
 static void test_inc_dec(void) {
