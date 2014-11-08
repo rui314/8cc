@@ -60,9 +60,25 @@ static void test_arith(void) {
     expect(I, T(0 << 0LL));
     expect(UL, T(0UL << 0));
     expect(LL, T(0LL << 0));
-
     expect(LL, T(0 ? 0LL : 0L));
     expect(LL, T(0 ? 0L : 0LL));
+
+    expect(L,  T(4000000000));
+    expect(L,  T(1000000000000000000));
+    expect(I,  T(0x7FFFFFFF));
+    expect(U,  T(0x80000000));
+    expect(U,  T(0xFFFFFFFF));
+    expect(L,  T(0x100000000));
+    expect(L,  T(0x7FFFFFFFFFFFFFFF));
+    expect(UL, T(0x8000000000000000));
+    expect(UL, T(0xFFFFFFFFFFFFFFFF));
+    expect(I,  T(017777777777));
+    expect(U,  T(020000000000));
+    expect(U,  T(037777777777));
+    expect(L,  T(040000000000));
+    expect(L,  T(0777777777777777777777));
+    expect(UL,  T(01000000000000000000000));
+    expect(UL,  T(01777777777777777777777));
 #undef T
 }
 

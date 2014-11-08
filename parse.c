@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -650,6 +651,18 @@ static int read_intexpr() {
  * Numeric literal
  */
 
+#define strtoint(f, nptr, end, base)                         \
+    ({                                                       \
+        errno = 0;                                           \
+        char *endptr;                                        \
+        long r = f(nptr, &endptr, base);                     \
+        if (errno)                                           \
+            error("invalid constant: %s", strerror(errno));  \
+        if (endptr != end)                                   \
+            error("invalid digit '%c'", *endptr);            \
+        r;                                                   \
+    })
+
 static Node *read_int(char *s) {
     char *p = s;
     int base = 10;
@@ -674,21 +687,31 @@ static Node *read_int(char *s) {
         p++;
     }
     if (!strcasecmp(p, "u"))
-        return ast_inttype(type_uint, strtol(s, NULL, base));
+        return ast_inttype(type_uint, strtoint(strtol, s, p, base));
     if (!strcasecmp(p, "l"))
-        return ast_inttype(type_long, strtol(s, NULL, base));
+        return ast_inttype(type_long, strtoint(strtol, s, p, base));
     if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
-        return ast_inttype(type_ulong, strtoul(s, NULL, base));
+        return ast_inttype(type_ulong, strtoint(strtoul, s, p, base));
     if (!strcasecmp(p, "ll"))
-        return ast_inttype(type_llong, strtoll(s, NULL, base));
+        return ast_inttype(type_llong, strtoint(strtol, s, p, base));
     if (!strcasecmp(p, "ull") || !strcasecmp(p, "llu"))
-        return ast_inttype(type_ullong, strtoull(s, NULL, base));
+        return ast_inttype(type_ullong, strtoint(strtoul, s, p, base));
     if (*p != '\0')
         error("invalid suffix '%c': %s", *p, s);
-    long val = strtol(digits, NULL, base);
-    return (val & ~(long)UINT_MAX)
-        ? ast_inttype(type_long, val)
-        : ast_inttype(type_int, val);
+    // C11 6.4.4.1p5: decimal constant type is int, long, or long long.
+    // In 8cc, long and long long are the same size.
+    if (base == 10) {
+        long val = strtoint(strtol, digits, p, base);
+        Type *t = !(val & ~(long)INT_MAX) ? type_int : type_long;
+        return ast_inttype(t, val);
+    }
+    // Octal or hexadecimal constant type may be unsigned.
+    unsigned long val = strtoint(strtoull, digits, p, base);
+    Type *t = !(val & ~(unsigned long)INT_MAX) ? type_int
+        : !(val & ~(unsigned long)UINT_MAX) ? type_uint
+        : !(val & ~(unsigned long)LONG_MAX) ? type_long
+        : type_ulong;
+    return ast_inttype(t, val);
 }
 
 static Node *read_float(char *s) {
