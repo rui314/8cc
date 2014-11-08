@@ -37,6 +37,7 @@ static void test_arith(void) {
     expect(F, T(0.0F));
     expect(D, T(0.0));
     expect(LD, T(0.0L));
+
     expect(I, T((bool)0 + (bool)0));
     expect(I, T((char)0 + (char)0));
     expect(I, T((char)0 + (uchar)0));
@@ -54,6 +55,11 @@ static void test_arith(void) {
     expect(ULL, T(0ULL + 0U));
     expect(D, T(0 + 0.0));
     expect(LD, T(0.0L + 0));
+
+    expect(I, T(0 << 0L));
+    expect(I, T(0 << 0LL));
+    expect(UL, T(0UL << 0));
+    expect(LL, T(0LL << 0));
 #undef T
 }
 
