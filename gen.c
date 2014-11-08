@@ -2,6 +2,7 @@
 // This program is free software licensed under the MIT license.
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -554,22 +555,19 @@ static void emit_save_literal(Node *node, Type *totype, int off) {
     case KIND_LONG:
     case KIND_LLONG:
     case KIND_PTR: {
-        unsigned long ival = node->ival;
-        emit("movl $%lu, %d(#rbp)", ival & ((1L << 32) - 1), off);
-        emit("movl $%lu, %d(#rbp)", ival >> 32, off + 4);
+        emit("movl $%lu, %d(#rbp)", ((uint64_t)node->ival) & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(#rbp)", ((uint64_t)node->ival) >> 32, off + 4);
         break;
     }
     case KIND_FLOAT: {
         float fval = node->fval;
-        int *p = (int *)&fval;
-        emit("movl $%u, %d(#rbp)", *p, off);
+        emit("movl $%u, %d(#rbp)", *(uint32_t *)&fval, off);
         break;
     }
     case KIND_DOUBLE:
     case KIND_LDOUBLE: {
-        unsigned long *p = (unsigned long *)&node->fval;
-        emit("movl $%lu, %d(#rbp)", *p & ((1L << 32) - 1), off);
-        emit("movl $%lu, %d(#rbp)", *p >> 32, off + 4);
+        emit("movl $%lu, %d(#rbp)", *(uint64_t *)&node->fval & ((1L << 32) - 1), off);
+        emit("movl $%lu, %d(#rbp)", *(uint64_t *)&node->fval >> 32, off + 4);
         break;
     }
     default:
@@ -705,10 +703,9 @@ static void emit_literal(Node *node) {
         if (!node->flabel) {
             node->flabel = make_label();
             float fval = node->fval;
-            int *p = (int *)&fval;
             emit_noindent(".data");
             emit_label(node->flabel);
-            emit(".long %d", *p);
+            emit(".long %d", *(uint32_t *)&fval);
             emit_noindent(".text");
         }
         emit("movss %s(#rip), #xmm0", node->flabel);
@@ -718,10 +715,9 @@ static void emit_literal(Node *node) {
     case KIND_LDOUBLE: {
         if (!node->flabel) {
             node->flabel = make_label();
-            unsigned long *fval = (unsigned long *)&node->fval;
             emit_noindent(".data");
             emit_label(node->flabel);
-            emit(".quad %lu", *fval);
+            emit(".quad %lu", *(uint64_t *)&node->fval);
             emit_noindent(".text");
         }
         emit("movsd %s(#rip), #xmm0", node->flabel);
@@ -1406,13 +1402,12 @@ static void emit_data_charptr(char *s, int depth) {
 static void emit_data_primtype(Type *ty, Node *val, int depth) {
     switch (ty->kind) {
     case KIND_FLOAT: {
-        union { float f; int i; } v = { val->fval };
-        emit(".long %d", v.i);
+        float f = val->fval;
+        emit(".long %d", *(uint32_t *)&f);
         break;
     }
     case KIND_DOUBLE: {
-        union { double f; long i; } v = { val->fval };
-        emit(".quad %ld", v.i);
+        emit(".quad %ld", *(uint64_t *)&val->fval);
         break;
     }
     case KIND_BOOL:
