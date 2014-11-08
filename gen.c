@@ -689,10 +689,10 @@ static void emit_literal(Node *node) {
     switch (node->ty->kind) {
     case KIND_BOOL:
     case KIND_CHAR:
-        emit("mov $%d, #rax", node->ival);
+        emit("mov $%u, #rax", node->ival);
         break;
     case KIND_INT:
-        emit("mov $%d, #rax", node->ival);
+        emit("mov $%u, #rax", node->ival);
         break;
     case KIND_LONG:
     case KIND_LLONG: {
@@ -956,7 +956,7 @@ static void emit_func_call(Node *node) {
 
     if (isptr) pop("r11");
     if (ftype->hasva)
-        emit("mov $%d, #eax", vec_len(floats));
+        emit("mov $%u, #eax", vec_len(floats));
 
     if (isptr)
         emit("call *#r11");
@@ -1431,7 +1431,7 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
 	} else if (val->kind == AST_GVAR) {
             emit(".quad %s", val->glabel);
 	} else {
-            emit(".quad %d", eval_intexpr(val));
+            emit(".quad %u", eval_intexpr(val));
 	}
         break;
     }
