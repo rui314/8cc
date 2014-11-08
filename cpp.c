@@ -37,6 +37,7 @@ typedef struct {
     SpecialMacroHandler *fn;
 } Macro;
 
+static void map_copy(Map *dst, Map *src);
 static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
@@ -103,6 +104,8 @@ static Token *make_macro_token(int position, bool is_vararg) {
 static Token *copy_token(Token *tok) {
     Token *r = malloc(sizeof(Token));
     *r = *tok;
+    r->hideset = make_map();
+    map_copy(r->hideset, tok->hideset);
     return r;
 }
 
