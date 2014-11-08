@@ -49,13 +49,15 @@ Type *type_char = &(Type){ KIND_CHAR, 1, 1, false };
 Type *type_short = &(Type){ KIND_SHORT, 2, 2, false };
 Type *type_int = &(Type){ KIND_INT, 4, 4, false };
 Type *type_long = &(Type){ KIND_LONG, 8, 8, false };
+Type *type_llong = &(Type){ KIND_LLONG, 8, 8, false };
+Type *type_uchar = &(Type){ KIND_CHAR, 1, 1, true };
+Type *type_ushort = &(Type){ KIND_SHORT, 2, 2, true };
+Type *type_uint = &(Type){ KIND_INT, 4, 4, true };
+Type *type_ulong = &(Type){ KIND_LONG, 8, 8, true };
+Type *type_ullong = &(Type){ KIND_LLONG, 8, 8, true };
 Type *type_float = &(Type){ KIND_FLOAT, 4, 4, false };
 Type *type_double = &(Type){ KIND_DOUBLE, 8, 8, false };
 Type *type_ldouble = &(Type){ KIND_LDOUBLE, 8, 8, false };
-static Type *type_uint = &(Type){ KIND_INT, 4, 4, true };
-static Type *type_ulong = &(Type){ KIND_LONG, 8, 8, true };
-static Type *type_llong = &(Type){ KIND_LLONG, 8, 8, false };
-static Type *type_ullong = &(Type){ KIND_LLONG, 8, 8, true };
 
 static Type* make_ptr_type(Type *ty);
 static Type* make_array_type(Type *ty, int size);
@@ -468,9 +470,9 @@ static bool next_token(int kind) {
 }
 
 void *make_pair(void *first, void *second) {
-    Pair *r = malloc(sizeof(Pair));
-    r->first = first;
-    r->second = second;
+    void **r = malloc(sizeof(void *) * 2);
+    r[0] = first;
+    r[1] = second;
     return r;
 }
 
@@ -887,9 +889,9 @@ static Node *read_generic(void) {
     Node *defaultexpr = NULL;
     Vector *list = read_generic_list(&defaultexpr);
     for (int i = 0; i < vec_len(list); i++) {
-        Pair *pair = vec_get(list, i);
-        Type *ty = pair->first;
-        Node *expr = pair->second;
+        void **pair = vec_get(list, i);
+        Type *ty = pair[0];
+        Node *expr = pair[1];
         if (type_compatible(contexpr->ty, ty))
             return expr;
     }
@@ -1399,9 +1401,9 @@ static Vector *read_rectype_fields_sub(int *align) {
 
 static void fix_rectype_flexible_member(Vector *fields) {
     for (int i = 0; i < vec_len(fields); i++) {
-        Pair *pair = vec_get(fields, i);
-        char *name = pair->first;
-        Type *ty = pair->second;
+        void **pair = vec_get(fields, i);
+        char *name = pair[0];
+        Type *ty = pair[1];
         if (ty->kind != KIND_ARRAY)
             continue;
         if (ty->len == -1) {
@@ -1424,9 +1426,9 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
     int off = 0, bitoff = -1;
     Dict *r = make_dict();
     for (int i = 0; i < vec_len(fields); i++) {
-        Pair *pair = vec_get(fields, i);
-        char *name = pair->first;
-        Type *fieldtype = pair->second;
+        void **pair = vec_get(fields, i);
+        char *name = pair[0];
+        Type *fieldtype = pair[1];
         *align = MAX(*align, fieldtype->align);
         if (name == NULL && fieldtype->kind == KIND_STRUCT) {
             finish_bitfield(&off, &bitoff);
@@ -1471,9 +1473,9 @@ static Dict *update_union_offset(Vector *fields, int *align, int *rsize) {
     int maxsize = 0;
     Dict *r = make_dict();
     for (int i = 0; i < vec_len(fields); i++) {
-        Pair *pair = vec_get(fields, i);
-        char *name = pair->first;
-        Type *fieldtype = pair->second;
+        void **pair = vec_get(fields, i);
+        char *name = pair[0];
+        Type *fieldtype = pair[1];
         maxsize = MAX(maxsize, fieldtype->size);
         *align = MAX(*align, fieldtype->align);
         if (name == NULL && fieldtype->kind == KIND_STRUCT) {

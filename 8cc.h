@@ -245,20 +245,21 @@ typedef struct Node {
     };
 } Node;
 
-// Parse
-typedef struct {
-    void *first;
-    void *second;
-} Pair;
-
-extern void *make_pair(void *first, void *second);
-
+extern Type *type_void;
+extern Type *type_bool;
 extern Type *type_char;
 extern Type *type_short;
 extern Type *type_int;
 extern Type *type_long;
+extern Type *type_llong;
+extern Type *type_uchar;
+extern Type *type_ushort;
+extern Type *type_uint;
+extern Type *type_ulong;
+extern Type *type_ullong;
 extern Type *type_float;
 extern Type *type_double;
+extern Type *type_ldouble;
 
 extern void cpp_init(void);
 extern void lex_init(char *filename);
