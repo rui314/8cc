@@ -4,7 +4,7 @@
 #include "8cc.h"
 
 static char *decorate_int(char *name, Type *ty) {
-    char *u = (ty->sig) ? "" : "u";
+    char *u = (ty->usig) ? "u" : "";
     if (ty->bitsize > 0)
         return format("%s%s:%d:%d", u, name, ty->bitoff, ty->bitoff + ty->bitsize);
     return format("%s%s", u, name);

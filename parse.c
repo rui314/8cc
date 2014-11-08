@@ -42,19 +42,19 @@ static Type *current_func_type;
 // Objects representing basic types. All variables will be of one of these types
 // or a derived type from one of them. Note that (typename){initializer} is C99
 // feature to write a literal struct.
-Type *type_void = &(Type){ KIND_VOID, 0, 0, true };
-Type *type_bool = &(Type){ KIND_BOOL, 1, 1, false };
-Type *type_char = &(Type){ KIND_CHAR, 1, 1, true };
-Type *type_short = &(Type){ KIND_SHORT, 2, 2, true };
-Type *type_int = &(Type){ KIND_INT, 4, 4, true };
-Type *type_long = &(Type){ KIND_LONG, 8, 8, true };
-Type *type_float = &(Type){ KIND_FLOAT, 4, 4, true };
-Type *type_double = &(Type){ KIND_DOUBLE, 8, 8, true };
-Type *type_ldouble = &(Type){ KIND_LDOUBLE, 8, 8, true };
-static Type *type_uint = &(Type){ KIND_INT, 4, 4, false };
-static Type *type_ulong = &(Type){ KIND_LONG, 8, 8, false };
-static Type *type_llong = &(Type){ KIND_LLONG, 8, 8, true };
-static Type *type_ullong = &(Type){ KIND_LLONG, 8, 8, false };
+Type *type_void = &(Type){ KIND_VOID, 0, 0, false };
+Type *type_bool = &(Type){ KIND_BOOL, 1, 1, true };
+Type *type_char = &(Type){ KIND_CHAR, 1, 1, false };
+Type *type_short = &(Type){ KIND_SHORT, 2, 2, false };
+Type *type_int = &(Type){ KIND_INT, 4, 4, false };
+Type *type_long = &(Type){ KIND_LONG, 8, 8, false };
+Type *type_float = &(Type){ KIND_FLOAT, 4, 4, false };
+Type *type_double = &(Type){ KIND_DOUBLE, 8, 8, false };
+Type *type_ldouble = &(Type){ KIND_LDOUBLE, 8, 8, false };
+static Type *type_uint = &(Type){ KIND_INT, 4, 4, true };
+static Type *type_ulong = &(Type){ KIND_LONG, 8, 8, true };
+static Type *type_llong = &(Type){ KIND_LLONG, 8, 8, false };
+static Type *type_ullong = &(Type){ KIND_LLONG, 8, 8, true };
 
 static Type* make_ptr_type(Type *ty);
 static Type* make_array_type(Type *ty, int size);
@@ -318,10 +318,10 @@ static Type *copy_type(Type *ty) {
     return r;
 }
 
-static Type *make_numtype(int kind, bool sig) {
+static Type *make_numtype(int kind, bool usig) {
     Type *r = malloc(sizeof(Type));
     r->kind = kind;
-    r->sig = sig;
+    r->usig = usig;
     if (kind == KIND_VOID)         r->size = r->align = 0;
     else if (kind == KIND_BOOL)    r->size = r->align = 1;
     else if (kind == KIND_CHAR)    r->size = r->align = 1;
@@ -499,7 +499,7 @@ static Node *conv(Node *node) {
 }
 
 static bool same_arith_type(Type *t, Type *u) {
-    return t->kind == u->kind && t->sig == u->sig;
+    return t->kind == u->kind && t->usig == u->usig;
 }
 
 // C11 6.3.1.8: Usual arithmetic conversions
@@ -519,10 +519,10 @@ static Type *usual_arith_conv(Type *t, Type *u) {
     if (t->size > u->size)
         return t;
     assert(t->size == u->size);
-    if (t->sig == u->sig)
+    if (t->usig == u->usig)
         return t;
     Type *r = copy_type(t);
-    r->sig = false;
+    r->usig = true;
     return r;
 }
 
@@ -1147,7 +1147,7 @@ static Node *read_shift_expr(void) {
         if (next_token(OP_SAL))
             op = OP_SAL;
         else if (next_token(OP_SAR))
-            op = node->ty->sig ? OP_SAR : OP_SHR;
+            op = node->ty->usig ? OP_SHR : OP_SAR;
         else
             break;
         Node *right = read_additive_expr();
@@ -1996,16 +1996,16 @@ static Type *read_decl_spec(int *rsclass) {
     switch (kind) {
     case kvoid:   return type_void;
     case kbool:   return make_numtype(KIND_BOOL, false);
-    case kchar:   return make_numtype(KIND_CHAR, sig != kunsigned);
-    case kfloat:  return make_numtype(KIND_FLOAT, true);
-    case kdouble: return make_numtype(size == klong ? KIND_LDOUBLE : KIND_DOUBLE, true);
+    case kchar:   return make_numtype(KIND_CHAR, sig == kunsigned);
+    case kfloat:  return make_numtype(KIND_FLOAT, false);
+    case kdouble: return make_numtype(size == klong ? KIND_LDOUBLE : KIND_DOUBLE, false);
     default: break;
     }
     switch (size) {
-    case kshort: return make_numtype(KIND_SHORT, sig != kunsigned);
-    case klong:  return make_numtype(KIND_LONG, sig != kunsigned);
-    case kllong: return make_numtype(KIND_LLONG, sig != kunsigned);
-    default:     return make_numtype(KIND_INT, sig != kunsigned);
+    case kshort: return make_numtype(KIND_SHORT, sig == kunsigned);
+    case klong:  return make_numtype(KIND_LONG, sig == kunsigned);
+    case kllong: return make_numtype(KIND_LLONG, sig == kunsigned);
+    default:     return make_numtype(KIND_INT, sig == kunsigned);
     }
     error("internal error: kind: %d, size: %d", kind, size);
  err:

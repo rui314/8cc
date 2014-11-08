@@ -466,12 +466,12 @@ static void emit_binop_int_arith(Node *node) {
     emit("mov #rax, #rcx");
     pop("rax");
     if (node->kind == '/' || node->kind == '%') {
-        if (node->ty->sig) {
-          emit("cqto");
-          emit("idiv #rcx");
-        } else {
+        if (node->ty->usig) {
           emit("xor #edx, #edx");
           emit("div #rcx");
+        } else {
+          emit("cqto");
+          emit("idiv #rcx");
         }
         if (node->kind == '%')
             emit("mov #edx, #eax");

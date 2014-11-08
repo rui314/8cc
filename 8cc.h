@@ -116,8 +116,7 @@ typedef struct Type {
     int kind;
     int size;
     int align;
-    // true if signed
-    bool sig;
+    bool usig; // true if unsigned
     bool isstatic;
     // pointer or array
     struct Type *ptr;
