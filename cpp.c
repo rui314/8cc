@@ -6,14 +6,6 @@
  * in this document: https://github.com/rui314/8cc/wiki/cpp.algo.pdf
  */
 
-// For fmemopen()
-#ifndef linux
-#include "compat/fmemopen.c"
-#else
-#define _GNU_SOURCE
-#define _POSIX_C_SOURCE 200809L
-#endif
-
 #include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
@@ -56,7 +48,11 @@ static Token *read_expand(void);
  */
 
 void cpp_eval(char *buf) {
-    FILE *fp = fmemopen(buf, strlen(buf), "r");
+    // fmemopen() is not widely available because it's relatively new
+    // (defined since POSIX.1-2008). Do real file I/O to read from the string.
+    FILE *fp = tmpfile();
+    fwrite(buf, 1, strlen(buf), fp);
+    fseek(fp, 0, SEEK_SET);
     set_input_file("(eval)", NULL, fp);
     Vector *toplevels = read_toplevels();
     for (int i = 0; i < vec_len(toplevels); i++)
