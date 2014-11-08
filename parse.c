@@ -527,11 +527,12 @@ static Type *usual_arith_conv(Type *t, Type *u) {
 }
 
 static Node *binop(int op, Node *lhs, Node *rhs) {
-    if (!is_arithtype(lhs->ty) || !is_arithtype(rhs->ty)) {
-        Type *t = (lhs->ty->kind == KIND_ARRAY)
-            ? make_ptr_type(lhs->ty->ptr) : lhs->ty;
-        return ast_binop(t, op, lhs, rhs);
-    }
+    if (lhs->ty->kind == KIND_PTR)
+        return ast_binop(lhs->ty, op, lhs, rhs);
+    if (rhs->ty->kind == KIND_PTR)
+        return ast_binop(rhs->ty, op, rhs, lhs);
+    assert(is_arithtype(lhs->ty));
+    assert(is_arithtype(rhs->ty));
     Type *r = usual_arith_conv(lhs->ty, rhs->ty);
     if (!same_arith_type(lhs->ty, r))
         lhs = ast_uop(AST_CONV, r, lhs);
