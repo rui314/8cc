@@ -11,6 +11,7 @@ static void special(void) {
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));
     expect(24, strlen(__TIMESTAMP__));
+    expect(0, __INCLUDE_LEVEL__);
     expect_string("test/macro.c", __BASE_FILE__);
 #ifdef __8cc__
     expect(1, !!strstr(__TIMESTAMP__, __TIME__));

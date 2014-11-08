@@ -846,6 +846,10 @@ static void handle_counter_macro(Token *tmpl) {
     make_token_pushback(tmpl, TNUMBER, format("%d", counter++));
 }
 
+static void handle_include_level_macro(Token *tmpl) {
+    make_token_pushback(tmpl, TNUMBER, format("%d", include_level_depth()));
+}
+
 /*
  * Initializer
  */
@@ -886,6 +890,7 @@ static void init_predefined_macros(void) {
     // [GNU] Non-standard macros
     define_special_macro("__BASE_FILE__", handle_base_file_macro);
     define_special_macro("__COUNTER__", handle_counter_macro);
+    define_special_macro("__INCLUDE_LEVEL__", handle_include_level_macro);
     define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
 
     char *predefined[] = {

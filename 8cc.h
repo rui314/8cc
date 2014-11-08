@@ -268,6 +268,7 @@ extern void unget_token(Token *tok);
 extern Token *lex(void);
 extern void set_input_buffer(Vector *tokens);
 extern Vector *get_input_buffer(void);
+extern int include_level_depth(void);
 extern void skip_cond_incl(void);
 extern char *read_header_file_name(bool *std);
 extern void push_input_file(char *displayname, char *realname, FILE *input);

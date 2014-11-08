@@ -90,6 +90,10 @@ void push_input_file(char *displayname, char *realname, FILE *fp) {
     at_bol = true;
 }
 
+int include_level_depth(void) {
+    return vec_len(file_stack);
+}
+
 void set_input_file(char *displayname, char *realname, FILE *fp) {
     file = make_file(displayname, realname, fp);
     at_bol = true;
