@@ -3,10 +3,11 @@
 
 #include "8cc.h"
 
-static char *maybe_add_bitfield(char *name, Type *ty) {
+static char *decorate_int(char *name, Type *ty) {
+    char *u = (ty->sig) ? "" : "u";
     if (ty->bitsize > 0)
-        return format("%s:%d:%d", name, ty->bitoff, ty->bitoff + ty->bitsize);
-    return name;
+        return format("%s%s:%d:%d", u, name, ty->bitoff, ty->bitoff + ty->bitsize);
+    return format("%s%s", u, name);
 }
 
 static char *do_c2s(Dict *dict, Type *ty) {
@@ -15,11 +16,11 @@ static char *do_c2s(Dict *dict, Type *ty) {
     switch (ty->kind) {
     case KIND_VOID: return "void";
     case KIND_BOOL: return "_Bool";
-    case KIND_CHAR: return maybe_add_bitfield("char", ty);
-    case KIND_SHORT: return maybe_add_bitfield("short", ty);
-    case KIND_INT:  return maybe_add_bitfield("int", ty);
-    case KIND_LONG: return maybe_add_bitfield("long", ty);
-    case KIND_LLONG: return maybe_add_bitfield("long long", ty);
+    case KIND_CHAR: return decorate_int("char", ty);
+    case KIND_SHORT: return decorate_int("short", ty);
+    case KIND_INT:  return decorate_int("int", ty);
+    case KIND_LONG: return decorate_int("long", ty);
+    case KIND_LLONG: return decorate_int("llong", ty);
     case KIND_FLOAT: return "float";
     case KIND_DOUBLE: return "double";
     case KIND_LDOUBLE: return "long double";

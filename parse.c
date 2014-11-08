@@ -829,6 +829,8 @@ static bool type_compatible(Type *a, Type *b) {
         return false;
     if (a->ptr && b->ptr)
         return type_compatible(a->ptr, b->ptr);
+    if (is_arithtype(a) && is_arithtype(b))
+        return same_arith_type(a, b);
     return true;
 }
 
@@ -854,7 +856,7 @@ static Vector *read_generic_list(Node **defaultexpr) {
 
 static Node *read_generic(void) {
     expect('(');
-    Node *contexpr = conv(read_assignment_expr());
+    Node *contexpr = read_assignment_expr();
     expect(',');
     Node *defaultexpr = NULL;
     Vector *list = read_generic_list(&defaultexpr);
@@ -866,7 +868,7 @@ static Node *read_generic(void) {
             return expr;
     }
    if (!defaultexpr)
-       error("no matching generic selection for %s", a2s(contexpr));
+       error("no matching generic selection for %s: %s", a2s(contexpr), c2s(contexpr->ty));
    return defaultexpr;
 }
 
@@ -1995,8 +1997,8 @@ static Type *read_decl_spec(int *rsclass) {
     case kvoid:   return type_void;
     case kbool:   return make_numtype(KIND_BOOL, false);
     case kchar:   return make_numtype(KIND_CHAR, sig != kunsigned);
-    case kfloat:  return make_numtype(KIND_FLOAT, false);
-    case kdouble: return make_numtype(size == klong ? KIND_LDOUBLE : KIND_DOUBLE, false);
+    case kfloat:  return make_numtype(KIND_FLOAT, true);
+    case kdouble: return make_numtype(size == klong ? KIND_LDOUBLE : KIND_DOUBLE, true);
     default: break;
     }
     switch (size) {
