@@ -302,7 +302,7 @@ static Token *read_number(char c) {
     }
 }
 
-bool nextoct(void) {
+static bool nextoct(void) {
     int c = peek();
     return '0' <= c && c <= '7';
 }
