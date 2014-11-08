@@ -55,7 +55,6 @@ fulltest: test2
 	cp 8cc gen2
 	rm $(OBJS) main.o
 	$(MAKE) self
-	$(MAKE) test
 	cp 8cc gen3
 	diff gen2 gen3
 
