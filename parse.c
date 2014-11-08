@@ -1225,8 +1225,20 @@ static Node *do_read_conditional_expr(Node *cond) {
     Node *then = conv(read_comma_expr());
     expect(':');
     Node *els = conv(read_conditional_expr());
-    // TODO: fix expression type
-    return ast_ternary(els->ty, cond, then, els);
+    // [GNU] Omitting the middle operand is allowed.
+    Type *t = then ? then->ty : cond->ty;
+    Type *u = els->ty;
+    // C11 6.5.15p5: if both types are arithemtic type, the result
+    // type is the result of the usual arithmetic conversions.
+    if (is_arithtype(t) && is_arithtype(u)) {
+        Type *r = usual_arith_conv(t, u);
+        if (!same_arith_type(t, r))
+            then = ast_uop(AST_CONV, r, then);
+        if (!same_arith_type(u, t))
+            els = ast_uop(AST_CONV, r, els);
+        return ast_ternary(r, cond, then, els);
+    }
+    return ast_ternary(u, cond, then, els);
 }
 
 static Node *read_conditional_expr(void) {

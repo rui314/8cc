@@ -60,6 +60,9 @@ static void test_arith(void) {
     expect(I, T(0 << 0LL));
     expect(UL, T(0UL << 0));
     expect(LL, T(0LL << 0));
+
+    expect(LL, T(0 ? 0LL : 0L));
+    expect(LL, T(0 ? 0L : 0LL));
 #undef T
 }
 
