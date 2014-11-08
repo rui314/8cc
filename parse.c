@@ -776,7 +776,7 @@ static Node *read_alignof_operand(void) {
     expect('(');
     Type *ty = read_func_param(NULL, true);
     expect(')');
-    return ast_inttype(type_long, ty->align);
+    return ast_inttype(type_ulong, ty->align);
 }
 
 /*

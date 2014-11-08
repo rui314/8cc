@@ -21,6 +21,9 @@ static void test_alignof(void) {
     expect(4, alignof(struct {char a; int b; }));
     expect(8, alignof(long double));
 #endif
+
+    // The type of the result is size_t.
+    expect(1, alignof(char) - 2 > 0);
 }
 
 void testmain(void) {
