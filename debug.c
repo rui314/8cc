@@ -33,25 +33,29 @@ static char *do_c2s(Dict *dict, Type *ty) {
         if (dict_get(dict, format("%p", ty)))
             return format("(%s)", kind);
         dict_put(dict, format("%p", ty), (void *)1);
-        Buffer *b = make_buffer();
-        buf_printf(b, "(%s", kind);
-        Vector *keys = dict_keys(ty->fields);
-        for (int i = 0; i < vec_len(keys); i++) {
-            char *key = vec_get(keys, i);
-            Type *fieldtype = dict_get(ty->fields, key);
-            buf_printf(b, " (%s)", do_c2s(dict, fieldtype));
+        if (ty->fields) {
+            Buffer *b = make_buffer();
+            buf_printf(b, "(%s", kind);
+            Vector *keys = dict_keys(ty->fields);
+            for (int i = 0; i < vec_len(keys); i++) {
+                char *key = vec_get(keys, i);
+                Type *fieldtype = dict_get(ty->fields, key);
+                buf_printf(b, " (%s)", do_c2s(dict, fieldtype));
+            }
+            buf_printf(b, ")");
+            return buf_body(b);
         }
-        buf_printf(b, ")");
-        return buf_body(b);
     }
     case KIND_FUNC: {
         Buffer *b = make_buffer();
         buf_printf(b, "(");
-        for (int i = 0; i < vec_len(ty->params); i++) {
-            if (i > 0)
-                buf_printf(b, ",");
-            Type *t = vec_get(ty->params, i);
-            buf_printf(b, "%s", do_c2s(dict, t));
+        if (ty->params) {
+            for (int i = 0; i < vec_len(ty->params); i++) {
+                if (i > 0)
+                    buf_printf(b, ",");
+                Type *t = vec_get(ty->params, i);
+                buf_printf(b, "%s", do_c2s(dict, t));
+            }
         }
         buf_printf(b, ")=>%s", do_c2s(dict, ty->rettype));
         return buf_body(b);
