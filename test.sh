@@ -55,7 +55,7 @@ testast '(()=>int)f(){(+ (/ 4 2) (/ 6 3));}' '4/2+6/3;'
 testast '(()=>int)f(){(/ (/ 24 2) 4);}' '24/2/4;'
 testast '(()=>int)f(){(decl int a 3@0);}' 'int a=3;'
 testast "(()=>int)f(){(decl char c (conv 97=>char)@0);}" "char c='a';"
-testast '(()=>int)f(){(decl *char s "abcd"@0);}' 'char *s="abcd";'
+testast '(()=>int)f(){(decl *char s (conv "abcd"=>*char)@0);}' 'char *s="abcd";'
 #testast "(()=>int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[5]="asdf";'
 testast "(()=>int)f(){(decl [5]char s 'a'@0 's'@1 'd'@2 'f'@3 '\0'@4);}" 'char s[]="asdf";'
 testast '(()=>int)f(){(decl [3]int a 1@0 2@4 3@8);}' 'int a[3]={1,2,3};'

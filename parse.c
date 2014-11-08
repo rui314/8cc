@@ -60,8 +60,7 @@ static Type* make_ptr_type(Type *ty);
 static Type* make_array_type(Type *ty, int size);
 static Node *read_compound_stmt(void);
 static void read_decl_or_stmt(Vector *list);
-static Type *convert_array(Type *ty);
-static Node *convert_funcdesg(Node *node);
+static Node *conv(Node *node);
 static Node *read_stmt(void);
 static bool is_type_keyword(Token *tok);
 static Node *read_unary_expr(void);
@@ -508,6 +507,27 @@ static Type *result_type(int op, Type *ty) {
     }
 }
 
+static Node *conv(Node *node) {
+    if (!node)
+        return NULL;
+    // C11 6.3.2.1p4: A function designator is converted to a pointer to the function.
+    if (node->kind == AST_FUNCDESG)
+        return ast_uop(AST_ADDR, make_ptr_type(node->fptr->ty), node->fptr);
+    // C11 6.3.2.1p3: An array of T is converted to a pointer to T.
+    Type *ty = node->ty;
+    if (ty->kind == KIND_ARRAY)
+        return ast_uop(AST_CONV, make_ptr_type(ty->ptr), node);
+    // C11 6.3.1.1p2: The integer promotions
+    switch (ty->kind) {
+    case KIND_SHORT: case KIND_CHAR: case KIND_BOOL:
+        return ast_conv(type_int, node);
+    case KIND_INT:
+        if (ty->bitsize > 0)
+            return ast_conv(type_int, node);
+    }
+    return node;
+}
+
 static Node *usual_conv(int op, Node *left, Node *right) {
     if (!is_arithtype(left->ty) || !is_arithtype(right->ty)) {
         Type *resulttype;
@@ -516,7 +536,8 @@ static Node *usual_conv(int op, Node *left, Node *right) {
             resulttype = type_int;
             break;
         default:
-            resulttype = convert_array(left->ty);
+            resulttype = (left->ty->kind == KIND_ARRAY)
+                ? make_ptr_type(left->ty->ptr) : left->ty;
             break;
         }
         return ast_binop(resulttype, op, left, right);
@@ -558,19 +579,12 @@ static bool is_same_struct(Type *a, Type *b) {
 }
 
 static void ensure_assignable(Type *totype, Type *fromtype) {
-    fromtype = convert_array(fromtype);
     if ((is_arithtype(totype) || totype->kind == KIND_PTR) &&
         (is_arithtype(fromtype) || fromtype->kind == KIND_PTR))
         return;
     if (is_same_struct(totype, fromtype))
         return;
     error("incompatible kind: <%s> <%s>", c2s(totype), c2s(fromtype));
-}
-
-static Type *convert_array(Type *ty) {
-    if (ty->kind != KIND_ARRAY)
-        return ty;
-    return make_ptr_type(ty->ptr);
 }
 
 /*
@@ -773,7 +787,7 @@ static Vector *read_func_args(Vector *params) {
     int i = 0;
     for (;;) {
         if (next_token(')')) break;
-        Node *arg = convert_funcdesg(read_assignment_expr());
+        Node *arg = conv(read_assignment_expr());
         Type *paramtype;
         if (i < vec_len(params)) {
             paramtype = vec_get(params, i++);
@@ -782,7 +796,7 @@ static Vector *read_func_args(Vector *params) {
                 is_inttype(arg->ty) ? type_int :
                 arg->ty;
         }
-        ensure_assignable(convert_array(paramtype), convert_array(arg->ty));
+        ensure_assignable(paramtype, arg->ty);
         if (paramtype->kind != arg->ty->kind)
             arg = ast_conv(paramtype, arg);
         vec_push(args, arg);
@@ -852,8 +866,7 @@ static Vector *read_generic_list(Node **defaultexpr) {
 
 static Node *read_generic(void) {
     expect('(');
-    Node *contexpr = read_assignment_expr();
-    Type *conttype = convert_array(contexpr->ty);
+    Node *contexpr = conv(read_assignment_expr());
     expect(',');
     Node *defaultexpr = NULL;
     Vector *list = read_generic_list(&defaultexpr);
@@ -861,7 +874,7 @@ static Node *read_generic(void) {
         Pair *pair = vec_get(list, i);
         Type *ty = pair->first;
         Node *expr = pair->second;
-        if (type_compatible(conttype, ty))
+        if (type_compatible(contexpr->ty, ty))
             return expr;
     }
    if (!defaultexpr)
@@ -895,14 +908,6 @@ static Node *read_var_or_func(char *name) {
     if (!v || v->ty->kind == KIND_FUNC)
         return ast_funcdesg(name, v);
     return v;
-}
-
-static Node *convert_funcdesg(Node *node) {
-    if (!node)
-        return NULL;
-    if (node->kind == AST_FUNCDESG)
-        return ast_uop(AST_ADDR, make_ptr_type(node->fptr->ty), node->fptr);
-    return node;
 }
 
 static int get_compound_assign_op(Token *tok) {
@@ -1023,7 +1028,7 @@ static Node *read_postfix_expr(void) {
 
 static Node *read_unary_incdec(int op) {
     Node *operand = read_unary_expr();
-    operand = convert_funcdesg(operand);
+    operand = conv(operand);
     ensure_lvalue(operand);
     return ast_uop(op, operand->ty, operand);
 }
@@ -1040,18 +1045,16 @@ static Node *read_label_addr(void) {
 static Node *read_unary_addr(void) {
     Node *operand = read_cast_expr();
     if (operand->kind == AST_FUNCDESG)
-        return convert_funcdesg(operand);
+        return conv(operand);
     ensure_lvalue(operand);
     return ast_uop(AST_ADDR, make_ptr_type(operand->ty), operand);
 }
 
 static Node *read_unary_deref(void) {
-    Node *operand = read_cast_expr();
-    operand = convert_funcdesg(operand);
-    Type *ty = convert_array(operand->ty);
-    if (ty->kind != KIND_PTR)
+    Node *operand = conv(read_cast_expr());
+    if (operand->ty->kind != KIND_PTR)
         error("pointer kind expected, but got %s", a2s(operand));
-    if (ty->ptr->kind == KIND_FUNC)
+    if (operand->ty->ptr->kind == KIND_FUNC)
         return operand;
     return ast_uop(AST_DEREF, operand->ty->ptr, operand);
 }
@@ -1064,7 +1067,7 @@ static Node *read_unary_minus(void) {
 
 static Node *read_unary_bitnot(void) {
     Node *expr = read_cast_expr();
-    expr = convert_funcdesg(expr);
+    expr = conv(expr);
     if (!is_inttype(expr->ty))
         error("invalid use of ~: %s", a2s(expr));
     return ast_uop('~', expr->ty, expr);
@@ -1072,7 +1075,7 @@ static Node *read_unary_bitnot(void) {
 
 static Node *read_unary_lognot(void) {
     Node *operand = read_cast_expr();
-    operand = convert_funcdesg(operand);
+    operand = conv(operand);
     return ast_uop('!', type_int, operand);
 }
 
@@ -1140,8 +1143,8 @@ static Node *read_multiplicative_expr(void) {
 static Node *read_additive_expr(void) {
     Node *node = read_multiplicative_expr();
     for (;;) {
-        if      (next_token('+')) node = usual_conv('+', convert_funcdesg(node), convert_funcdesg(read_multiplicative_expr()));
-        else if (next_token('-')) node = usual_conv('-', convert_funcdesg(node), convert_funcdesg(read_multiplicative_expr()));
+        if      (next_token('+')) node = usual_conv('+', conv(node), conv(read_multiplicative_expr()));
+        else if (next_token('-')) node = usual_conv('-', conv(node), conv(read_multiplicative_expr()));
         else break;
     }
     return node;
@@ -1161,7 +1164,7 @@ static Node *read_shift_expr(void) {
         ensure_inttype(node);
         ensure_inttype(right);
         Type *resulttype = larger_type(node->ty, right->ty);
-        node = ast_binop(resulttype, op, convert_funcdesg(node), convert_funcdesg(right));
+        node = ast_binop(resulttype, op, conv(node), conv(right));
     }
     return node;
 }
@@ -1181,9 +1184,9 @@ static Node *read_relational_expr(void) {
 static Node *read_equality_expr(void) {
     Node *node = read_relational_expr();
     if (next_token(OP_EQ))
-        return usual_conv(OP_EQ, convert_funcdesg(node), convert_funcdesg(read_equality_expr()));
+        return usual_conv(OP_EQ, conv(node), conv(read_equality_expr()));
     if (next_token(OP_NE))
-        return usual_conv(OP_NE, convert_funcdesg(node), convert_funcdesg(read_equality_expr()));
+        return usual_conv(OP_NE, conv(node), conv(read_equality_expr()));
     return node;
 }
 
@@ -1223,9 +1226,9 @@ static Node *read_logor_expr(void) {
 }
 
 static Node *do_read_conditional_expr(Node *cond) {
-    Node *then = convert_funcdesg(read_comma_expr());
+    Node *then = conv(read_comma_expr());
     expect(':');
-    Node *els = convert_funcdesg(read_conditional_expr());
+    Node *els = conv(read_conditional_expr());
     // TODO: fix expression type
     return ast_ternary(els->ty, cond, then, els);
 }
@@ -1246,7 +1249,7 @@ static Node *read_assignment_expr(void) {
         return do_read_conditional_expr(node);
     int cop = get_compound_assign_op(tok);
     if (is_keyword(tok, '=') || cop) {
-        Node *value = convert_funcdesg(read_assignment_expr());
+        Node *value = conv(read_assignment_expr());
         if (is_keyword(tok, '=') || cop)
             ensure_lvalue(node);
         Node *right = cop ? usual_conv(cop, node, value) : value;
@@ -1578,7 +1581,7 @@ static void read_initializer_elem(Vector *inits, Type *ty, int off, bool designa
         read_initializer_elem(inits, ty, off, true);
         expect('}');
     } else {
-        Node *expr = convert_funcdesg(read_assignment_expr());
+        Node *expr = conv(read_assignment_expr());
         ensure_assignable(ty, expr->ty);
         vec_push(inits, ast_init(expr, ty, off));
     }
@@ -1736,7 +1739,7 @@ static Vector *read_decl_init(Type *ty) {
     if (is_keyword(peek_token(), '{') || is_string(ty)) {
         read_initializer_list(r, ty, 0, false);
     } else {
-        Node *init = convert_funcdesg(read_assignment_expr());
+        Node *init = conv(read_assignment_expr());
         if (is_arithtype(init->ty) && init->ty->kind != ty->kind)
             init = ast_conv(ty, init);
         vec_push(r, ast_init(init, ty, 0));

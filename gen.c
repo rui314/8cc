@@ -1403,7 +1403,7 @@ static void emit_data_charptr(char *s, int depth) {
     emit(".quad %s", label);
 }
 
-static void emit_data_primtype(Type *ty, Node *val) {
+static void emit_data_primtype(Type *ty, Node *val, int depth) {
     switch (ty->kind) {
     case KIND_FLOAT: {
         union { float f; int i; } v = { val->fval };
@@ -1429,12 +1429,17 @@ static void emit_data_primtype(Type *ty, Node *val) {
         break;
     case KIND_LONG:
     case KIND_LLONG:
-    case KIND_PTR:
-        if (val->kind == AST_GVAR)
+    case KIND_PTR: {
+        bool is_char_ptr = (val->operand->ty->kind == KIND_ARRAY && val->operand->ty->ptr->kind == KIND_CHAR);
+        if (is_char_ptr) {
+            emit_data_charptr(val->operand->sval, depth);
+	} else if (val->kind == AST_GVAR) {
             emit(".quad %s", val->glabel);
-        else
+	} else {
             emit(".quad %d", eval_intexpr(val));
+	}
         break;
+    }
     default:
         error("don't know how to handle\n  <%s>\n  <%s>", c2s(ty), a2s(val));
     }
@@ -1459,7 +1464,7 @@ static void do_emit_data(Vector *inits, int size, int off, int depth) {
                 totype = node->totype;
                 data |= ((((long)1 << totype->bitsize) - 1) & eval_intexpr(v)) << totype->bitoff;
             }
-            emit_data_primtype(totype, &(Node){ AST_LITERAL, totype, .ival = data });
+            emit_data_primtype(totype, &(Node){ AST_LITERAL, totype, .ival = data }, depth);
             off += totype->size;
             size -= totype->size;
             if (i == vec_len(inits))
@@ -1476,12 +1481,7 @@ static void do_emit_data(Vector *inits, int size, int off, int depth) {
             do_emit_data(v->lvarinit, v->ty->size, 0, depth);
             continue;
         }
-        bool is_char_ptr = (v->ty->kind == KIND_ARRAY && v->ty->ptr->kind == KIND_CHAR);
-        if (is_char_ptr) {
-            emit_data_charptr(v->sval, depth);
-            continue;
-        }
-        emit_data_primtype(node->totype, node->initval);
+        emit_data_primtype(node->totype, node->initval, depth);
     }
     emit_zero(size);
 }
