@@ -477,36 +477,6 @@ void *make_pair(void *first, void *second) {
  * Type conversion
  */
 
-static int conversion_rank(Type *ty) {
-    assert(is_arithtype(ty));
-    switch (ty->kind) {
-    case KIND_LDOUBLE: return 8;
-    case KIND_DOUBLE:  return 7;
-    case KIND_FLOAT:   return 6;
-    case KIND_LLONG:   return 5;
-    case KIND_LONG:    return 4;
-    case KIND_INT:     return 3;
-    case KIND_SHORT:   return 2;
-    case KIND_CHAR:    return 1;
-    case KIND_BOOL:    return 0;
-    default:
-        error("internal error: %s", c2s(ty));
-    }
-}
-
-static Type *larger_type(Type *a, Type *b) {
-    return conversion_rank(a) < conversion_rank(b) ? b : a;
-}
-
-static Type *result_type(int op, Type *ty) {
-    switch (op) {
-    case OP_LE: case OP_GE: case OP_EQ: case OP_NE: case '<': case '>':
-        return type_int;
-    default:
-        return larger_type(ty, type_int);
-    }
-}
-
 static Node *conv(Node *node) {
     if (!node)
         return NULL;
@@ -528,28 +498,46 @@ static Node *conv(Node *node) {
     return node;
 }
 
-static Node *usual_conv(int op, Node *left, Node *right) {
-    if (!is_arithtype(left->ty) || !is_arithtype(right->ty)) {
-        Type *resulttype;
-        switch (op) {
-        case OP_LE: case OP_GE: case OP_EQ: case OP_NE: case '<': case '>':
-            resulttype = type_int;
-            break;
-        default:
-            resulttype = (left->ty->kind == KIND_ARRAY)
-                ? make_ptr_type(left->ty->ptr) : left->ty;
-            break;
-        }
-        return ast_binop(resulttype, op, left, right);
+static bool same_arith_type(Type *t, Type *u) {
+    return t->kind == u->kind && t->sig == u->sig;
+}
+
+// C11 6.3.1.8: Usual arithmetic conversions
+static Type *usual_arith_conv(Type *t, Type *u) {
+    assert(is_arithtype(t));
+    assert(is_arithtype(u));
+    if (t->kind < u->kind) {
+        // Make t the larger type
+        Type *tmp = t;
+        t = u;
+        u = tmp;
     }
-    int rank1 = conversion_rank(left->ty);
-    int rank2 = conversion_rank(right->ty);
-    if (rank1 < rank2)
-        left = ast_conv(right->ty, left);
-    else if (rank1 != rank2)
-        right = ast_conv(left->ty, right);
-    Type *resulttype = result_type(op, left->ty);
-    return ast_binop(resulttype, op, left, right);
+    if (is_flotype(t))
+        return t;
+    assert(is_inttype(t) && t->size >= type_int->size);
+    assert(is_inttype(u) && u->size >= type_int->size);
+    if (t->size > u->size)
+        return t;
+    assert(t->size == u->size);
+    if (t->sig == u->sig)
+        return t;
+    Type *r = copy_type(t);
+    r->sig = false;
+    return r;
+}
+
+static Node *binop(int op, Node *lhs, Node *rhs) {
+    if (!is_arithtype(lhs->ty) || !is_arithtype(rhs->ty)) {
+        Type *t = (lhs->ty->kind == KIND_ARRAY)
+            ? make_ptr_type(lhs->ty->ptr) : lhs->ty;
+        return ast_binop(t, op, lhs, rhs);
+    }
+    Type *r = usual_arith_conv(lhs->ty, rhs->ty);
+    if (!same_arith_type(lhs->ty, r))
+        lhs = ast_uop(AST_CONV, r, lhs);
+    if (!same_arith_type(rhs->ty, r))
+        rhs = ast_uop(AST_CONV, r, rhs);
+    return ast_binop(r, op, lhs, rhs);
 }
 
 static bool is_same_struct(Type *a, Type *b) {
@@ -977,7 +965,7 @@ static Node *read_subscript_expr(Node *node) {
     if (!sub)
         error("subscription expected");
     expect(']');
-    Node *t = usual_conv('+', node, sub);
+    Node *t = binop('+', conv(node), conv(sub));
     return ast_uop(AST_DEREF, t->ty->ptr, t);
 }
 
@@ -1132,9 +1120,9 @@ static Node *read_cast_expr(void) {
 static Node *read_multiplicative_expr(void) {
     Node *node = read_cast_expr();
     for (;;) {
-        if      (next_token('*')) node = usual_conv('*', node, read_cast_expr());
-        else if (next_token('/')) node = usual_conv('/', node, read_cast_expr());
-        else if (next_token('%')) node = usual_conv('%', node, read_cast_expr());
+        if      (next_token('*')) node = binop('*', conv(node), conv(read_cast_expr()));
+        else if (next_token('/')) node = binop('/', conv(node), conv(read_cast_expr()));
+        else if (next_token('%')) node = binop('%', conv(node), conv(read_cast_expr()));
         else break;
     }
     return node;
@@ -1143,8 +1131,8 @@ static Node *read_multiplicative_expr(void) {
 static Node *read_additive_expr(void) {
     Node *node = read_multiplicative_expr();
     for (;;) {
-        if      (next_token('+')) node = usual_conv('+', conv(node), conv(read_multiplicative_expr()));
-        else if (next_token('-')) node = usual_conv('-', conv(node), conv(read_multiplicative_expr()));
+        if      (next_token('+')) node = binop('+', conv(node), conv(read_multiplicative_expr()));
+        else if (next_token('-')) node = binop('-', conv(node), conv(read_multiplicative_expr()));
         else break;
     }
     return node;
@@ -1163,8 +1151,7 @@ static Node *read_shift_expr(void) {
         Node *right = read_additive_expr();
         ensure_inttype(node);
         ensure_inttype(right);
-        Type *resulttype = larger_type(node->ty, right->ty);
-        node = ast_binop(resulttype, op, conv(node), conv(right));
+        node = ast_binop(node->ty, op, conv(node), conv(right));
     }
     return node;
 }
@@ -1172,42 +1159,48 @@ static Node *read_shift_expr(void) {
 static Node *read_relational_expr(void) {
     Node *node = read_shift_expr();
     for (;;) {
-        if      (next_token('<'))   node = usual_conv('<',   node, read_shift_expr());
-        else if (next_token('>'))   node = usual_conv('>',   node, read_shift_expr());
-        else if (next_token(OP_LE)) node = usual_conv(OP_LE, node, read_shift_expr());
-        else if (next_token(OP_GE)) node = usual_conv(OP_GE, node, read_shift_expr());
+        if      (next_token('<'))   node = binop('<',   conv(node), conv(read_shift_expr()));
+        else if (next_token('>'))   node = binop('>',   conv(node), conv(read_shift_expr()));
+        else if (next_token(OP_LE)) node = binop(OP_LE, conv(node), conv(read_shift_expr()));
+        else if (next_token(OP_GE)) node = binop(OP_GE, conv(node), conv(read_shift_expr()));
         else break;
+        node->ty = type_int;
     }
     return node;
 }
 
 static Node *read_equality_expr(void) {
     Node *node = read_relational_expr();
-    if (next_token(OP_EQ))
-        return usual_conv(OP_EQ, conv(node), conv(read_equality_expr()));
-    if (next_token(OP_NE))
-        return usual_conv(OP_NE, conv(node), conv(read_equality_expr()));
-    return node;
+    Node *r;
+    if (next_token(OP_EQ)) {
+        r = binop(OP_EQ, conv(node), conv(read_equality_expr()));
+    } else if (next_token(OP_NE)) {
+        r = binop(OP_NE, conv(node), conv(read_equality_expr()));
+    } else {
+        return node;
+    }
+    r->ty = type_int;
+    return r;
 }
 
 static Node *read_bitand_expr(void) {
     Node *node = read_equality_expr();
     while (next_token('&'))
-        node = usual_conv('&', node, read_equality_expr());
+        node = binop('&', conv(node), conv(read_equality_expr()));
     return node;
 }
 
 static Node *read_bitxor_expr(void) {
     Node *node = read_bitand_expr();
     while (next_token('^'))
-        node = usual_conv('^', node, read_bitand_expr());
+        node = binop('^', conv(node), conv(read_bitand_expr()));
     return node;
 }
 
 static Node *read_bitor_expr(void) {
     Node *node = read_bitxor_expr();
     while (next_token('|'))
-        node = usual_conv('|', node, read_bitxor_expr());
+        node = binop('|', conv(node), conv(read_bitxor_expr()));
     return node;
 }
 
@@ -1252,7 +1245,7 @@ static Node *read_assignment_expr(void) {
         Node *value = conv(read_assignment_expr());
         if (is_keyword(tok, '=') || cop)
             ensure_lvalue(node);
-        Node *right = cop ? usual_conv(cop, node, value) : value;
+        Node *right = cop ? binop(cop, node, value) : value;
         if (is_arithtype(node->ty) && node->ty->kind != right->ty->kind)
             right = ast_conv(node->ty, right);
         return ast_binop(node->ty, '=', node, right);
