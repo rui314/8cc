@@ -70,7 +70,6 @@ static void test_struct(void) {
     expect(8, sizeof(struct { int a; char b; }));
     expect(12, sizeof(struct { char a; int b; char c; }));
     expect(24, sizeof(struct { char a; double b; char c; }));
-    expect(72, sizeof(struct { char a; double b; char c; }[3]));
     expect(24, sizeof(struct { struct { char a; double b; } x; char c; }));
 }
 
