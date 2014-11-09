@@ -1055,6 +1055,8 @@ static Node *read_unary_incdec(int op) {
 }
 
 static Node *read_label_addr(void) {
+    // [GNU] Labels as values. You can get the address of the a label
+    // with unary "&&" operator followed by a label name.
     Token *tok = read_token();
     if (tok->kind != TIDENT)
         error("Label name expected after &&, but got %s", t2s(tok));
@@ -1153,12 +1155,11 @@ static Node *read_cast_expr(void) {
 static Node *read_multiplicative_expr(void) {
     Node *node = read_cast_expr();
     for (;;) {
-        if      (next_token('*')) node = binop('*', conv(node), conv(read_cast_expr()));
+        if (next_token('*'))      node = binop('*', conv(node), conv(read_cast_expr()));
         else if (next_token('/')) node = binop('/', conv(node), conv(read_cast_expr()));
         else if (next_token('%')) node = binop('%', conv(node), conv(read_cast_expr()));
-        else break;
+        else    return node;
     }
-    return node;
 }
 
 static Node *read_additive_expr(void) {
@@ -1166,9 +1167,8 @@ static Node *read_additive_expr(void) {
     for (;;) {
         if      (next_token('+')) node = binop('+', conv(node), conv(read_multiplicative_expr()));
         else if (next_token('-')) node = binop('-', conv(node), conv(read_multiplicative_expr()));
-        else break;
+        else    return node;
     }
-    return node;
 }
 
 static Node *read_shift_expr(void) {
@@ -1196,10 +1196,9 @@ static Node *read_relational_expr(void) {
         else if (next_token('>'))   node = binop('<',   conv(read_shift_expr()), conv(node));
         else if (next_token(OP_LE)) node = binop(OP_LE, conv(node), conv(read_shift_expr()));
         else if (next_token(OP_GE)) node = binop(OP_LE, conv(read_shift_expr()), conv(node));
-        else break;
+        else    return node;
         node->ty = type_int;
     }
-    return node;
 }
 
 static Node *read_equality_expr(void) {
@@ -1347,9 +1346,9 @@ static void squash_unnamed_struct(Dict *dict, Type *unnamed, int offset) {
     Vector *keys = dict_keys(unnamed->fields);
     for (int i = 0; i < vec_len(keys); i++) {
         char *name = vec_get(keys, i);
-        Type *kind = copy_type(dict_get(unnamed->fields, name));
-        kind->offset += offset;
-        dict_put(dict, name, kind);
+        Type *t = copy_type(dict_get(unnamed->fields, name));
+        t->offset += offset;
+        dict_put(dict, name, t);
     }
 }
 
@@ -1432,8 +1431,11 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
         void **pair = vec_get(fields, i);
         char *name = pair[0];
         Type *fieldtype = pair[1];
+        // C11 6.7.2.1p14: Each member is aligned to its natural boundary.
+        // As a result the entire struct is aligned to the largest among its members.
         *align = MAX(*align, fieldtype->align);
         if (name == NULL && fieldtype->kind == KIND_STRUCT) {
+            // C11 6.7.2.1p13: Anonymous struct
             finish_bitfield(&off, &bitoff);
             off += compute_padding(off, fieldtype->align);
             squash_unnamed_struct(r, fieldtype, off);
@@ -2335,11 +2337,7 @@ static Node *read_switch_stmt(void) {
 
 static Node *read_case_label(void) {
     int beg = read_intexpr();
-    int end;
-    if (next_token(KTHREEDOTS))
-        end = read_intexpr();
-    else
-        end = beg;
+    int end = next_token(KTHREEDOTS) ? read_intexpr() : beg;
     expect(':');
     if (beg > end)
         error("case region is not in correct order: %d %d", beg, end);
@@ -2375,6 +2373,7 @@ static Node *read_return_stmt(void) {
 
 static Node *read_goto_stmt(void) {
     if (next_token('*')) {
+        // [GNU] computed goto. "goto *p" jumps to the address pointed by p.
         Node *expr = read_cast_expr();
         if (expr->ty->kind != KIND_PTR)
             error("pointer expected for computed goto, but got %s", a2s(expr));

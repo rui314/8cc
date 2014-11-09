@@ -66,8 +66,8 @@ void vec_push(Vector *vec, void *elem) {
 
 void vec_append(Vector *a, Vector *b) {
     extend(a, b->len);
-    for (int i = a->len, j = 0; j < b->len; i++, j++)
-        a->body[i] = b->body[j];
+    for (int i = 0; i < b->len; i++)
+        a->body[a->len + i] = b->body[i];
     a->len += b->len;
 }
 
@@ -98,8 +98,8 @@ void *vec_tail(Vector *vec) {
 
 Vector *vec_reverse(Vector *vec) {
     Vector *r = do_make_vector(vec->len);
-    for (int i = 0, j = vec->len - 1; i < vec->len; i++, j--)
-        r->body[i] = vec->body[j];
+    for (int i = 0; i < vec->len; i++)
+        r->body[i] = vec->body[vec->len - i - 1];
     r->len = vec->len;
     return r;
 }
