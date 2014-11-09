@@ -1435,8 +1435,8 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
         *align = MAX(*align, fieldtype->align);
         if (name == NULL && fieldtype->kind == KIND_STRUCT) {
             finish_bitfield(&off, &bitoff);
-            squash_unnamed_struct(r, fieldtype, off);
             off += compute_padding(off, fieldtype->align);
+            squash_unnamed_struct(r, fieldtype, off);
             off += fieldtype->size;
             continue;
         }
