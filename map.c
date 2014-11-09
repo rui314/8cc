@@ -122,7 +122,7 @@ void map_remove(Map *map, char *key) {
     }
 }
 
-size_t map_size(Map *map) {
+size_t map_len(Map *map) {
   return map->nelem;
 }
 

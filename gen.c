@@ -795,7 +795,7 @@ static void maybe_print_source_loc(Node *node) {
     char *file = node->sourceLoc->file;
     long fileno = (long)map_get(source_files, file);
     if (!fileno) {
-        fileno = map_size(source_files) + 1;
+        fileno = map_len(source_files) + 1;
         map_put(source_files, file, (void *)fileno);
         emit(".file %ld \"%s\"", fileno, quote_cstring(file));
     }

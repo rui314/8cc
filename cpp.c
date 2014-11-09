@@ -488,7 +488,7 @@ static void read_funclike_macro(char *name) {
     Map *param = make_map();
     bool is_varg = read_funclike_macro_params(param);
     Vector *body = read_funclike_macro_body(param);
-    Macro *macro = make_func_macro(body, map_size(param), is_varg);
+    Macro *macro = make_func_macro(body, map_len(param), is_varg);
     map_put(macros, name, macro);
 }
 
@@ -962,7 +962,7 @@ static Token *read_token_sub(bool return_at_eol) {
         }
         unget_token(tok);
         Token *r = read_expand();
-        if (r && r->bol && is_keyword(r, '#') && map_size(r->hideset) == 0) {
+        if (r && r->bol && is_keyword(r, '#') && map_len(r->hideset) == 0) {
             read_directive();
             continue;
         }

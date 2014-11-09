@@ -30,7 +30,7 @@ extern Map *make_map_parent(Map *parent);
 extern void *map_get(Map *map, char *key);
 extern void map_put(Map *map, char *key, void *val);
 extern void map_remove(Map *map, char *key);
-extern size_t map_size(Map *map);
+extern size_t map_len(Map *map);
 extern MapIter *map_iter(Map *map);
 extern char *map_next(MapIter *iter, void **val);
 
