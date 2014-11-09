@@ -273,8 +273,12 @@ static void test_offsetof(void) {
     int x[offsetof(struct tag10, b)];
     expect(4, sizeof(x) / sizeof(x[0]));
 
-    struct tag17 { char a; struct { int b; }; };
-    expect(4, offsetof(struct tag17, b));
+    expect(4, offsetof(struct { char a; struct { int b; }; }, b));
+    expect(6, offsetof(struct { char a[3]; int : 10; char c; }, c));
+    expect(6, offsetof(struct { char a[3]; int : 16; char c; }, c));
+    expect(7, offsetof(struct { char a[3]; int : 17; char c; }, c));
+    expect(2, offsetof(struct { char : 7; int : 7; char a; }, a));
+    expect(0, offsetof(struct { char : 0; char a; }, a));
 }
 
 static void flexible_member(void) {

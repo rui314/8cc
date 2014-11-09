@@ -1421,12 +1421,12 @@ static void fix_rectype_flexible_member(Vector *fields) {
 }
 
 static void finish_bitfield(int *off, int *bitoff) {
-    *off += (*bitoff + 8) / 8;
-    *bitoff = -1;
+    *off += (*bitoff + 7) / 8;
+    *bitoff = 0;
 }
 
 static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
-    int off = 0, bitoff = -1;
+    int off = 0, bitoff = 0;
     Dict *r = make_dict();
     for (int i = 0; i < vec_len(fields); i++) {
         void **pair = vec_get(fields, i);
@@ -1450,18 +1450,19 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
             bitoff = 0;
             continue;
         }
-        if (fieldtype->bitsize >= 0) {
-            int room = fieldtype->size * 8 - bitoff;
-            if (0 <= bitoff && fieldtype->bitsize <= room) {
-                fieldtype->bitoff = bitoff;
+        if (fieldtype->bitsize > 0) {
+            int bit = fieldtype->size * 8;
+            int room = bit - (off * 8 + bitoff) % bit;
+            if (fieldtype->bitsize <= room) {
                 fieldtype->offset = off;
+                fieldtype->bitoff = bitoff;
             } else {
                 finish_bitfield(&off, &bitoff);
                 off += compute_padding(off, fieldtype->align);
                 fieldtype->offset = off;
                 fieldtype->bitoff = 0;
             }
-            bitoff = fieldtype->bitsize;
+            bitoff += fieldtype->bitsize;
         } else {
             finish_bitfield(&off, &bitoff);
             off += compute_padding(off, fieldtype->align);
