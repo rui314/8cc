@@ -1441,6 +1441,10 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
             continue;
         }
         if (fieldtype->bitsize == 0) {
+            if (name)
+                error("only unnamed bit-field is able to have zero width: %s", name);
+            // C11 6.7.2.1p12: The zero-size bit-field indicates the end of the
+            // current run of the bit-fields.
             finish_bitfield(&off, &bitoff);
             off += compute_padding(off, fieldtype->align);
             bitoff = 0;
