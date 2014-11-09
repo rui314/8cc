@@ -1366,7 +1366,7 @@ static int maybe_read_bitsize(char *name, Type *ty) {
     return r;
 }
 
-static Vector *read_rectype_fields_sub(int *align) {
+static Vector *read_rectype_fields_sub(void) {
     Vector *r = make_vector();
     for (;;) {
         if (next_token(KSTATIC_ASSERT)) {
@@ -1387,7 +1387,6 @@ static Vector *read_rectype_fields_sub(int *align) {
             fieldtype = copy_type(fieldtype);
             fieldtype->bitsize = maybe_read_bitsize(name, fieldtype);
             vec_push(r, make_pair(name, fieldtype));
-            *align = MAX(*align, fieldtype->align);
             if (next_token(','))
                 continue;
             if (is_keyword(peek_token(), '}'))
@@ -1433,7 +1432,11 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
         Type *fieldtype = pair[1];
         // C11 6.7.2.1p14: Each member is aligned to its natural boundary.
         // As a result the entire struct is aligned to the largest among its members.
-        *align = MAX(*align, fieldtype->align);
+        // Unnamed fields will never be accessed, so they shouldn't be taken into account
+        // when calculating alignment.
+        if (name)
+            *align = MAX(*align, fieldtype->align);
+
         if (name == NULL && fieldtype->kind == KIND_STRUCT) {
             // C11 6.7.2.1p13: Anonymous struct
             finish_bitfield(&off, &bitoff);
@@ -1505,7 +1508,7 @@ static Dict *update_union_offset(Vector *fields, int *align, int *rsize) {
 static Dict *read_rectype_fields(int *rsize, int *align, bool is_struct) {
     if (!next_token('{'))
         return NULL;
-    Vector *fields = read_rectype_fields_sub(align);
+    Vector *fields = read_rectype_fields_sub();
     fix_rectype_flexible_member(fields);
     return is_struct
         ? update_struct_offset(fields, align, rsize)
