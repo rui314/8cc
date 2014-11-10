@@ -57,6 +57,7 @@ Type *type_ullong = &(Type){ KIND_LLONG, 8, 8, true };
 Type *type_float = &(Type){ KIND_FLOAT, 4, 4, false };
 Type *type_double = &(Type){ KIND_DOUBLE, 8, 8, false };
 Type *type_ldouble = &(Type){ KIND_LDOUBLE, 8, 8, false };
+Type *type_enum = &(Type){ KIND_ENUM, 4, 4, false };
 
 static Type* make_ptr_type(Type *ty);
 static Type* make_array_type(Type *ty, int size);
@@ -1515,7 +1516,7 @@ static Type *read_rectype_def(bool is_struct) {
     Type *r;
     if (tag) {
         r = map_get(tags, tag);
-        if (r && r->is_struct != is_struct)
+        if (r && (r->kind == KIND_ENUM || r->is_struct != is_struct))
             error("the declarations of %s does not match", tag);
         if (!r) {
             r = make_rectype(is_struct);
@@ -1547,13 +1548,29 @@ static Type *read_union_def(void) {
  */
 
 static Type *read_enum_def(void) {
+    char *tag = NULL;
     Token *tok = read_token();
-    if (tok->kind == TIDENT)
+
+    // Enum is handled as a synonym for int. We only check if the enum
+    // is declared.
+    if (tok->kind == TIDENT) {
+        tag = tok->sval;
         tok = read_token();
+    }
+    if (tag) {
+        Type *ty = map_get(tags, tag);
+        if (ty && ty->kind != KIND_ENUM)
+            error("the declarations of %s does not match", tag);
+    }
     if (!is_keyword(tok, '{')) {
+        if (!tag || !map_get(tags, tag))
+            error("enum tag %s is not defined", tag);
         unget_token(tok);
         return type_int;
     }
+    if (tag)
+        map_put(tags, tag, type_enum);
+
     int val = 0;
     for (;;) {
         tok = read_token();

@@ -108,6 +108,7 @@ enum {
     KIND_DOUBLE,
     KIND_LDOUBLE,
     KIND_ARRAY,
+    KIND_ENUM,
     KIND_PTR,
     KIND_STRUCT,
     KIND_FUNC,
