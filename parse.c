@@ -27,12 +27,11 @@
 SourceLoc *source_loc;
 
 // Objects representing various scopes. Did you know C has so many different
-// scopes? You can use the same name for global variable, local variable, struct
-// tag, union tag, and goto label!
+// scopes? You can use the same name for global variable, local variable,
+// struct/union/enum tag, and goto label!
 static Map *globalenv = &EMPTY_MAP;
 static Map *localenv;
-static Map *struct_defs = &EMPTY_MAP;
-static Map *union_defs = &EMPTY_MAP;
+static Map *tags = &EMPTY_MAP;
 static Map *labels;
 
 static Vector *toplevels;
@@ -1511,14 +1510,16 @@ static Dict *read_rectype_fields(int *rsize, int *align, bool is_struct) {
     return update_union_offset(rsize, align, fields);
 }
 
-static Type *read_rectype_def(Map *env, bool is_struct) {
+static Type *read_rectype_def(bool is_struct) {
     char *tag = read_rectype_tag();
     Type *r;
     if (tag) {
-        r = map_get(env, tag);
+        r = map_get(tags, tag);
+        if (r && r->is_struct != is_struct)
+            error("the declarations of %s does not match", tag);
         if (!r) {
             r = make_rectype(is_struct);
-            map_put(env, tag, r);
+            map_put(tags, tag, r);
         }
     } else {
         r = make_rectype(is_struct);
@@ -1534,11 +1535,11 @@ static Type *read_rectype_def(Map *env, bool is_struct) {
 }
 
 static Type *read_struct_def(void) {
-    return read_rectype_def(struct_defs, true);
+    return read_rectype_def(true);
 }
 
 static Type *read_union_def(void) {
-    return read_rectype_def(union_defs, false);
+    return read_rectype_def(false);
 }
 
 /*
