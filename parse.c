@@ -1501,7 +1501,7 @@ static Dict *update_union_offset(Vector *fields, int *align, int *rsize) {
         if (name)
             dict_put(r, name, fieldtype);
     }
-    *rsize = maxsize;
+    *rsize = maxsize + compute_padding(maxsize, *align);
     return r;
 }
 

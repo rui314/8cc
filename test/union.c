@@ -23,9 +23,16 @@ static void t3(void) {
     expect(256, x.b);
 }
 
+static test_sizeof(void) {
+    expect(4, sizeof(union { char a; int b; }));
+    expect(8, sizeof(union { double a; int b; }));
+    expect(8, sizeof(union { _Alignas(8) char a; int b; }));
+}
+
 void testmain(void) {
     print("union");
     t1();
     t2();
     t3();
+    test_sizeof();
 }
