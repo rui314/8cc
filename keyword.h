@@ -20,6 +20,7 @@ op(OP_NE, "!=")
 op(OP_SAL, "<<")
 op(OP_SAR, ">>")
 
+keyword(KALIGNAS, "_Alignas", true)
 keyword(KALIGNOF, "_Alignof", false)
 keyword(KAUTO, "auto", true)
 keyword(KBOOL, "_Bool", true)

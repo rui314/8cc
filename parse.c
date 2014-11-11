@@ -1950,6 +1950,22 @@ static Type *read_typeof(void) {
  * Declaration specifier
  */
 
+static bool is_poweroftwo(int x) {
+    // If there's only one bit set in x, the value is a power of 2.
+    return (x <= 0) ? false : !(x & (x - 1));
+}
+
+static int read_alignas(void) {
+    // C11 6.7.5. Valid form of _Alignof is either _Alignas(type-name) or
+    // _Alignas(constant-expression).
+    expect('(');
+    int r = is_type_keyword(peek_token())
+        ? read_cast_type()->align
+        : read_intexpr();
+    expect(')');
+    return r;
+}
+
 static Type *read_decl_spec(int *rsclass) {
     int sclass = 0;
     Token *tok = peek_token();
@@ -1960,6 +1976,7 @@ static Type *read_decl_spec(int *rsclass) {
     enum { kvoid = 1, kbool, kchar, kint, kfloat, kdouble } kind = 0;
     enum { kshort = 1, klong, kllong } size = 0;
     enum { ksigned = 1, kunsigned } sig = 0;
+    int align = -1;
 
     for (;;) {
 #define setsclass(val)                          \
@@ -2020,6 +2037,17 @@ static Type *read_decl_spec(int *rsclass) {
         case KSTRUCT:     set(usertype, read_struct_def()); continue;
         case KUNION:      set(usertype, read_union_def()); continue;
         case KENUM:       set(usertype, read_enum_def()); continue;
+        case KALIGNAS: {
+            int val = read_alignas();
+            if (val < 0)
+                error("negative alignment: %d", val);
+            // C11 6.7.5p6: alignas(0) should have no effect.
+            if (val == 0)
+                continue;
+            if (align == -1 || val < align)
+                align = val;
+            continue;
+        }
         case KLONG: {
             if (size == 0) set(size, klong);
             else if (size == klong) size = kllong;
@@ -2042,21 +2070,28 @@ static Type *read_decl_spec(int *rsclass) {
         *rsclass = sclass;
     if (usertype)
         return usertype;
+    if (align != -1 && !is_poweroftwo(align))
+        error("alignment must be power of 2, but got %d", align);
+    Type *ty;
     switch (kind) {
-    case kvoid:   return type_void;
-    case kbool:   return make_numtype(KIND_BOOL, false);
-    case kchar:   return make_numtype(KIND_CHAR, sig == kunsigned);
-    case kfloat:  return make_numtype(KIND_FLOAT, false);
-    case kdouble: return make_numtype(size == klong ? KIND_LDOUBLE : KIND_DOUBLE, false);
+    case kvoid:   ty = type_void; goto end;
+    case kbool:   ty = make_numtype(KIND_BOOL, false); goto end;
+    case kchar:   ty = make_numtype(KIND_CHAR, sig == kunsigned); goto end;
+    case kfloat:  ty = make_numtype(KIND_FLOAT, false); goto end;
+    case kdouble: ty = make_numtype(size == klong ? KIND_LDOUBLE : KIND_DOUBLE, false); goto end;
     default: break;
     }
     switch (size) {
-    case kshort: return make_numtype(KIND_SHORT, sig == kunsigned);
-    case klong:  return make_numtype(KIND_LONG, sig == kunsigned);
-    case kllong: return make_numtype(KIND_LLONG, sig == kunsigned);
-    default:     return make_numtype(KIND_INT, sig == kunsigned);
+    case kshort: ty = make_numtype(KIND_SHORT, sig == kunsigned); goto end;
+    case klong:  ty = make_numtype(KIND_LONG, sig == kunsigned); goto end;
+    case kllong: ty = make_numtype(KIND_LLONG, sig == kunsigned); goto end;
+    default:     ty = make_numtype(KIND_INT, sig == kunsigned); goto end;
     }
     error("internal error: kind: %d, size: %d", kind, size);
+ end:
+    if (align != -1)
+        ty->align = align;
+    return ty;
  err:
     error("kind mismatch: %s", t2s(tok));
 }
