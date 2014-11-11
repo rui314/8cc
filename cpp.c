@@ -802,7 +802,7 @@ static void make_token_pushback(Token *tmpl, int kind, char *sval) {
 static void handle_date_macro(Token *tmpl) {
     struct tm *now = gettime();
     char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-    char *sval = format("%s % 2d %04d", month[now->tm_mon], now->tm_mday, 1900 + now->tm_year);
+    char *sval = format("%s %2d %04d", month[now->tm_mon], now->tm_mday, 1900 + now->tm_year);
     make_token_pushback(tmpl, TSTRING, sval);
 }
 
