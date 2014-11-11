@@ -1352,9 +1352,7 @@ static void squash_unnamed_struct(Dict *dict, Type *unnamed, int offset) {
     }
 }
 
-static int maybe_read_bitsize(char *name, Type *ty) {
-    if (!next_token(':'))
-        return -1;
+static int read_bitsize(char *name, Type *ty) {
     if (!is_inttype(ty))
         error("non-integer kind cannot be a bitfield: %s", c2s(ty));
     int r = read_intexpr();
@@ -1385,7 +1383,7 @@ static Vector *read_rectype_fields_sub(void) {
             Type *fieldtype = read_declarator(&name, basetype, NULL, DECL_PARAM_TYPEONLY);
             ensure_not_void(fieldtype);
             fieldtype = copy_type(fieldtype);
-            fieldtype->bitsize = maybe_read_bitsize(name, fieldtype);
+            fieldtype->bitsize = next_token(':') ? read_bitsize(name, fieldtype) : -1;
             vec_push(r, make_pair(name, fieldtype));
             if (next_token(','))
                 continue;
@@ -1423,7 +1421,7 @@ static void finish_bitfield(int *off, int *bitoff) {
     *bitoff = 0;
 }
 
-static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
+static Dict *update_struct_offset(int *rsize, int *align, Vector *fields) {
     int off = 0, bitoff = 0;
     Dict *r = make_dict();
     for (int i = 0; i < vec_len(fields); i++) {
@@ -1446,8 +1444,6 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
             continue;
         }
         if (fieldtype->bitsize == 0) {
-            if (name)
-                error("only unnamed bit-field is able to have zero width: %s", name);
             // C11 6.7.2.1p12: The zero-size bit-field indicates the end of the
             // current run of the bit-fields.
             finish_bitfield(&off, &bitoff);
@@ -1482,7 +1478,7 @@ static Dict *update_struct_offset(Vector *fields, int *align, int *rsize) {
     return r;
 }
 
-static Dict *update_union_offset(Vector *fields, int *align, int *rsize) {
+static Dict *update_union_offset(int *rsize, int *align, Vector *fields) {
     int maxsize = 0;
     Dict *r = make_dict();
     for (int i = 0; i < vec_len(fields); i++) {
@@ -1510,9 +1506,9 @@ static Dict *read_rectype_fields(int *rsize, int *align, bool is_struct) {
         return NULL;
     Vector *fields = read_rectype_fields_sub();
     fix_rectype_flexible_member(fields);
-    return is_struct
-        ? update_struct_offset(fields, align, rsize)
-        : update_union_offset(fields, align, rsize);
+    if (is_struct)
+        return update_struct_offset(rsize, align, fields);
+    return update_union_offset(rsize, align, fields);
 }
 
 static Type *read_rectype_def(Map *env, bool is_struct) {
