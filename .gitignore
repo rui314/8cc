@@ -1,10 +1,12 @@
 8cc
 gen?
 *.o
+*.o2
 *.s
 tmp.*
 utiltest
 nqueen.s
 nqueen
 *.bin
+*.bin2
 *~
