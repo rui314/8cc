@@ -26,7 +26,13 @@ static void test_alignof(void) {
     expect(1, alignof(char) - 2 > 0);
 }
 
+static void test_constexpr(void) {
+    char a[alignof(int)];
+    expect(4, sizeof(a));
+}
+
 void testmain(void) {
     print("alignment");
     test_alignof();
+    test_constexpr();
 }

@@ -73,6 +73,11 @@ static void test_struct(void) {
     expect(24, sizeof(struct { struct { char a; double b; } x; char c; }));
 }
 
+static void test_constexpr(void) {
+    char a[sizeof(char[4])];
+    expect(4, sizeof(a));
+}
+
 void testmain(void) {
     print("sizeof");
     test_primitives();
@@ -82,4 +87,5 @@ void testmain(void) {
     test_arrays();
     test_vars();
     test_struct();
+    test_constexpr();
 }
