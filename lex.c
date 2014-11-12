@@ -484,10 +484,20 @@ static Token *do_read_token(void) {
     case '\n':
         return newline_token;
     case 'L':
+        // Wide string/character literal
         if (next('"'))  return read_string();
         if (next('\'')) return read_char();
-        // fallthrough
-    case 'a' ... 'z': case 'A' ... 'K': case 'M' ... 'Z': case '_': case '$':
+        return read_ident(c);
+    case 'u':
+        // C11 6.4.5p3: UTF-8 string literal
+        if (next('8')) {
+            if (next('"'))
+                return read_string();
+            unget('8');
+        }
+        return read_ident(c);
+    case 'a' ... 't': case 'v' ...'z': case 'A' ... 'K':
+    case 'M' ... 'Z': case '_': case '$':
         return read_ident(c);
     case '0' ... '9':
         return read_number(c);

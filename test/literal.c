@@ -27,7 +27,10 @@ static void test_char(void) {
 }
 
 static void test_string(void) {
+    int u8 = 7;
     expect_string("abc", "abc");
+    expect_string("abc", u8"abc");
+    expect(7, u8);
     expect('a', "abc"[0]);
     expect(0, "abc"[3]);
     expect_string("abcd", "ab" "cd");
