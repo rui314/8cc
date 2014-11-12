@@ -192,9 +192,9 @@ static int get(void) {
         file->line++;
         file->column = 0;
         at_bol = true;
-    } else {
-        at_bol = false;
+        return '\n';
     }
+    at_bol = false;
     return c;
 }
 
@@ -217,7 +217,7 @@ static void skip_line(void) {
         int c = get();
         if (c == EOF)
             return;
-        if (c == '\n' || c == '\r') {
+        if (c == '\n') {
             unget(c);
             return;
         }
@@ -481,8 +481,7 @@ static Token *do_read_token(void) {
     case ' ': case '\t': case '\v': case '\f':
         skip_space();
         return space_token;
-    case '\n': case '\r':
-        skip_newline(c);
+    case '\n':
         return newline_token;
     case 'L':
         if (next('"'))  return read_string();
@@ -578,7 +577,7 @@ char *read_header_file_name(bool *std) {
     Buffer *b = make_buffer();
     for (;;) {
         int c = get();
-        if (c == EOF || c == '\n' || c == '\r')
+        if (c == EOF || c == '\n')
             error("premature end of header name");
         if (c == close)
             break;
@@ -609,7 +608,7 @@ char *read_error_directive(void) {
         int c = get();
         if (c == EOF)
             break;
-        if (c == '\n' || c == '\r') {
+        if (c == '\n') {
             unget(c);
             break;
         }
