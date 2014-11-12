@@ -128,6 +128,23 @@ static void cond_incl(void) {
     expect(1, a);
 
 #if 0
+    fail("if 0");
+xyz    /*
+#else
+abc    */
+    fail("if 0");
+#endif
+
+/*
+ */#if 0
+    fail("if 0");
+xyz "\"/*" '\'/*'
+#else
+    a = 5;
+#endif
+    expect(a, 5);
+
+#if 0
 #elif 1
     a = 2;
 #endif

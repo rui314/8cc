@@ -253,27 +253,47 @@ static bool skip_space(void) {
     return r;
 }
 
+static void skip_char(void) {
+    if (get() == '\\')
+        get();
+    int c;
+    do {
+        c = get();
+    } while (c != EOF && c != '\'');
+}
+
+static void skip_string(void) {
+    for (int c = get(); c != EOF && c != '"'; c = get())
+        if (c == '\\')
+            get();
+}
+
+// Skip the block excluded from the input by a #if-like directive.
+// According to C11 6.10, the code within #if and #endif needs to be
+// a sequence of valid tokens. However, in reality, most compilers
+// don't tokenize nor validate contents. We don't tokenize too and
+// just skip the contents as fast as we can.
 void skip_cond_incl(void) {
     int nest = 0;
     for (;;) {
+        bool bol = at_bol;
         skip_space();
         int c = get();
         if (c == EOF)
             return;
-        if (c == '\n' || c == '\r')
-            continue;
-        if (c != '#') {
-            skip_line();
+        if (c == '\'') {
+            skip_char();
             continue;
         }
-        skip_space();
+        if (c == '\"') {
+            skip_string();
+            continue;
+        }
+        if (c != '#' || !bol)
+            continue;
         Token *tok = lex();
-        if (tok->kind == TNEWLINE)
+        if (tok->kind != TIDENT)
             continue;
-        if (tok->kind != TIDENT) {
-            skip_line();
-            continue;
-        }
         if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
             unget_token(tok);
             Token *sharp = make_keyword('#');
