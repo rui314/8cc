@@ -689,15 +689,18 @@ static char *get_realpath(char *path) {
 
 static bool try_include(char *dir, char *filename, bool isimport) {
     char *path = format("%s/%s", dir, filename);
-    if (map_len(once) > 0 && map_get(once, get_realpath(path)))
+    char *real = NULL;
+    if (isimport || map_len(once) > 0)
+        real = get_realpath(path);
+    if (real && map_get(once, real))
         return true;
-    if (isimport && map_get(imported, path))
+    if (isimport && map_get(imported, real))
         return true;
     FILE *fp = fopen(path, "r");
     if (!fp)
         return false;
     if (isimport)
-        map_put(imported, path, (void *)1);
+        map_put(imported, real, (void *)1);
     push_input_file(path, path, fp);
     return true;
 }
