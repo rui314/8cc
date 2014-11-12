@@ -7,6 +7,10 @@
 #import "import.h"
 #import "import.h"
 
+// once.h would raise an error if read twice
+#include "once.h"
+#include "once.h"
+
 void testmain(void) {
     print("import");
 }

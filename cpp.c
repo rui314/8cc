@@ -18,6 +18,7 @@
 bool debug_cpp;
 static Map *macros = &EMPTY_MAP;
 static Map *imported = &EMPTY_MAP;
+static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
 static Vector *cond_incl_stack = &EMPTY_VECTOR;
 static Vector *std_include_path = &EMPTY_VECTOR;
@@ -679,6 +680,8 @@ static char *read_cpp_header_name(bool *std) {
 
 static bool try_include(char *dir, char *filename, bool isimport) {
     char *path = format("%s/%s", dir, filename);
+    if (map_get(once, path))
+        return true;
     if (isimport && map_get(imported, path))
         return true;
     FILE *fp = fopen(path, "r");
@@ -711,12 +714,15 @@ static void read_include(bool isimport) {
  */
 
 static void parse_pragma_operand(char *s) {
-    if (!strcmp(s, "enable_warning"))
+    if (!strcmp(s, "once")) {
+        map_put(once, get_current_file(), (void *)1);
+    } else if (!strcmp(s, "enable_warning")) {
         enable_warning = true;
-    else if (!strcmp(s, "disable_warning"))
+    } else if (!strcmp(s, "disable_warning")) {
         enable_warning = false;
-    else
+    } else {
         error("Unknown #pragma: %s", s);
+    }
 }
 
 static void read_pragma(void) {
