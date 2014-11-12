@@ -8,8 +8,10 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <libgen.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -678,9 +680,16 @@ static char *read_cpp_header_name(bool *std) {
     return join_tokens(tokens, false);
 }
 
+static char *get_realpath(char *path) {
+    char buf[PATH_MAX];
+    if (!realpath(path, buf))
+        error("realpath failed: %s", strerror(errno));
+    return format("%s", buf);
+}
+
 static bool try_include(char *dir, char *filename, bool isimport) {
     char *path = format("%s/%s", dir, filename);
-    if (map_get(once, path))
+    if (map_len(once) > 0 && map_get(once, get_realpath(path)))
         return true;
     if (isimport && map_get(imported, path))
         return true;
@@ -715,7 +724,7 @@ static void read_include(bool isimport) {
 
 static void parse_pragma_operand(char *s) {
     if (!strcmp(s, "once")) {
-        map_put(once, get_current_file(), (void *)1);
+        map_put(once, get_realpath(get_current_file()), (void *)1);
     } else if (!strcmp(s, "enable_warning")) {
         enable_warning = true;
     } else if (!strcmp(s, "disable_warning")) {
