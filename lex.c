@@ -236,13 +236,12 @@ static bool skip_space(void) {
                 skip_block_comment();
                 r = true;
                 continue;
-            } else if (next('/')) {
+            }
+            if (next('/')) {
                 skip_line();
                 r = true;
                 continue;
             }
-            unget('/');
-            break;
         }
         unget(c);
         break;
@@ -253,10 +252,9 @@ static bool skip_space(void) {
 static void skip_char(void) {
     if (get() == '\\')
         get();
-    int c;
-    do {
+    int c = get();
+    while (c != EOF && c != '\'')
         c = get();
-    } while (c != EOF && c != '\'');
 }
 
 static void skip_string(void) {
