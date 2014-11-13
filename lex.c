@@ -44,11 +44,8 @@ void lex_init(char *filename) {
         return;
     }
     FILE *fp = fopen(filename, "r");
-    if (!fp) {
-        char buf[128];
-        strerror_r(errno, buf, sizeof(buf));
-        error("Cannot open %s: %s", filename, buf);
-    }
+    if (!fp)
+        error("Cannot open %s: %s", filename, strerror(errno));
     set_input_file(filename, filename, fp);
 }
 
