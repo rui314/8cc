@@ -171,8 +171,6 @@ typedef struct Node {
             // global
             char *glabel;
         };
-        // Typedef
-        char *typedefname;
         // Binary operator
         struct {
             struct Node *left;

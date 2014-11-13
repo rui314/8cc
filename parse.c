@@ -183,7 +183,7 @@ static Node *ast_static_lvar(Type *ty, char *name) {
 }
 
 static Node *ast_typedef(Type *ty, char *name) {
-    Node *r = make_ast(&(Node){ AST_TYPEDEF, ty, .typedefname = name });
+    Node *r = make_ast(&(Node){ AST_TYPEDEF, ty });
     map_put(env(), name, r);
     return r;
 }
