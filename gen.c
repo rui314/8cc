@@ -830,10 +830,7 @@ static void emit_gvar(Node *node) {
     emit_gload(node->ty, node->glabel, 0);
 }
 
-static bool maybe_emit_builtin(Node *node) {
-    SAVE;
-    if (strcmp("__builtin_return_address", node->fname))
-        return false;
+static void emit_builtin_return_address(Node *node) {
     push("r11");
     assert(vec_len(node->args) == 1);
     emit_expr(vec_head(node->args));
@@ -849,7 +846,31 @@ static bool maybe_emit_builtin(Node *node) {
     emit_label(end);
     emit("mov 8(#r11), #rax");
     pop("r11");
-    return true;
+}
+
+static void emit_builtin_va_start(Node *node) {
+    SAVE;
+    assert(vec_len(node->args) == 1);
+    emit_expr(vec_head(node->args));
+    push("rcx");
+    emit("movl $%d, (#rax)", numgp * 8);
+    emit("movl $%d, 4(#rax)", 48 + numfp * 16);
+    emit("lea %d(#rbp), #rcx", -REGAREA_SIZE);
+    emit("mov #rcx, 16(#rax)");
+    pop("rcx");
+}
+
+static bool maybe_emit_builtin(Node *node) {
+    SAVE;
+    if (!strcmp("__builtin_return_address", node->fname)) {
+        emit_builtin_return_address(node);
+        return true;
+    }
+    if (!strcmp("__builtin_va_start", node->fname)) {
+        emit_builtin_va_start(node);
+        return true;
+    }
+    return false;
 }
 
 static void classify_args(Vector *ints, Vector *floats, Vector *rest, Vector *args) {
@@ -1155,17 +1176,6 @@ static void emit_compound_stmt(Node *node) {
         emit_expr(vec_get(node->stmts, i));
 }
 
-static void emit_va_start(Node *node) {
-    SAVE;
-    emit_expr(node->ap);
-    push("rcx");
-    emit("movl $%d, (#rax)", numgp * 8);
-    emit("movl $%d, 4(#rax)", 48 + numfp * 16);
-    emit("lea %d(#rbp), #rcx", -REGAREA_SIZE);
-    emit("mov #rcx, 16(#rax)");
-    pop("rcx");
-}
-
 static void emit_va_arg(Node *node) {
     SAVE;
     emit_expr(node->ap);
@@ -1332,7 +1342,6 @@ static void emit_expr(Node *node) {
     case AST_STRUCT_REF:
         emit_load_struct_ref(node->struc, node->ty, 0);
         return;
-    case AST_VA_START: emit_va_start(node); return;
     case AST_VA_ARG:   emit_va_arg(node); return;
     case OP_UMINUS:    emit_uminus(node); return;
     case OP_PRE_INC:   emit_pre_inc_dec(node, "add"); return;
