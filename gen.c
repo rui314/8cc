@@ -848,6 +848,20 @@ static void emit_builtin_return_address(Node *node) {
     pop("r11");
 }
 
+// Set the register class for parameter passing to RAX.
+// 0 is INTEGER, 1 is SSE, 2 is MEMORY.
+static void emit_builtin_reg_class(Node *node) {
+    Node *arg = vec_get(node->args, 0);
+    assert(arg->ty->kind == KIND_PTR);
+    Type *ty = arg->ty->ptr;
+    if (ty->kind == KIND_STRUCT)
+        emit("mov $2, #eax");
+    else if (is_flotype(ty))
+        emit("mov $1, #eax");
+    else
+        emit("mov $0, #eax");
+}
+
 static void emit_builtin_va_start(Node *node) {
     SAVE;
     assert(vec_len(node->args) == 1);
@@ -864,6 +878,10 @@ static bool maybe_emit_builtin(Node *node) {
     SAVE;
     if (!strcmp("__builtin_return_address", node->fname)) {
         emit_builtin_return_address(node);
+        return true;
+    }
+    if (!strcmp("__builtin_reg_class", node->fname)) {
+        emit_builtin_reg_class(node);
         return true;
     }
     if (!strcmp("__builtin_va_start", node->fname)) {
@@ -1176,32 +1194,6 @@ static void emit_compound_stmt(Node *node) {
         emit_expr(vec_get(node->stmts, i));
 }
 
-static void emit_va_arg(Node *node) {
-    SAVE;
-    emit_expr(node->ap);
-    emit("nop");
-    push("rcx");
-    push("rbx");
-    emit("mov 16(#rax), #rcx");
-    if (is_flotype(node->ty)) {
-        emit("mov 4(#rax), #ebx");
-        emit("add #rbx, #rcx");
-        emit("add $16, #ebx");
-        emit("mov #ebx, 4(#rax)");
-        emit("movsd (#rcx), #xmm0");
-        if (node->ty->kind == KIND_FLOAT)
-            emit("cvtpd2ps #xmm0, #xmm0");
-    } else {
-        emit("mov (#rax), #ebx");
-        emit("add #rbx, #rcx");
-        emit("add $8, #ebx");
-        emit("mov #rbx, (#rax)");
-        emit("mov (#rcx), #rax");
-    }
-    pop("rbx");
-    pop("rcx");
-}
-
 static void emit_logand(Node *node) {
     SAVE;
     char *end = make_label();
@@ -1342,7 +1334,6 @@ static void emit_expr(Node *node) {
     case AST_STRUCT_REF:
         emit_load_struct_ref(node->struc, node->ty, 0);
         return;
-    case AST_VA_ARG:   emit_va_arg(node); return;
     case OP_UMINUS:    emit_uminus(node); return;
     case OP_PRE_INC:   emit_pre_inc_dec(node, "add"); return;
     case OP_PRE_DEC:   emit_pre_inc_dec(node, "sub"); return;

@@ -4,6 +4,14 @@
 #include <stdarg.h>
 #include "test.h"
 
+static void test_builtin(void) {
+#ifdef __8cc__
+    expect(0, __builtin_reg_class((int *)0));
+    expect(1, __builtin_reg_class((float *)0));
+    expect(2, __builtin_reg_class((struct{ int x; }*)0));
+#endif
+}
+
 static void test_int(int a, ...) {
     va_list ap;
     va_start(ap, a);
@@ -53,6 +61,7 @@ static void test_va_list(void) {
 
 void testmain(void) {
     print("varargs");
+    test_builtin();
     test_int(1, 2, 3, 5, 8);
     test_float(1.0, 2.0, 4.0, 8.0);
     test_mix("abc", 2.0, 4, "d", 5);

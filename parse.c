@@ -297,10 +297,6 @@ static Node *ast_label(char *label) {
     return make_ast(&(Node){ AST_LABEL, .label = label });
 }
 
-static Node *ast_va_arg(Type *ty, Node *ap) {
-    return make_ast(&(Node){ AST_VA_ARG, ty, .ap = ap });
-}
-
 static Node *ast_label_addr(char *label) {
     return make_ast(&(Node){ OP_LABEL_ADDR, make_ptr_type(type_void), .label = label });
 }
@@ -774,19 +770,6 @@ static Node *read_alignof_operand(void) {
 }
 
 /*
- * Builtin functions for varargs
- */
-
-static Node *read_va_arg(void) {
-    // <type> __builtin_va_arg(va_list ap, <type>)
-    Node *ap = read_assignment_expr();
-    expect(',');
-    Type *ty = read_cast_type();
-    expect(')');
-    return ast_va_arg(ty, ap);
-}
-
-/*
  * Function arguments
  */
 
@@ -817,8 +800,6 @@ static Vector *read_func_args(Vector *params) {
 }
 
 static Node *read_funcall(char *fname, Node *func) {
-    if (strcmp(fname, "__builtin_va_arg") == 0)
-        return read_va_arg();
     if (func) {
         Type *t = func->ty;
         if (t->kind != KIND_FUNC)
@@ -2523,7 +2504,12 @@ static void define_builtin(char *name, Type *rettype, Vector *paramtypes) {
 }
 
 void parse_init(void) {
-    define_builtin("__builtin_return_address", make_ptr_type(type_void), make_vector1(type_uint));
-    define_builtin("__builtin_va_arg", type_void, &EMPTY_VECTOR);
-    define_builtin("__builtin_va_start", type_void, make_vector1(make_ptr_type(type_void)));
+    Vector *voidptr = make_vector1(make_ptr_type(type_void));
+    Vector *two_voidptrs = make_vector();
+    vec_push(two_voidptrs, make_ptr_type(type_void));
+    vec_push(two_voidptrs, make_ptr_type(type_void));
+    define_builtin("__builtin_return_address", make_ptr_type(type_void), voidptr);
+    define_builtin("__builtin_reg_class", type_int, voidptr);
+    define_builtin("__builtin_va_arg", type_void, two_voidptrs);
+    define_builtin("__builtin_va_start", type_void, voidptr);
 }
