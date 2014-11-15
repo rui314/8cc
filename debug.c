@@ -223,7 +223,6 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     case AST_ADDR:  uop_to_string(b, "addr", node); break;
     case AST_DEREF: uop_to_string(b, "deref", node); break;
-    case OP_UMINUS: uop_to_string(b, "-", node); break;
     case OP_SAL:  binop_to_string(b, "<<", node); break;
     case OP_SAR:
     case OP_SHR:  binop_to_string(b, ">>", node); break;

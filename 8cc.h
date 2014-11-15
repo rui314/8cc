@@ -75,7 +75,6 @@ enum {
     AST_GOTO,
     AST_COMPUTED_GOTO,
     AST_LABEL,
-    OP_UMINUS,
     OP_SIZEOF,
     OP_CAST,
     OP_SHR,

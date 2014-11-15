@@ -587,7 +587,6 @@ int eval_intexpr(Node *node) {
         error("Integer expression expected, but got %s", a2s(node));
     case '!': return !eval_intexpr(node->operand);
     case '~': return ~eval_intexpr(node->operand);
-    case OP_UMINUS: return -eval_intexpr(node->operand);
     case OP_CAST: return eval_intexpr(node->operand);
     case AST_CONV: return eval_intexpr(node->operand);
     case AST_ADDR:
@@ -1044,7 +1043,9 @@ static Node *read_unary_deref(void) {
 static Node *read_unary_minus(void) {
     Node *expr = read_cast_expr();
     ensure_arithtype(expr);
-    return ast_uop(OP_UMINUS, expr->ty, expr);
+    if (is_inttype(expr->ty))
+        return binop('-', ast_inttype(expr->ty, 0), expr);
+    return binop('-', ast_floattype(expr->ty, 0), expr);
 }
 
 static Node *read_unary_bitnot(void) {

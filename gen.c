@@ -634,18 +634,6 @@ static void emit_decl_init(Vector *inits, int off) {
     }
 }
 
-static void emit_uminus(Node *node) {
-    emit_expr(node->operand);
-    if (is_flotype(node->ty)) {
-        push_xmm(1);
-        emit("xorpd #xmm1, #xmm1");
-        emit("%s #xmm1, #xmm0", (node->ty->kind == KIND_DOUBLE ? "subsd" : "subss"));
-        pop_xmm(1);
-    } else {
-        emit("neg #rax");
-    }
-}
-
 static void emit_pre_inc_dec(Node *node, char *op) {
     emit_expr(node->operand);
     emit("%s $1, #rax", op);
@@ -1337,7 +1325,6 @@ static void emit_expr(Node *node) {
     case AST_STRUCT_REF:
         emit_load_struct_ref(node->struc, node->ty, 0);
         return;
-    case OP_UMINUS:    emit_uminus(node); return;
     case OP_PRE_INC:   emit_pre_inc_dec(node, "add"); return;
     case OP_PRE_DEC:   emit_pre_inc_dec(node, "sub"); return;
     case OP_POST_INC:  emit_post_inc_dec(node, "add"); return;
