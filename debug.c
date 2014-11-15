@@ -118,6 +118,9 @@ static void do_a2s(Buffer *b, Node *node) {
     case AST_STRING:
         buf_printf(b, "\"%s\"", quote_cstring(node->sval));
         break;
+    case AST_LABEL:
+        buf_printf(b, "%s:", node->label);
+        break;
     case AST_LVAR:
         buf_printf(b, "lv=%s", node->varname);
         if (node->lvarinit) {
@@ -157,6 +160,9 @@ static void do_a2s(Buffer *b, Node *node) {
         do_a2s(b, node->body);
         break;
     }
+    case AST_GOTO:
+        buf_printf(b, "goto(%s)", node->label);
+        break;
     case AST_DECL:
         buf_printf(b, "(decl %s %s",
                    c2s(node->declvar->ty),
@@ -186,13 +192,6 @@ static void do_a2s(Buffer *b, Node *node) {
                    a2s(node->cond),
                    a2s(node->then),
                    a2s(node->els));
-        break;
-    case AST_FOR:
-        buf_printf(b, "(for %s %s %s %s)",
-                   a2s(node->forinit),
-                   a2s(node->forcond),
-                   a2s(node->forstep),
-                   a2s(node->forbody));
         break;
     case AST_DO:
         buf_printf(b, "(do %s %s)",

@@ -1052,29 +1052,6 @@ static void emit_ternary(Node *node) {
     lbreak = obreak;                            \
     lcontinue = ocontinue
 
-static void emit_for(Node *node) {
-    SAVE;
-    if (node->forinit)
-        emit_expr(node->forinit);
-    char *begin = make_label();
-    char *step = make_label();
-    char *end = make_label();
-    SET_JUMP_LABELS(end, step);
-    emit_label(begin);
-    if (node->forcond) {
-        emit_expr(node->forcond);
-        emit_je(end);
-    }
-    if (node->forbody)
-        emit_expr(node->forbody);
-    emit_label(step);
-    if (node->forstep)
-        emit_expr(node->forstep);
-    emit_jmp(begin);
-    emit_label(end);
-    RESTORE_JUMP_LABELS();
-}
-
 static void emit_do(Node *node) {
     SAVE;
     char *begin = make_label();
@@ -1292,7 +1269,6 @@ static void emit_expr(Node *node) {
     case AST_TERNARY:
         emit_ternary(node);
         return;
-    case AST_FOR:     emit_for(node); return;
     case AST_DO:      emit_do(node); return;
     case AST_SWITCH:  emit_switch(node); return;
     case AST_CASE:    emit_case(node); return;

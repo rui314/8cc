@@ -251,11 +251,6 @@ static Node *ast_ternary(Type *ty, Node *cond, Node *then, Node *els) {
     return make_ast(&(Node){ AST_TERNARY, ty, .cond = cond, .then = then, .els = els });
 }
 
-static Node *ast_for(Node *init, Node *cond, Node *step, Node *body) {
-    return make_ast(&(Node){
-            AST_FOR, .forinit = init, .forcond = cond, .forstep = step, .forbody = body });
-}
-
 static Node *ast_do(Node *cond, Node *body) {
     return make_ast(&(Node){ AST_DO, .forcond = cond, .forbody = body });
 }
@@ -2299,8 +2294,21 @@ static Node *read_opt_decl_or_stmt(void) {
     return ast_compound_stmt(list);
 }
 
+#define SET_JUMP_LABELS(cont, brk)              \
+    char *ocontinue = lcontinue;                \
+    char *obreak = lbreak;                      \
+    lcontinue = cont;                           \
+    lbreak = brk
+
+#define RESTORE_JUMP_LABELS()                   \
+    lcontinue = ocontinue;                      \
+    lbreak = obreak
+
 static Node *read_for_stmt(void) {
     expect('(');
+    char *beg = make_label();
+    char *mid = make_label();
+    char *end = make_label();
     Map *orig = localenv;
     localenv = make_map_parent(localenv);
     Node *init = read_opt_decl_or_stmt();
@@ -2310,9 +2318,25 @@ static Node *read_for_stmt(void) {
     expect(';');
     Node *step = read_expr_opt();
     expect(')');
+    SET_JUMP_LABELS(mid, end);
     Node *body = read_stmt();
+    RESTORE_JUMP_LABELS();
     localenv = orig;
-    return ast_for(init, cond, step, body);
+
+    Vector *v = make_vector();
+    if (init)
+        vec_push(v, init);
+    vec_push(v, ast_dest(beg));
+    if (cond)
+        vec_push(v, ast_if(cond, NULL, ast_jump(end)));
+    if (body)
+        vec_push(v, body);
+    vec_push(v, ast_dest(mid));
+    if (step)
+        vec_push(v, step);
+    vec_push(v, ast_jump(beg));
+    vec_push(v, ast_dest(end));
+    return ast_compound_stmt(v);
 }
 
 /*
@@ -2326,19 +2350,15 @@ static Node *read_while_stmt(void) {
 
     char *beg = make_label();
     char *end = make_label();
-    char *ocontinue = lcontinue;
-    char *obreak = lbreak;
-    lcontinue = beg;
-    lbreak = end;
-
+    SET_JUMP_LABELS(beg, end);
     Node *body = read_stmt();
+    RESTORE_JUMP_LABELS();
+
     Vector *v = make_vector();
     vec_push(v, ast_dest(beg));
     vec_push(v, ast_if(cond, body, ast_jump(end)));
     vec_push(v, ast_jump(beg));
     vec_push(v, ast_dest(end));
-    lcontinue = ocontinue;
-    lbreak = obreak;
     return ast_compound_stmt(v);
 }
 
@@ -2364,10 +2384,12 @@ static Node *read_do_stmt(void) {
 
 static Node *read_switch_stmt(void) {
     expect('(');
+    SET_JUMP_LABELS(lcontinue, NULL);
     Node *expr = read_expr();
     ensure_inttype(expr);
     expect(')');
     Node *body = read_stmt();
+    RESTORE_JUMP_LABELS();
     return ast_switch(expr, body);
 }
 

@@ -61,7 +61,6 @@ enum {
     AST_DEREF,
     AST_IF,
     AST_TERNARY,
-    AST_FOR,
     AST_DO,
     AST_SWITCH,
     AST_CASE,
@@ -205,13 +204,6 @@ typedef struct Node {
             struct Node *cond;
             struct Node *then;
             struct Node *els;
-        };
-        // For statement
-        struct {
-            struct Node *forinit;
-            struct Node *forcond;
-            struct Node *forstep;
-            struct Node *forbody;
         };
         // Switch statement
         struct {
