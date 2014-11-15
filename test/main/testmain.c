@@ -18,6 +18,10 @@ int booltest1(bool x) {
     return x;
 }
 
+int oldstyle1(int x, int y) {
+    return x + y;
+}
+
 void print(char *s) {
     printf("Testing %s ... ", s);
     fflush(stdout);

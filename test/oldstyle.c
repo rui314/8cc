@@ -7,15 +7,18 @@
 #pragma disable_warning
 #endif
 
-oldstyle1() {
+// Defined in main/testmain.c
+int oldstyle1();
+
+oldstyle2() {
     return 4;
 }
 
-oldstyle2(a) {
+oldstyle3(a) {
     return a;
 }
 
-oldstyle3(a, b)
+oldstyle4(a, b)
 double b;
 {
     return a + b;
@@ -24,9 +27,10 @@ double b;
 void testmain(void) {
     print("K&R");
     expect(3, no_declaration());
-    expect(4, oldstyle1());
-    expect(5, oldstyle2(5));
-    expect(9, oldstyle3(5, 4.0));
+    expect(7, oldstyle1(3, 4));
+    expect(4, oldstyle2());
+    expect(5, oldstyle3(5));
+    expect(9, oldstyle4(5, 4.0));
 }
 
 int no_declaration() {

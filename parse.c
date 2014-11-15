@@ -1828,7 +1828,7 @@ static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
     if (is_keyword(tok, KVOID) && next_token(')'))
         return make_func_type(rettype, paramtypes, false, false);
     if (is_keyword(tok, ')'))
-        return make_func_type(rettype, paramtypes, true, false);
+        return make_func_type(rettype, paramtypes, true, true);
     unget_token(tok);
     bool oldstyle = true;
     for (;;) {
@@ -2273,6 +2273,8 @@ static Node *read_funcdef(void) {
     Vector *params = make_vector();
     Type *functype = read_declarator(&name, basetype, params, DECL_BODY);
     if (functype->oldstyle) {
+        if (vec_len(params) == 0)
+            functype->hasva = false;
         read_oldstyle_param_type(params);
         functype->params = param_types(params);
     }
