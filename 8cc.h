@@ -61,7 +61,6 @@ enum {
     AST_DEREF,
     AST_IF,
     AST_TERNARY,
-    AST_DO,
     AST_SWITCH,
     AST_CASE,
     AST_DEFAULT,

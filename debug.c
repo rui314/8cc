@@ -193,11 +193,6 @@ static void do_a2s(Buffer *b, Node *node) {
                    a2s(node->then),
                    a2s(node->els));
         break;
-    case AST_DO:
-        buf_printf(b, "(do %s %s)",
-                   a2s(node->forcond),
-                   a2s(node->forbody));
-        break;
     case AST_RETURN:
         buf_printf(b, "(return %s)", a2s(node->retval));
         break;

@@ -1043,33 +1043,6 @@ static void emit_ternary(Node *node) {
     }
 }
 
-#define SET_JUMP_LABELS(brk, cont)              \
-    char *obreak = lbreak;                      \
-    char *ocontinue = lcontinue;                \
-    lbreak = brk;                               \
-    lcontinue = cont
-#define RESTORE_JUMP_LABELS()                   \
-    lbreak = obreak;                            \
-    lcontinue = ocontinue
-
-static void emit_do(Node *node) {
-    SAVE;
-    char *begin = make_label();
-    char *end = make_label();
-    SET_JUMP_LABELS(end, begin);
-    emit_label(begin);
-    if (node->forbody)
-        emit_expr(node->forbody);
-    emit_expr(node->forcond);
-    emit_je(end);
-    emit_jmp(begin);
-    emit_label(end);
-    RESTORE_JUMP_LABELS();
-}
-
-#undef SET_JUMP_LABELS
-#undef RESTORE_JUMP_LABELS
-
 static void emit_switch(Node *node) {
     SAVE;
     char *oswitch = lswitch, *obreak = lbreak;
@@ -1269,7 +1242,6 @@ static void emit_expr(Node *node) {
     case AST_TERNARY:
         emit_ternary(node);
         return;
-    case AST_DO:      emit_do(node); return;
     case AST_SWITCH:  emit_switch(node); return;
     case AST_CASE:    emit_case(node); return;
     case AST_DEFAULT: emit_default(node); return;

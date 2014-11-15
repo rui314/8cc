@@ -251,10 +251,6 @@ static Node *ast_ternary(Type *ty, Node *cond, Node *then, Node *els) {
     return make_ast(&(Node){ AST_TERNARY, ty, .cond = cond, .then = then, .els = els });
 }
 
-static Node *ast_do(Node *cond, Node *body) {
-    return make_ast(&(Node){ AST_DO, .forcond = cond, .forbody = body });
-}
-
 static Node *ast_switch(Node *expr, Node *body) {
     return make_ast(&(Node){ AST_SWITCH, .switchexpr = expr, .switchbody = body });
 }
@@ -2367,7 +2363,11 @@ static Node *read_while_stmt(void) {
  */
 
 static Node *read_do_stmt(void) {
+    char *beg = make_label();
+    char *end = make_label();
+    SET_JUMP_LABELS(beg, end);
     Node *body = read_stmt();
+    RESTORE_JUMP_LABELS();
     Token *tok = read_token();
     if (!is_keyword(tok, KWHILE))
         error("'while' is expected, but got %s", t2s(tok));
@@ -2375,7 +2375,14 @@ static Node *read_do_stmt(void) {
     Node *cond = read_boolean_expr();
     expect(')');
     expect(';');
-    return ast_do(cond, body);
+
+    Vector *v = make_vector();
+    vec_push(v, ast_dest(beg));
+    if (body)
+        vec_push(v, body);
+    vec_push(v, ast_if(cond, ast_jump(beg), NULL));
+    vec_push(v, ast_dest(end));
+    return ast_compound_stmt(v);
 }
 
 /*
