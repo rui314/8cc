@@ -61,12 +61,8 @@ enum {
     AST_DEREF,
     AST_IF,
     AST_TERNARY,
-    AST_SWITCH,
-    AST_CASE,
     AST_DEFAULT,
     AST_RETURN,
-    AST_BREAK,
-    AST_CONTINUE,
     AST_COMPOUND_STMT,
     AST_STRUCT_REF,
     AST_GOTO,
@@ -203,16 +199,6 @@ typedef struct Node {
             struct Node *cond;
             struct Node *then;
             struct Node *els;
-        };
-        // Switch statement
-        struct {
-            struct Node *switchexpr;
-            struct Node *switchbody;
-        };
-        // Switch-case label
-        struct {
-            int casebeg;
-            int caseend;
         };
         // Goto and label
         struct {

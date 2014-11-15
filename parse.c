@@ -37,8 +37,10 @@ static Map *labels;
 static Vector *toplevels;
 static Vector *localvars;
 static Vector *gotos;
+static Vector *cases;
 static Type *current_func_type;
 
+static char *defaultcase;
 static char *lbreak;
 static char *lcontinue;
 
@@ -85,6 +87,12 @@ static Node *read_assignment_expr(void);
 static Node *read_cast_expr(void);
 static Node *read_comma_expr(void);
 
+typedef struct {
+    int beg;
+    int end;
+    char *label;
+} Case;
+
 enum {
     S_TYPEDEF = 1,
     S_EXTERN,
@@ -119,6 +127,11 @@ static void mark_location(void) {
  * Constructors
  */
 
+char *make_tempname(void) {
+    static int c = 0;
+    return format(".T%d", c++);
+}
+
 char *make_label(void) {
     static int c = 0;
     return format(".L%d", c++);
@@ -127,6 +140,14 @@ char *make_label(void) {
 static char *make_static_label(char *name) {
     static int c = 0;
     return format(".S%d.%s", c++, name);
+}
+
+static Case *make_case(int beg, int end, char *label) {
+    Case *r = malloc(sizeof(Case));
+    r->beg = beg;
+    r->end = end;
+    r->label = label;
+    return r;
 }
 
 static Map *env(void) {
@@ -249,14 +270,6 @@ static Node *ast_if(Node *cond, Node *then, Node *els) {
 
 static Node *ast_ternary(Type *ty, Node *cond, Node *then, Node *els) {
     return make_ast(&(Node){ AST_TERNARY, ty, .cond = cond, .then = then, .els = els });
-}
-
-static Node *ast_switch(Node *expr, Node *body) {
-    return make_ast(&(Node){ AST_SWITCH, .switchexpr = expr, .switchbody = body });
-}
-
-static Node *ast_case(int begin, int end) {
-    return make_ast(&(Node){ AST_CASE, .casebeg = begin, .caseend = end });
 }
 
 static Node *ast_return(Node *retval) {
@@ -2389,29 +2402,78 @@ static Node *read_do_stmt(void) {
  * Switch
  */
 
+static Node *make_switch_jump(Node *var, Case *c) {
+    Node *cond;
+    if (c->beg == c->end) {
+        cond = ast_binop(type_int, OP_EQ, var, ast_inttype(type_int, c->beg));
+    } else {
+        // [GNU] case i ... j is compiled to if (i <= cond && cond <= j) goto <label>.
+        Node *x = ast_binop(type_int, OP_LE, ast_inttype(type_int, c->beg), var);
+        Node *y = ast_binop(type_int, OP_LE, var, ast_inttype(type_int, c->end));
+        cond = ast_binop(type_int, OP_LOGAND, x, y);
+    }
+    return ast_if(cond, ast_jump(c->label), NULL);
+}
+
+#define SET_SWITCH_CONTEXT(brk)                 \
+    Vector *ocases = cases;                     \
+    char *odefaultcase = defaultcase;           \
+    char *obreak = lbreak;                      \
+    cases = make_vector();                      \
+    defaultcase = NULL;                         \
+    lbreak = brk
+
+#define RESTORE_SWITCH_CONTEXT()                \
+    cases = ocases;                             \
+    defaultcase = odefaultcase;                 \
+    lbreak = obreak
+
 static Node *read_switch_stmt(void) {
     expect('(');
-    SET_JUMP_LABELS(lcontinue, NULL);
-    Node *expr = read_expr();
+    Node *expr = conv(read_expr());
     ensure_inttype(expr);
     expect(')');
+
+    char *end = make_label();
+    SET_SWITCH_CONTEXT(end);
     Node *body = read_stmt();
-    RESTORE_JUMP_LABELS();
-    return ast_switch(expr, body);
+    Vector *v = make_vector();
+    Node *var = ast_lvar(expr->ty, make_tempname());
+    vec_push(v, ast_binop(expr->ty, '=', var, expr));
+    for (int i = 0; i < vec_len(cases); i++)
+        vec_push(v, make_switch_jump(var, vec_get(cases, i)));
+    vec_push(v, ast_jump(defaultcase ? defaultcase : end));
+    if (body)
+        vec_push(v, body);
+    vec_push(v, ast_dest(end));
+    RESTORE_SWITCH_CONTEXT();
+    return ast_compound_stmt(v);
 }
 
 static Node *read_case_label(void) {
+    if (!cases)
+        error("stray case label");
+    char *label = make_label();
     int beg = read_intexpr();
-    int end = next_token(KTHREEDOTS) ? read_intexpr() : beg;
-    expect(':');
-    if (beg > end)
-        error("case region is not in correct order: %d %d", beg, end);
-    return ast_case(beg, end);
+    if (next_token(KTHREEDOTS)) {
+        int end = read_intexpr();
+        expect(':');
+        if (beg > end)
+            error("case region is not in correct order: %d %d", beg, end);
+        vec_push(cases, make_case(beg, end, label));
+    } else {
+        expect(':');
+        vec_push(cases, make_case(beg, beg, label));
+    }
+    return ast_dest(label);
 }
 
 static Node *read_default_label(void) {
     expect(':');
-    return make_ast(&(Node){ AST_DEFAULT });
+    if (defaultcase)
+        error("duplicate default");
+    defaultcase = make_label();
+    return ast_dest(defaultcase);
 }
 
 /*
@@ -2420,16 +2482,16 @@ static Node *read_default_label(void) {
 
 static Node *read_break_stmt(void) {
     expect(';');
-    if (lbreak)
-        return ast_jump(lbreak);
-    return make_ast(&(Node){ AST_BREAK });
+    if (!lbreak)
+        error("stray break statement");
+    return ast_jump(lbreak);
 }
 
 static Node *read_continue_stmt(void) {
     expect(';');
-    if (lcontinue)
-        return ast_jump(lcontinue);
-    return make_ast(&(Node){ AST_CONTINUE });
+    if (!lcontinue)
+        error("stray continue statement");
+    return ast_jump(lcontinue);
 }
 
 static Node *read_return_stmt(void) {

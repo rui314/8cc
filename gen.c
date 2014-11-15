@@ -19,9 +19,6 @@ static char *SREGS[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 static char *MREGS[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
 static int TAB = 8;
 static Vector *functions = &EMPTY_VECTOR;
-static char *lbreak;
-static char *lcontinue;
-static char *lswitch;
 static int stackpos;
 static int numgp;
 static int numfp;
@@ -1043,48 +1040,6 @@ static void emit_ternary(Node *node) {
     }
 }
 
-static void emit_switch(Node *node) {
-    SAVE;
-    char *oswitch = lswitch, *obreak = lbreak;
-    emit_expr(node->switchexpr);
-    lswitch = make_label();
-    lbreak = make_label();
-    emit_jmp(lswitch);
-    if (node->switchbody)
-        emit_expr(node->switchbody);
-    emit_label(lswitch);
-    emit_label(lbreak);
-    lswitch = oswitch;
-    lbreak = obreak;
-}
-
-static void emit_case(Node *node) {
-    SAVE;
-    if (!lswitch)
-        error("stray case label");
-    char *skip = make_label();
-    emit_jmp(skip);
-    emit_label(lswitch);
-    lswitch = make_label();
-    emit("cmp $%d, #eax", node->casebeg);
-    if (node->casebeg == node->caseend) {
-        emit("jne %s", lswitch);
-    } else {
-        emit("jl %s", lswitch);
-        emit("cmp $%d, #eax", node->caseend);
-        emit("jg %s", lswitch);
-    }
-    emit_label(skip);
-}
-
-static void emit_default(Node *node) {
-    SAVE;
-    if (!lswitch)
-        error("stray case label");
-    emit_label(lswitch);
-    lswitch = make_label();
-}
-
 static void emit_goto(Node *node) {
     SAVE;
     assert(node->newlabel);
@@ -1098,20 +1053,6 @@ static void emit_return(Node *node) {
         maybe_booleanize_retval(node->retval->ty);
     }
     emit_ret();
-}
-
-static void emit_break(Node *node) {
-    SAVE;
-    if (!lbreak)
-        error("stray break statement");
-    emit_jmp(lbreak);
-}
-
-static void emit_continue(Node *node) {
-    SAVE;
-    if (!lcontinue)
-        error("stray continue statement");
-    emit_jmp(lcontinue);
 }
 
 static void emit_compound_stmt(Node *node) {
@@ -1242,17 +1183,12 @@ static void emit_expr(Node *node) {
     case AST_TERNARY:
         emit_ternary(node);
         return;
-    case AST_SWITCH:  emit_switch(node); return;
-    case AST_CASE:    emit_case(node); return;
-    case AST_DEFAULT: emit_default(node); return;
     case AST_GOTO:    emit_goto(node); return;
     case AST_LABEL:
         if (node->newlabel)
             emit_label(node->newlabel);
         return;
     case AST_RETURN:  emit_return(node); return;
-    case AST_BREAK:   emit_break(node); return;
-    case AST_CONTINUE: emit_continue(node); return;
     case AST_COMPOUND_STMT: emit_compound_stmt(node); return;
     case AST_STRUCT_REF:
         emit_load_struct_ref(node->struc, node->ty, 0);
