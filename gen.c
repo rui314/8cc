@@ -36,7 +36,7 @@ static void emit_decl_init(Vector *inits, int off);
 static void do_emit_data(Vector *inits, int size, int off, int depth);
 static void emit_data(Node *v, int off, int depth);
 
-#define REGAREA_SIZE 304
+#define REGAREA_SIZE 176
 
 #define emit(...)        emitf(__LINE__, "\t" __VA_ARGS__)
 #define emit_noindent(...)  emitf(__LINE__, __VA_ARGS__)
@@ -1508,22 +1508,21 @@ static void emit_global_var(Node *v) {
 }
 
 static int emit_regsave_area(void) {
-    int pos = -REGAREA_SIZE;
-    emit("mov #rdi, %d(#rsp)", pos);
-    emit("mov #rsi, %d(#rsp)", (pos += 8));
-    emit("mov #rdx, %d(#rsp)", (pos += 8));
-    emit("mov #rcx, %d(#rsp)", (pos += 8));
-    emit("mov #r8, %d(#rsp)", (pos += 8));
-    emit("mov #r9, %d(#rsp)", pos + 8);
-    char *end = make_label();
-    for (int i = 0; i < 16; i++) {
-        emit("test #al, #al");
-        emit("jz %s", end);
-        emit("movsd #xmm%d, %d(#rsp)", i, (pos += 16));
-        emit("sub $1, #al");
-    }
-    emit_label(end);
     emit("sub $%d, #rsp", REGAREA_SIZE);
+    emit("mov #rdi, (#rsp)");
+    emit("mov #rsi, 8(#rsp)");
+    emit("mov #rdx, 16(#rsp)");
+    emit("mov #rcx, 24(#rsp)");
+    emit("mov #r8, 32(#rsp)");
+    emit("mov #r9, 40(#rsp)");
+    emit("movaps #xmm0, 48(#rsp)");
+    emit("movaps #xmm1, 64(#rsp)");
+    emit("movaps #xmm2, 80(#rsp)");
+    emit("movaps #xmm3, 96(#rsp)");
+    emit("movaps #xmm4, 112(#rsp)");
+    emit("movaps #xmm5, 128(#rsp)");
+    emit("movaps #xmm6, 144(#rsp)");
+    emit("movaps #xmm7, 160(#rsp)");
     return REGAREA_SIZE;
 }
 
