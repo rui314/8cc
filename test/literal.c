@@ -42,6 +42,8 @@ static void test_string(void) {
     expect('c', L'c');
 #ifdef __8cc__
     expect_string("asdf", L"asdf");
+    expect_string("abc", U"abc");
+    expect_string("abc", u"abc");
 #endif
 
     // make sure we can handle an identifier starting with "L"
@@ -63,6 +65,11 @@ static void test_ucn(void) {
     expect('$', L'\U00000024');
     expect_string("$", "\u0024");
     expect_string("$", "\U00000024");
+#ifdef __8cc__
+    expect('X', L'X');
+    expect('X', U'X');
+    expect('X', u'X');
+#endif
 }
 
 int g1 = 80;
