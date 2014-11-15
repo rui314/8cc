@@ -408,12 +408,12 @@ static void ensure_lvalue(Node *node) {
 
 static void ensure_inttype(Node *node) {
     if (!is_inttype(node->ty))
-        error("integer kind expected, but got %s", a2s(node));
+        error("integer type expected, but got %s", a2s(node));
 }
 
 static void ensure_arithtype(Node *node) {
     if (!is_arithtype(node->ty))
-        error("arithmetic kind expected, but got %s", a2s(node));
+        error("arithmetic type expected, but got %s", a2s(node));
 }
 
 static void ensure_not_void(Type *ty) {
@@ -994,7 +994,7 @@ static Node *read_postfix_expr_tail(Node *node) {
         }
         if (next_token(OP_ARROW)) {
             if (node->ty->kind != KIND_PTR)
-                error("pointer kind expected, but got %s %s",
+                error("pointer type expected, but got %s %s",
                       c2s(node->ty), a2s(node));
             node = ast_uop(AST_DEREF, node->ty->ptr, node);
             node = read_struct_field(node);
@@ -1044,7 +1044,7 @@ static Node *read_unary_addr(void) {
 static Node *read_unary_deref(void) {
     Node *operand = conv(read_cast_expr());
     if (operand->ty->kind != KIND_PTR)
-        error("pointer kind expected, but got %s", a2s(operand));
+        error("pointer type expected, but got %s", a2s(operand));
     if (operand->ty->ptr->kind == KIND_FUNC)
         return operand;
     return ast_uop(AST_DEREF, operand->ty->ptr, operand);
@@ -1322,7 +1322,7 @@ static void squash_unnamed_struct(Dict *dict, Type *unnamed, int offset) {
 
 static int read_bitsize(char *name, Type *ty) {
     if (!is_inttype(ty))
-        error("non-integer kind cannot be a bitfield: %s", c2s(ty));
+        error("non-integer type cannot be a bitfield: %s", c2s(ty));
     int r = read_intexpr();
     int maxsize = ty->kind == KIND_BOOL ? 1 : ty->size * 8;
     if (r < 0 || maxsize < r)
@@ -1798,7 +1798,7 @@ static Type *read_func_param(char **name, bool optional) {
     if (is_type_keyword(peek_token()))
         basetype = read_decl_spec(&sclass);
     else if (optional)
-        error("kind expected, but got %s", t2s(peek_token()));
+        error("type expected, but got %s", t2s(peek_token()));
     return read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
 }
 
@@ -1952,7 +1952,7 @@ static Type *read_decl_spec(int *rsclass) {
     int sclass = 0;
     Token *tok = peek_token();
     if (!is_type_keyword(tok))
-        error("kind keyword expected, but got %s", t2s(tok));
+        error("type keyword expected, but got %s", t2s(tok));
 
     Type *usertype = NULL;
     enum { kvoid = 1, kbool, kchar, kint, kfloat, kdouble } kind = 0;
@@ -2075,7 +2075,7 @@ static Type *read_decl_spec(int *rsclass) {
         ty->align = align;
     return ty;
  err:
-    error("kind mismatch: %s", t2s(tok));
+    error("type mismatch: %s", t2s(tok));
 }
 
 /*
@@ -2246,7 +2246,7 @@ static Node *read_funcdef(void) {
     if (is_type_keyword(peek_token()))
         basetype = read_decl_spec(&sclass);
     else
-        warn("kind specifier missing, assuming int");
+        warn("type specifier missing, assuming int");
     localenv = make_map_parent(globalenv);
     gotos = make_vector();
     labels = make_map();
