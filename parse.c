@@ -39,6 +39,9 @@ static Vector *localvars;
 static Vector *gotos;
 static Type *current_func_type;
 
+static char *lbreak;
+static char *lcontinue;
+
 // Objects representing basic types. All variables will be of one of these types
 // or a derived type from one of them. Note that (typename){initializer} is C99
 // feature to write a literal struct.
@@ -253,10 +256,6 @@ static Node *ast_for(Node *init, Node *cond, Node *step, Node *body) {
             AST_FOR, .forinit = init, .forcond = cond, .forstep = step, .forbody = body });
 }
 
-static Node *ast_while(Node *cond, Node *body) {
-    return make_ast(&(Node){ AST_WHILE, .forcond = cond, .forbody = body });
-}
-
 static Node *ast_do(Node *cond, Node *body) {
     return make_ast(&(Node){ AST_DO, .forcond = cond, .forbody = body });
 }
@@ -285,12 +284,20 @@ static Node *ast_goto(char *label) {
     return make_ast(&(Node){ AST_GOTO, .label = label });
 }
 
+static Node *ast_jump(char *label) {
+    return make_ast(&(Node){ AST_GOTO, .label = label, .newlabel = label });
+}
+
 static Node *ast_computed_goto(Node *expr) {
     return make_ast(&(Node){ AST_COMPUTED_GOTO, .operand = expr });
 }
 
 static Node *ast_label(char *label) {
     return make_ast(&(Node){ AST_LABEL, .label = label });
+}
+
+static Node *ast_dest(char *label) {
+    return make_ast(&(Node){ AST_LABEL, .label = label, .newlabel = label });
 }
 
 static Node *ast_label_addr(char *label) {
@@ -2316,8 +2323,23 @@ static Node *read_while_stmt(void) {
     expect('(');
     Node *cond = read_boolean_expr();
     expect(')');
+
+    char *beg = make_label();
+    char *end = make_label();
+    char *ocontinue = lcontinue;
+    char *obreak = lbreak;
+    lcontinue = beg;
+    lbreak = end;
+
     Node *body = read_stmt();
-    return ast_while(cond, body);
+    Vector *v = make_vector();
+    vec_push(v, ast_dest(beg));
+    vec_push(v, ast_if(cond, body, ast_jump(end)));
+    vec_push(v, ast_jump(beg));
+    vec_push(v, ast_dest(end));
+    lcontinue = ocontinue;
+    lbreak = obreak;
+    return ast_compound_stmt(v);
 }
 
 /*
@@ -2369,11 +2391,15 @@ static Node *read_default_label(void) {
 
 static Node *read_break_stmt(void) {
     expect(';');
+    if (lbreak)
+        return ast_jump(lbreak);
     return make_ast(&(Node){ AST_BREAK });
 }
 
 static Node *read_continue_stmt(void) {
     expect(';');
+    if (lcontinue)
+        return ast_jump(lcontinue);
     return make_ast(&(Node){ AST_CONTINUE });
 }
 
@@ -2405,9 +2431,9 @@ static Node *read_goto_stmt(void) {
 static Node *read_label(Token *tok) {
     expect(':');
     char *label = tok->sval;
-    Node *r = ast_label(label);
     if (map_get(labels, label))
         error("duplicate label: %s", t2s(tok));
+    Node *r = ast_label(label);
     map_put(labels, label, r);
     return r;
 }

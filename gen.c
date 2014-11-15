@@ -1075,21 +1075,6 @@ static void emit_for(Node *node) {
     RESTORE_JUMP_LABELS();
 }
 
-static void emit_while(Node *node) {
-    SAVE;
-    char *begin = make_label();
-    char *end = make_label();
-    SET_JUMP_LABELS(end, begin);
-    emit_label(begin);
-    emit_expr(node->forcond);
-    emit_je(end);
-    if (node->forbody)
-        emit_expr(node->forbody);
-    emit_jmp(begin);
-    emit_label(end);
-    RESTORE_JUMP_LABELS();
-}
-
 static void emit_do(Node *node) {
     SAVE;
     char *begin = make_label();
@@ -1308,7 +1293,6 @@ static void emit_expr(Node *node) {
         emit_ternary(node);
         return;
     case AST_FOR:     emit_for(node); return;
-    case AST_WHILE:   emit_while(node); return;
     case AST_DO:      emit_do(node); return;
     case AST_SWITCH:  emit_switch(node); return;
     case AST_CASE:    emit_case(node); return;

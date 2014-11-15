@@ -194,11 +194,6 @@ static void do_a2s(Buffer *b, Node *node) {
                    a2s(node->forstep),
                    a2s(node->forbody));
         break;
-    case AST_WHILE:
-        buf_printf(b, "(while %s %s)",
-                   a2s(node->forcond),
-                   a2s(node->forbody));
-        break;
     case AST_DO:
         buf_printf(b, "(do %s %s)",
                    a2s(node->forcond),

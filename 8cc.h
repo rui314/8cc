@@ -62,7 +62,6 @@ enum {
     AST_IF,
     AST_TERNARY,
     AST_FOR,
-    AST_WHILE,
     AST_DO,
     AST_SWITCH,
     AST_CASE,
