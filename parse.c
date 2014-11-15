@@ -204,12 +204,8 @@ static Node *ast_funcall(Type *ftype, char *fname, Vector *args) {
         .ftype = ftype });
 }
 
-static Node *ast_funcdesg(char *fname, Node *func) {
-    return make_ast(&(Node){
-        .kind = AST_FUNCDESG,
-        .ty = type_void,
-        .fname = fname,
-        .fptr = func });
+static Node *ast_funcdesg(Type *ty, char *fname) {
+    return make_ast(&(Node){ AST_FUNCDESG, ty, .fname = fname });
 }
 
 static Node *ast_funcptr_call(Node *fptr, Vector *args) {
@@ -475,16 +471,16 @@ void *make_pair(void *first, void *second) {
 static Node *conv(Node *node) {
     if (!node)
         return NULL;
-    // C11 6.3.2.1p4: A function designator is converted to a pointer to the function.
-    if (node->kind == AST_FUNCDESG)
-        return ast_uop(AST_ADDR, make_ptr_type(node->fptr->ty), node->fptr);
-    // C11 6.3.2.1p3: An array of T is converted to a pointer to T.
     Type *ty = node->ty;
-    if (ty->kind == KIND_ARRAY)
-        return ast_uop(AST_CONV, make_ptr_type(ty->ptr), node);
-    // C11 6.3.1.1p2: The integer promotions
     switch (ty->kind) {
+    case KIND_ARRAY:
+        // C11 6.3.2.1p3: An array of T is converted to a pointer to T.
+        return ast_uop(AST_CONV, make_ptr_type(ty->ptr), node);
+    case KIND_FUNC:
+        // C11 6.3.2.1p4: A function designator is converted to a pointer to the function.
+        return ast_uop(AST_ADDR, make_ptr_type(ty), node);
     case KIND_SHORT: case KIND_CHAR: case KIND_BOOL:
+        // C11 6.3.1.1p2: The integer promotions
         return ast_conv(type_int, node);
     case KIND_INT:
         if (ty->bitsize > 0)
@@ -746,8 +742,7 @@ static Type *read_sizeof_operand_sub(void) {
         return r;
     }
     unget_token(tok);
-    Node *expr = read_unary_expr();
-    return (expr->kind == AST_FUNCDESG) ? expr->fptr->ty : expr->ty;
+    return read_unary_expr()->ty;
 }
 
 static Node *read_sizeof_operand(void) {
@@ -799,22 +794,14 @@ static Vector *read_func_args(Vector *params) {
     return args;
 }
 
-static Node *read_funcall(char *fname, Node *func) {
-    if (func) {
-        Type *t = func->ty;
-        if (t->kind != KIND_FUNC)
-            error("%s is not a function, but %s", fname, c2s(t));
-        Vector *args = read_func_args(t->params);
-        return ast_funcall(t, fname, args);
+static Node *read_funcall(Node *fp) {
+    if (fp->kind == AST_ADDR && fp->operand->kind == AST_FUNCDESG) {
+        Node *desg = fp->operand;
+        Vector *args = read_func_args(desg->ty->params);
+        return ast_funcall(desg->ty, desg->fname, args);
     }
-    warn("assume returning int: %s()", fname);
-    Vector *args = read_func_args(&EMPTY_VECTOR);
-    return ast_funcall(make_func_type(type_int, make_vector(), true, false), fname, args);
-}
-
-static Node *read_funcptr_call(Node *fptr) {
-    Vector *args = read_func_args(fptr->ty->ptr->params);
-    return ast_funcptr_call(fptr, args);
+    Vector *args = read_func_args(fp->ty->ptr->params);
+    return ast_funcptr_call(fp, args);
 }
 
 /*
@@ -894,8 +881,15 @@ static void read_static_assert(void) {
 
 static Node *read_var_or_func(char *name) {
     Node *v = map_get(env(), name);
-    if (!v || v->ty->kind == KIND_FUNC)
-        return ast_funcdesg(name, v);
+    if (!v) {
+        if (!is_keyword(peek_token(), '('))
+            error("undefined variable: %s", name);
+        Type *ty = make_func_type(type_int, make_vector(), true, false);
+        warn("assume returning int: %s()", name);
+        return ast_funcdesg(ty, name);
+    }
+    if (v->ty->kind == KIND_FUNC)
+        return ast_funcdesg(v->ty, name);
     return v;
 }
 
@@ -974,16 +968,13 @@ static Node *read_postfix_expr_tail(Node *node) {
     if (!node) return NULL;
     for (;;) {
         if (next_token('(')) {
+            node = conv(node);
             Type *t = node->ty;
-            if (t->kind == KIND_PTR && t->ptr->kind == KIND_FUNC)
-                return read_funcptr_call(node);
-            if (node->kind != AST_FUNCDESG)
-                error("function name expected, but got %s", a2s(node));
-            node = read_funcall(node->fname, node->fptr);
+            if (t->kind != KIND_PTR || t->ptr->kind != KIND_FUNC)
+                error("function expected, but got %s", a2s(node));
+            node = read_funcall(node);
             continue;
         }
-        if (node->kind == AST_FUNCDESG && !node->fptr)
-            error("Undefined varaible: %s", node->fname);
         if (next_token('[')) {
             node = read_subscript_expr(node);
             continue;

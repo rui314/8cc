@@ -142,7 +142,7 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     }
     case AST_FUNCDESG: {
-        buf_printf(b, "(funcdesg %s)", a2s(node->fptr));
+        buf_printf(b, "(funcdesg %s)", node->fname);
         break;
     }
     case AST_FUNC: {
