@@ -215,8 +215,6 @@ typedef struct Node {
             char *field;
             Type *fieldtype;
         };
-        // Builtin functions for varargs
-        struct Node *ap;
     };
 } Node;
 
