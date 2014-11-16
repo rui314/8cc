@@ -2520,7 +2520,6 @@ static Node *read_goto_stmt(void) {
 }
 
 static Node *read_label(Token *tok) {
-    expect(':');
     char *label = tok->sval;
     if (map_get(labels, label))
         error("duplicate label: %s", t2s(tok));
@@ -2551,7 +2550,7 @@ static Node *read_stmt(void) {
         case KGOTO:     return read_goto_stmt();
         }
     }
-    if (tok->kind == TIDENT && is_keyword(peek_token(), ':'))
+    if (tok->kind == TIDENT && next_token(':'))
         return read_label(tok);
     unget_token(tok);
     Node *r = read_expr_opt();
