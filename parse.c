@@ -649,7 +649,7 @@ static int read_intexpr() {
  * Numeric literal
  */
 
-#define strtoint(f, nptr, end, base)                         \
+#define STRTOINT(f, nptr, end, base)                         \
     ({                                                       \
         errno = 0;                                           \
         char *endptr;                                        \
@@ -685,26 +685,26 @@ static Node *read_int(char *s) {
         p++;
     }
     if (!strcasecmp(p, "u"))
-        return ast_inttype(type_uint, strtoint(strtol, s, p, base));
+        return ast_inttype(type_uint, STRTOINT(strtol, s, p, base));
     if (!strcasecmp(p, "l"))
-        return ast_inttype(type_long, strtoint(strtol, s, p, base));
+        return ast_inttype(type_long, STRTOINT(strtol, s, p, base));
     if (!strcasecmp(p, "ul") || !strcasecmp(p, "lu"))
-        return ast_inttype(type_ulong, strtoint(strtoul, s, p, base));
+        return ast_inttype(type_ulong, STRTOINT(strtoul, s, p, base));
     if (!strcasecmp(p, "ll"))
-        return ast_inttype(type_llong, strtoint(strtol, s, p, base));
+        return ast_inttype(type_llong, STRTOINT(strtol, s, p, base));
     if (!strcasecmp(p, "ull") || !strcasecmp(p, "llu"))
-        return ast_inttype(type_ullong, strtoint(strtoul, s, p, base));
+        return ast_inttype(type_ullong, STRTOINT(strtoul, s, p, base));
     if (*p != '\0')
         error("invalid suffix '%c': %s", *p, s);
     // C11 6.4.4.1p5: decimal constant type is int, long, or long long.
     // In 8cc, long and long long are the same size.
     if (base == 10) {
-        long val = strtoint(strtol, digits, p, base);
+        long val = STRTOINT(strtol, digits, p, base);
         Type *t = !(val & ~(long)INT_MAX) ? type_int : type_long;
         return ast_inttype(t, val);
     }
     // Octal or hexadecimal constant type may be unsigned.
-    unsigned long val = strtoint(strtoull, digits, p, base);
+    unsigned long val = STRTOINT(strtoull, digits, p, base);
     Type *t = !(val & ~(unsigned long)INT_MAX) ? type_int
         : !(val & ~(unsigned long)UINT_MAX) ? type_uint
         : !(val & ~(unsigned long)LONG_MAX) ? type_long
@@ -713,7 +713,7 @@ static Node *read_int(char *s) {
 }
 
 
-#define strtofloat(f, nptr, end)                                \
+#define STRTOFLOAT(f, nptr, end)                                \
     ({                                                          \
         errno = 0;                                              \
         char *endptr;                                           \
@@ -729,10 +729,10 @@ static Node *read_float(char *s) {
     char *last = s + strlen(s) - 1;
     // C11 6.4.4.2p4: the default type for flonum is double.
     if (strchr("lL", *last))
-        return ast_floattype(type_ldouble, strtofloat(strtof, s, last));
+        return ast_floattype(type_ldouble, STRTOFLOAT(strtof, s, last));
     if (strchr("fF", *last))
-        return ast_floattype(type_float, strtofloat(strtof, s, last));
-    return ast_floattype(type_double, strtofloat(strtod, s, last + 1));
+        return ast_floattype(type_float, STRTOFLOAT(strtof, s, last));
+    return ast_floattype(type_double, STRTOFLOAT(strtod, s, last + 1));
 }
 
 static Node *read_number(char *s) {
@@ -1964,12 +1964,12 @@ static Type *read_decl_spec(int *rsclass) {
     int align = -1;
 
     for (;;) {
-#define setsclass(val)                          \
+#define SETSCLASS(val)                          \
         do {                                    \
             if (sclass != 0) goto err;          \
             sclass = val;                       \
         } while (0)
-#define set(var, val)                                                   \
+#define SET(var, val)                                                   \
         do {                                                            \
             if (var != 0) goto err;                                     \
             var = val;                                                  \
@@ -1991,7 +1991,7 @@ static Type *read_decl_spec(int *rsclass) {
         if (tok->kind == TIDENT && !usertype) {
             Type *def = get_typedef(tok->sval);
             if (def) {
-                set(usertype, def);
+                SET(usertype, def);
                 continue;
             }
         }
@@ -2000,28 +2000,28 @@ static Type *read_decl_spec(int *rsclass) {
             break;
         }
         switch (tok->id) {
-        case KTYPEDEF:    setsclass(S_TYPEDEF); continue;
-        case KEXTERN:     setsclass(S_EXTERN); continue;
-        case KSTATIC:     setsclass(S_STATIC); continue;
-        case KAUTO:       setsclass(S_AUTO); continue;
-        case KREGISTER:   setsclass(S_REGISTER); continue;
+        case KTYPEDEF:    SETSCLASS(S_TYPEDEF); continue;
+        case KEXTERN:     SETSCLASS(S_EXTERN); continue;
+        case KSTATIC:     SETSCLASS(S_STATIC); continue;
+        case KAUTO:       SETSCLASS(S_AUTO); continue;
+        case KREGISTER:   SETSCLASS(S_REGISTER); continue;
         case KCONST:      continue;
         case KVOLATILE:   continue;
         case KINLINE:     continue;
         case KNORETURN:   continue;
-        case KVOID:       set(kind, kvoid); continue;
-        case KBOOL:       set(kind, kbool); continue;
-        case KCHAR:       set(kind, kchar); continue;
-        case KINT:        set(kind, kint); continue;
-        case KFLOAT:      set(kind, kfloat); continue;
-        case KDOUBLE:     set(kind, kdouble); continue;
+        case KVOID:       SET(kind, kvoid); continue;
+        case KBOOL:       SET(kind, kbool); continue;
+        case KCHAR:       SET(kind, kchar); continue;
+        case KINT:        SET(kind, kint); continue;
+        case KFLOAT:      SET(kind, kfloat); continue;
+        case KDOUBLE:     SET(kind, kdouble); continue;
         case KSIGNED:
-        case K__SIGNED__: set(sig, ksigned); continue;
-        case KUNSIGNED:   set(sig, kunsigned); continue;
-        case KSHORT:      set(size, kshort); continue;
-        case KSTRUCT:     set(usertype, read_struct_def()); continue;
-        case KUNION:      set(usertype, read_union_def()); continue;
-        case KENUM:       set(usertype, read_enum_def()); continue;
+        case K__SIGNED__: SET(sig, ksigned); continue;
+        case KUNSIGNED:   SET(sig, kunsigned); continue;
+        case KSHORT:      SET(size, kshort); continue;
+        case KSTRUCT:     SET(usertype, read_struct_def()); continue;
+        case KUNION:      SET(usertype, read_union_def()); continue;
+        case KENUM:       SET(usertype, read_enum_def()); continue;
         case KALIGNAS: {
             int val = read_alignas();
             if (val < 0)
@@ -2034,21 +2034,21 @@ static Type *read_decl_spec(int *rsclass) {
             continue;
         }
         case KLONG: {
-            if (size == 0) set(size, klong);
+            if (size == 0) SET(size, klong);
             else if (size == klong) size = kllong;
             else goto err;
             continue;
         }
         case KTYPEOF: case K__TYPEOF__: {
-            set(usertype, read_typeof());
+            SET(usertype, read_typeof());
             continue;
         }
         default:
             unget_token(tok);
             goto done;
         }
-#undef set
-#undef setsclass
+#undef SET
+#undef SETSCLASS
     }
  done:
     if (rsclass)
