@@ -47,6 +47,13 @@ static void t6(void) {
     expect(1, p->next->val);
 }
 
+static void t7() {
+    int a;
+    int *p1 = &a + 1;
+    int *p2 = 1 + &a;
+    expect(0, p1 - p2);
+}
+
 static void subtract(void) {
     char *p = "abcdefg";
     char *q = p + 5;
@@ -61,5 +68,6 @@ void testmain(void) {
     t4();
     t5();
     t6();
+    t7();
     subtract();
 }
