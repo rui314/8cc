@@ -29,7 +29,7 @@ static char *last_loc = "";
 
 static void emit_addr(Node *node);
 static void emit_expr(Node *node);
-static void emit_decl_init(Vector *inits, int off);
+static void emit_decl_init(Vector *inits, int off, int totalsize);
 static void do_emit_data(Vector *inits, int size, int off, int depth);
 static void emit_data(Node *v, int off, int depth);
 
@@ -337,10 +337,8 @@ static void emit_zero_filler(int start, int end) {
 static void ensure_lvar_init(Node *node) {
     SAVE;
     assert(node->kind == AST_LVAR);
-    if (node->lvarinit) {
-        emit_zero_filler(node->loff, node->loff + node->ty->size);
-        emit_decl_init(node->lvarinit, node->loff);
-    }
+    if (node->lvarinit)
+        emit_decl_init(node->lvarinit, node->loff, node->ty->size);
     node->lvarinit = NULL;
 }
 
@@ -617,12 +615,38 @@ static void emit_copy_struct(Node *left, Node *right) {
     pop("rcx");
 }
 
-static void emit_decl_init(Vector *inits, int off) {
+static int cmpinit(const void *x, const void *y) {
+    Node *a = *(Node **)x;
+    Node *b = *(Node **)y;
+    return a->initoff - b->initoff;
+}
+
+static void emit_fill_holes(Vector *inits, int off, int totalsize) {
+    // If at least one of the fields in a variable are initialized,
+    // unspecified fields has to be initialized with 0.
+    int len = vec_len(inits);
+    Node **buf = malloc(len * sizeof(Node *));
+    for (int i = 0; i < len; i++)
+        buf[i] = vec_get(inits, i);
+    qsort(buf, len, sizeof(Node *), cmpinit);
+
+    int lastend = 0;
+    for (int i = 0; i < len; i++) {
+        Node *node = buf[i];
+        if (lastend < node->initoff)
+            emit_zero_filler(lastend + off, node->initoff + off);
+        lastend = node->initoff + node->totype->size;
+    }
+    emit_zero_filler(lastend + off, totalsize + off);
+}
+
+static void emit_decl_init(Vector *inits, int off, int totalsize) {
+    emit_fill_holes(inits, off, totalsize);
     for (int i = 0; i < vec_len(inits); i++) {
         Node *node = vec_get(inits, i);
         assert(node->kind == AST_INIT);
-        if (node->initval->kind == AST_LITERAL &&
-            node->totype->bitsize <= 0) {
+        bool isbitfield = (node->totype->bitsize > 0);
+        if (node->initval->kind == AST_LITERAL && !isbitfield) {
             emit_save_literal(node->initval, node->totype, node->initoff + off);
         } else {
             emit_expr(node->initval);
@@ -1004,9 +1028,7 @@ static void emit_decl(Node *node) {
     SAVE;
     if (!node->declinit)
         return;
-    emit_zero_filler(node->declvar->loff,
-                     node->declvar->loff + node->declvar->ty->size);
-    emit_decl_init(node->declinit, node->declvar->loff);
+    emit_decl_init(node->declinit, node->declvar->loff, node->declvar->ty->size);
 }
 
 static void emit_conv(Node *node) {
