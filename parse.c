@@ -534,7 +534,20 @@ static Type *usual_arith_conv(Type *t, Type *u) {
     return r;
 }
 
+static bool is_valid_ptr_ptr_op(int op) {
+    if (op == '+' || op == '|' || op == '&') {
+        return false;
+    }
+    return true;
+}
+
 static Node *binop(int op, Node *lhs, Node *rhs) {
+    if (lhs->ty->kind == KIND_PTR && rhs->ty->kind == KIND_PTR) {
+        if (!is_valid_ptr_ptr_op(op)) {
+            error("invalid pointer arith");
+        }
+        return ast_binop(type_int, op, lhs, rhs);
+    }
     if (lhs->ty->kind == KIND_PTR)
         return ast_binop(lhs->ty, op, lhs, rhs);
     if (rhs->ty->kind == KIND_PTR)
