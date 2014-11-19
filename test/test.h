@@ -2,6 +2,7 @@
 // This program is free software licensed under the MIT license.
 
 #include "stdio.h"
+#include "stddef.h"
 
 void exit(int);
 size_t strlen(const char *);
