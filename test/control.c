@@ -217,6 +217,29 @@ static void test_goto(void) {
     ;
 }
 
+static void test_label(void) {
+    int x = 0;
+    if (1)
+      L1: x++;
+    expect(1, x);
+
+    int y = 0;
+    if (0)
+      L2: y++;
+    expect(0, y);
+
+    int z = 0;
+    switch (7) {
+        if (1)
+          case 5: z += 2;
+        if (0)
+          case 7: z += 3;
+        if (1)
+          case 6: z += 5;
+    }
+    expect(8, z);
+}
+
 static void test_computed_goto(void) {
     struct { void *x, *y, *z, *a; } t = { &&x, &&y, &&z, &&a };
     int acc = 0;
@@ -251,6 +274,7 @@ void testmain(void) {
     test_do();
     test_switch();
     test_goto();
+    test_label();
     test_computed_goto();
     test_logor();
 }

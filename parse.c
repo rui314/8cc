@@ -2465,6 +2465,15 @@ static Node *read_switch_stmt(void) {
     return ast_compound_stmt(v);
 }
 
+static Node *read_label_tail(Node *label) {
+    Node *stmt = read_stmt();
+    Vector *v = make_vector();
+    vec_push(v, label);
+    if (stmt)
+        vec_push(v, stmt);
+    return ast_compound_stmt(v);
+}
+
 static Node *read_case_label(void) {
     if (!cases)
         error("stray case label");
@@ -2480,7 +2489,7 @@ static Node *read_case_label(void) {
         expect(':');
         vec_push(cases, make_case(beg, beg, label));
     }
-    return ast_dest(label);
+    return read_label_tail(ast_dest(label));
 }
 
 static Node *read_default_label(void) {
@@ -2488,7 +2497,7 @@ static Node *read_default_label(void) {
     if (defaultcase)
         error("duplicate default");
     defaultcase = make_label();
-    return ast_dest(defaultcase);
+    return read_label_tail(ast_dest(defaultcase));
 }
 
 /*
@@ -2540,7 +2549,7 @@ static Node *read_label(Token *tok) {
         error("duplicate label: %s", t2s(tok));
     Node *r = ast_label(label);
     map_put(labels, label, r);
-    return r;
+    return read_label_tail(r);
 }
 
 /*
