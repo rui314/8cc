@@ -22,13 +22,13 @@ test: utiltest $(TESTS)
 	./test.sh
 
 test/%.o: test/%.c 8cc
-	./8cc $(ECC_CFLAGS) -c $<
+	./8cc $(ECC_CFLAGS) -o $@ -c $<
 
-test/%.bin: test/%.o test/main/testmain.s 8cc
+test/%.bin: test/%.o test/main/testmain.o 8cc
 	$(CC) -o $@ $< test/main/testmain.o $(LDFLAGS)
 
 $(SELF) test/main/testmain.s: 8cc test/main/testmain.c
-	./8cc $(ECC_CFLAGS) -c $(@:s=c)
+	./8cc $(ECC_CFLAGS) -o $@ -c $(@:s=c)
 
 test/%.o2: test/%.c
 	$(CC) -std=gnu11 -g -w -I. -o $@ -c $<

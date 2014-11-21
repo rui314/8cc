@@ -1,6 +1,7 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -8,8 +9,9 @@
 #include <unistd.h>
 #include "8cc.h"
 
-static char *inputfile;
-static char *outputfile;
+static char *infile;
+static char *outfile;
+static char *asmfile;
 static bool dumpast;
 static bool cpponly;
 static bool dumpasm;
@@ -50,6 +52,11 @@ static void delete_temp_files(void) {
         unlink(vec_get(tmpfiles, i));
 }
 
+static char *base(char *path) {
+    char *buf = format("%s", path);
+    return basename(buf);
+}
+
 static char *replace_suffix(char *filename, char suffix) {
     char *r = format("%s", filename);
     char *p = r + strlen(r) - 1;
@@ -59,20 +66,18 @@ static char *replace_suffix(char *filename, char suffix) {
     return r;
 }
 
-static FILE *open_output_file(void) {
-    if (!outputfile) {
-        if (dumpasm) {
-            outputfile = replace_suffix(inputfile, 's');
-        } else {
-            outputfile = format("/tmp/8ccXXXXXX.s");
-            if (!mkstemps(outputfile, 2))
-                perror("mkstemps");
-            vec_push(tmpfiles, outputfile);
-        }
+static FILE *open_asmfile(void) {
+    if (dumpasm) {
+        asmfile = outfile ? outfile : replace_suffix(base(infile), 's');
+    } else {
+        asmfile = format("/tmp/8ccXXXXXX.s");
+        if (!mkstemps(asmfile, 2))
+            perror("mkstemps");
+        vec_push(tmpfiles, asmfile);
     }
-    if (!strcmp(outputfile, "-"))
+    if (!strcmp(asmfile, "-"))
         return stdout;
-    FILE *fp = fopen(outputfile, "w");
+    FILE *fp = fopen(asmfile, "w");
     if (!fp)
         perror("fopen");
     return fp;
@@ -161,7 +166,7 @@ static void parseopt(int argc, char **argv) {
         case 'g':
             break;
         case 'o':
-            outputfile = optarg;
+            outfile = optarg;
             break;
         case 'w':
             enable_warning = false;
@@ -176,11 +181,11 @@ static void parseopt(int argc, char **argv) {
 
     if (!dumpast && !cpponly && !dumpasm && !dontlink)
         error("One of -a, -c, -E or -S must be specified");
-    inputfile = argv[optind];
+    infile = argv[optind];
 }
 
 char *get_base_file(void) {
-    return inputfile;
+    return infile;
 }
 
 static void preprocess(void) {
@@ -207,8 +212,8 @@ int main(int argc, char **argv) {
     parseopt(argc, argv);
     if (buf_len(cppdefs) > 0)
         cpp_eval(buf_body(cppdefs));
-    lex_init(inputfile);
-    set_output_file(open_output_file());
+    lex_init(infile);
+    set_output_file(open_asmfile());
 
     if (cpponly)
         preprocess();
@@ -225,11 +230,12 @@ int main(int argc, char **argv) {
     close_output_file();
 
     if (!dumpast && !dumpasm) {
-        char *objfile = replace_suffix(inputfile, 'o');
+        if (!outfile)
+            outfile = replace_suffix(base(infile), 'o');
         pid_t pid = fork();
         if (pid < 0) perror("fork");
         if (pid == 0) {
-            execlp("as", "as", "-o", objfile, "-c", outputfile, (char *)NULL);
+            execlp("as", "as", "-o", outfile, "-c", asmfile, (char *)NULL);
             perror("execl failed");
         }
         int status;
