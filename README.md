@@ -1,27 +1,29 @@
 8cc C Compiler
 ==============
 
-8cc is a small C compiler. It supports a broad range of C99 features, such as
-compound literals or designated initializers. Some GNU extensions, such as
-computed gotos, are also supported. 8cc is self-hosting, which means 8cc can
-compile itself.
+8cc is a compiler for the C programming language.
+It's intended to support all C11 language features
+while keeping the code as small and simple as possible.
 
-8cc's source code is carefully written to be as concise and easy-to-read as
-possible, so that the source code will eventually be a good study material to
-learn various techniques used in compilers. You might find the lexer, the
-preprocessor and the parser are already useful to learn how C source code is
-processed at each stage.
+The compiler is able to compile itself.
+You can see its code both as an implementation of the C language
+and as an example of what this compiler is able to compile.
 
-It does not produce optimized assembly code; 8cc treats the CPU as a stack
-machine. Local variables are always assigned on the stack. Operations in the
-form of `A = B op C` are executed in the following way.
+8cc's source code is carefully written to be as concise and easy-to-read
+as possible, so that the source code is eventually be a good study
+material to learn about various techniques used in compilers.
+You may find the lexer, the preprocessor and the parser are
+already useful to learn how C source code is processed at each stage.
 
- 1. Load B and C to registers
- 2. Apply op to yield a result
- 3. Write the results back to A's location
+It's not an optimizing compiler.
+Generated code is usually 2x or more slower than GCC's.
+I plan to implement a reasonable level of optimization in the future.
 
-Producing optimized assembly is being planned.
-
+8cc supports x86-64 Linux only for now.
+I have no plan to make it portable until
+I fix all known miscompilations and implement an optimization pass.
+As of 2014, I'm using Ubuntu 14 as my development platform.
+It should work on other x86-64 Linux distributions though.
 
 Build
 -----
@@ -34,15 +36,12 @@ Run make to build:
 
     make test
 
-The following command compiles 8cc three times. The second generation
-binary and the third are self-compiled ones, and it's tested that they
-are identical. The unit tests are run for each generation of binaries.
+The following target builds 8cc three times to verify that
+stage1 compiler can build stage2, and stage2 can build stage3.
+It then compares stage2 and stage3 binaries byte-by-byte to verify
+that we reach a fixed point.
 
     make fulltest
-
-8cc supports x86-64 Linux only. I'm using Ubuntu 11 as a development platform.
-It should work on other x86-64 Linux distributions.
-
 
 Author
 ------
@@ -53,7 +52,11 @@ Rui Ueyama <rui314@gmail.com>
 Links for C compiler development
 --------------------------------
 
--   lcc: A Retargetable C Compiler: Design and Implementation
+Besides popular books about compiler, such as the Dragon Book,
+I found the following books/documents are very useful
+to develop a C compiler.
+
+-   LCC: A Retargetable C Compiler: Design and Implementation
     http://www.amazon.com/dp/0805316701,
     https://github.com/drh/lcc
 
@@ -70,5 +73,5 @@ Links for C compiler development
 -   Dave Prosser's C Preprocessing Algorithm
     http://www.spinellis.gr/blog/20060626/
 
--   x86-64 ABI
+-   The x86-64 ABI
     http://www.x86-64.org/documentation/abi.pdf
