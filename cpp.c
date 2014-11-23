@@ -44,6 +44,7 @@ static void map_copy(Map *dst, Map *src);
 static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
+static void read_directive(void);
 static Token *read_token_sub(bool return_at_eol);
 static Token *read_expand(void);
 
@@ -175,6 +176,10 @@ static Vector *do_read_args(Macro *macro) {
             error("unterminated macro argument list");
         if (tok->kind == TNEWLINE)
             continue;
+        if (tok->bol && is_keyword(tok, '#')) {
+            read_directive();
+            continue;
+        }
         if (is_keyword(tok, '(')) {
             depth++;
         } else if (depth) {
