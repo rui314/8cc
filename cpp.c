@@ -193,8 +193,8 @@ static Vector *do_read_args(Macro *macro) {
             vec_push(r, arg);
             return r;
         }
-        bool in_threedots = macro->is_varg && vec_len(r) + 1 == macro->nargs;
-        if (is_keyword(tok, ',') && !in_threedots) {
+        bool in_ellipsis = macro->is_varg && vec_len(r) + 1 == macro->nargs;
+        if (is_keyword(tok, ',') && !in_ellipsis) {
             vec_push(r, arg);
             arg = make_vector();
             continue;
@@ -453,7 +453,7 @@ static bool read_funclike_macro_params(Map *param) {
         }
         if (!tok || tok->kind == TNEWLINE)
             error("missing ')' in macro parameter list");
-        if (is_keyword(tok, KTHREEDOTS)) {
+        if (is_keyword(tok, KELLIPSIS)) {
             map_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
             expect(')');
             return true;
@@ -462,7 +462,7 @@ static bool read_funclike_macro_params(Map *param) {
             error("identifier expected, but got '%s'", t2s(tok));
         char *arg = tok->sval;
         tok = lex();
-        if (is_keyword(tok, KTHREEDOTS)) {
+        if (is_keyword(tok, KELLIPSIS)) {
             expect(')');
             map_put(param, arg, make_macro_token(pos++, true));
             return true;

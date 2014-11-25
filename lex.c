@@ -514,7 +514,7 @@ static Token *do_read_token(void) {
             return read_number(c);
         if (next('.')) {
             if (next('.'))
-                return make_keyword(KTHREEDOTS);
+                return make_keyword(KELLIPSIS);
             return make_ident("..");
         }
         return make_keyword('.');

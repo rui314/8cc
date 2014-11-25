@@ -1831,7 +1831,7 @@ static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
     unget_token(tok);
     bool oldstyle = true;
     for (;;) {
-        if (next_token(KTHREEDOTS)) {
+        if (next_token(KELLIPSIS)) {
             if (vec_len(paramtypes) == 0)
                 error("at least one parameter is required");
             expect(')');
@@ -2479,7 +2479,7 @@ static Node *read_case_label(void) {
         error("stray case label");
     char *label = make_label();
     int beg = read_intexpr();
-    if (next_token(KTHREEDOTS)) {
+    if (next_token(KELLIPSIS)) {
         int end = read_intexpr();
         expect(':');
         if (beg > end)
