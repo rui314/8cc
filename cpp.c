@@ -895,7 +895,7 @@ static void init_keywords(void) {
 #define keyword(id, str, _) map_put(keywords, str, (void *)id);
 #include "keyword.h"
 #undef keyword
-#undef id
+#undef op
 }
 
 static void init_predefined_macros(void) {
