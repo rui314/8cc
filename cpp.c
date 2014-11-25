@@ -24,6 +24,7 @@ static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
 static Vector *cond_incl_stack = &EMPTY_VECTOR;
 static Vector *std_include_path = &EMPTY_VECTOR;
+static struct tm now;
 static Token *cpp_token_zero = &(Token){ .kind = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
 
@@ -804,17 +805,6 @@ static void read_directive(void) {
  * Special macros
  */
 
-static struct tm *gettime(void) {
-    static struct tm tm;
-    static bool init = false;
-    if (init)
-        return &tm;
-    init = true;
-    time_t timet = time(NULL);
-    localtime_r(&timet, &tm);
-    return &tm;
-}
-
 static void make_token_pushback(Token *tmpl, int kind, char *sval) {
     Token *tok = copy_token(tmpl);
     tok->kind = kind;
@@ -823,21 +813,19 @@ static void make_token_pushback(Token *tmpl, int kind, char *sval) {
 }
 
 static void handle_date_macro(Token *tmpl) {
-    struct tm *now = gettime();
     char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-    char *sval = format("%s %2d %04d", month[now->tm_mon], now->tm_mday, 1900 + now->tm_year);
+    char *sval = format("%s %2d %04d", month[now.tm_mon], now.tm_mday, 1900 + now.tm_year);
     make_token_pushback(tmpl, TSTRING, sval);
 }
 
 static void handle_time_macro(Token *tmpl) {
-    struct tm *now = gettime();
-    char *sval = format("%02d:%02d:%02d", now->tm_hour, now->tm_min, now->tm_sec);
+    char *sval = format("%02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
     make_token_pushback(tmpl, TSTRING, sval);
 }
 
 static void handle_timestamp_macro(Token *tmpl) {
     char buf[30];
-    asctime_r(gettime(), buf);
+    asctime_r(&now, buf);
     // Remove the trailing '\n'.
     buf[strlen(buf) - 1] = '\0';
     make_token_pushback(tmpl, TSTRING, format("%s", buf));
@@ -940,9 +928,15 @@ static void init_predefined_macros(void) {
     define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));
 }
 
+void init_now(void) {
+    time_t timet = time(NULL);
+    localtime_r(&timet, &now);
+}
+
 void cpp_init(void) {
     init_keywords();
     init_predefined_macros();
+    init_now();
 }
 
 /*
