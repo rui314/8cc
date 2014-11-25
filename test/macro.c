@@ -344,6 +344,10 @@ static void funclike(void) {
     expect_string("'a'", stringify('a'));
     expect_string("'\\''", stringify('\''));
     expect_string("\"abc\"", stringify("abc"));
+    expect_string("L\"abc\"", stringify(L"abc"));
+    expect_string("U\"abc\"", stringify(U"abc"));
+    expect_string("u\"abc\"", stringify(u"abc"));
+    expect_string("u8\"abc\"", stringify(u8"abc"));
     expect_string("ZERO", stringify(ZERO));
 
 #define m1(x) x
@@ -386,6 +390,10 @@ static void funclike(void) {
     expect(0, m8(ZERO,));
     expect(8, 1 m8(<, <) 3);
     expectf(.123, m8(., 123));
+    expect_string(L"abc", m8(L, "abc"));
+    expect_string(U"abc", m8(U, "abc"));
+    expect_string(u"abc", m8(u, "abc"));
+    expect_string(u8"abc", m8(u8, "abc"));
 
 #define m9(x, y, z) x y + z
     expect(8, m9(1,, 7));

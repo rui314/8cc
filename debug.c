@@ -266,6 +266,16 @@ char *a2s(Node *node) {
     return buf_body(b);
 }
 
+static char *encoding_prefix(Token *tok) {
+    switch (tok->enc) {
+    case ENC_CHAR16: return "u";
+    case ENC_CHAR32: return "U";
+    case ENC_UTF8:   return "u8";
+    case ENC_WCHAR:  return "L";
+    }
+    return "";
+}
+
 char *t2s(Token *tok) {
     if (!tok)
         return "(null)";
@@ -282,11 +292,15 @@ char *t2s(Token *tok) {
         default: return format("%c", tok->c);
         }
     case TCHAR:
-        return quote_char(tok->c);
+        return format("%s'%s'",
+                      encoding_prefix(tok),
+                      quote_char(tok->c));
     case TNUMBER:
         return tok->sval;
     case TSTRING:
-        return format("\"%s\"", quote_cstring(tok->sval));
+        return format("%s\"%s\"",
+                      encoding_prefix(tok),
+                      quote_cstring(tok->sval));
     case TNEWLINE:
         return "(newline)";
     case TSPACE:

@@ -95,7 +95,7 @@ char *quote_cstring(char *p) {
 }
 
 char *quote_char(char c) {
-    if (c == '\\') return "'\\\\'";
-    if (c == '\'') return "'\\''";
-    return format("'%c'", c);
+    if (c == '\\') return "\\\\";
+    if (c == '\'') return "\\'";
+    return format("%c", c);
 }

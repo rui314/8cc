@@ -254,24 +254,10 @@ static Vector *add_hide_set(Vector *tokens, Map *hideset) {
     return r;
 }
 
-static void paste(Buffer *b, Token *tok) {
-    switch (tok->kind) {
-    case TIDENT:
-    case TNUMBER:
-        buf_printf(b, "%s", tok->sval);
-        return;
-    case TKEYWORD:
-        buf_printf(b, "%s", t2s(tok));
-        return;
-    default:
-        error("can't paste: %s", t2s(tok));
-    }
-}
-
-static Token *glue_tokens(Token *t0, Token *t1) {
+static Token *glue_tokens(Token *t, Token *u) {
     Buffer *b = make_buffer();
-    paste(b, t0);
-    paste(b, t1);
+    buf_printf(b, "%s", t2s(t));
+    buf_printf(b, "%s", t2s(u));
     Token *r = lex_string(buf_body(b));
     return r;
 }
@@ -287,23 +273,7 @@ static char *join_tokens(Vector *args, bool sep) {
         Token *tok = vec_get(args, i);
         if (sep && buf_len(b) && tok->space)
             buf_printf(b, " ");
-        switch (tok->kind) {
-        case TIDENT:
-        case TNUMBER:
-            buf_printf(b, "%s", tok->sval);
-            break;
-        case TKEYWORD:
-            buf_printf(b, "%s", t2s(tok));
-            break;
-        case TCHAR:
-            buf_printf(b, "%s", quote_char(tok->c));
-            break;
-        case TSTRING:
-            buf_printf(b, "\"%s\"", quote_cstring(tok->sval));
-            break;
-        default:
-            error("internal error");
-        }
+        buf_printf(b, "%s", t2s(tok));
     }
     return buf_body(b);
 }

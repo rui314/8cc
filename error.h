@@ -22,7 +22,5 @@ extern bool warning_is_error;
 
 extern void errorf(char *file, int line, char *fmt, ...) NORETURN;
 extern void warnf(char *file, int line, char *fmt, ...);
-extern char *quote_cstring(char *p);
-extern char *quote_char(char c);
 
 #endif

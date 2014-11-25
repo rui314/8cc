@@ -25,6 +25,14 @@ enum {
     TMACRO_PARAM,
 };
 
+enum {
+    ENC_NONE,
+    ENC_CHAR16,
+    ENC_CHAR32,
+    ENC_UTF8,
+    ENC_WCHAR,
+};
+
 typedef struct {
     int kind;
     int space; // true if the token has a leading space
@@ -34,9 +42,16 @@ typedef struct {
     int column;
     Map *hideset;
     union {
-        int id;     // TKEYWORD
-        char *sval; // TSTRING
-        char c;     // TCHAR
+        // TKEYWORD
+        int id;
+        // TSTRING or TCHAR
+        struct {
+            union {
+                char *sval;
+                char c;
+            };
+            int enc;
+        };
         // TMACRO_PARAM
         struct {
             bool is_vararg;

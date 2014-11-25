@@ -19,5 +19,7 @@ extern int buf_len(Buffer *b);
 extern void buf_write(Buffer *b, char c);
 extern void buf_printf(Buffer *b, char *fmt, ...);
 extern char *buf_body(Buffer *b);
+extern char *quote_cstring(char *p);
+extern char *quote_char(char c);
 
 #endif

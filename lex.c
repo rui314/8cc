@@ -40,8 +40,8 @@ static Token *make_ident(char *p) {
     return make_token(&(Token){ TIDENT, .space = false, .sval = p });
 }
 
-static Token *make_strtok(char *s) {
-    return make_token(&(Token){ TSTRING, .space = false, .sval = s });
+static Token *make_strtok(char *s, int enc) {
+    return make_token(&(Token){ TSTRING, .space = false, .sval = s, .enc = enc });
 }
 
 static Token *make_keyword(int id) {
@@ -52,8 +52,8 @@ static Token *make_number(char *s) {
     return make_token(&(Token){ TNUMBER, .space = false, .sval = s });
 }
 
-static Token *make_char(char c) {
-    return make_token(&(Token){ TCHAR, .space = false, .c = c });
+static Token *make_char(char c, int enc) {
+    return make_token(&(Token){ TCHAR, .space = false, .c = c, .enc = enc });
 }
 
 static bool iswhitespace(int c) {
@@ -299,7 +299,7 @@ static int read_escaped_char(void) {
     }
 }
 
-static Token *read_char(void) {
+static Token *read_char(int enc) {
     int c = get();
     char r = (c == '\\') ? read_escaped_char() : c;
     c = get();
@@ -307,10 +307,10 @@ static Token *read_char(void) {
         error("premature end of input");
     if (c != '\'')
         error("unterminated string: %c", c);
-    return make_char(r);
+    return make_char(r, enc);
 }
 
-static Token *read_string(void) {
+static Token *read_string(int enc) {
     Buffer *b = make_buffer();
     for (;;) {
         int c = get();
@@ -323,7 +323,7 @@ static Token *read_string(void) {
         buf_write(b, c);
     }
     buf_write(b, '\0');
-    return make_strtok(buf_body(b));
+    return make_strtok(buf_body(b), enc);
 }
 
 static Token *read_ident(char c) {
@@ -374,19 +374,20 @@ static Token *do_read_token(void) {
         return space_token;
     case '\n':
         return newline_token;
-    case 'L': case 'U':
+    case 'L': case 'U': {
         // Wide/char32_t character/string literal
-        if (next('"'))  return read_string();
-        if (next('\'')) return read_char();
+        int enc = (c == 'L') ? ENC_WCHAR : ENC_CHAR32;
+        if (next('"'))  return read_string(enc);
+        if (next('\'')) return read_char(enc);
         return read_ident(c);
+    }
     case 'u':
-        // char16_t character/string literal
-        if (next('"')) return read_string();
-        if (next('\'')) return read_char();
+        if (next('"')) return read_string(ENC_CHAR16);
+        if (next('\'')) return read_char(ENC_CHAR16);
         // C11 6.4.5: UTF-8 string literal
         if (next('8')) {
             if (next('"'))
-                return read_string();
+                return read_string(ENC_UTF8);
             unreadc('8');
         }
         return read_ident(c);
@@ -457,8 +458,8 @@ static Token *do_read_token(void) {
         if (next('=')) return make_keyword(OP_GE);
         if (next('>')) return read_rep('=', OP_A_SAR, OP_SAR);
         return make_keyword('>');
-    case '"': return read_string();
-    case '\'': return read_char();
+    case '"': return read_string(ENC_NONE);
+    case '\'': return read_char(ENC_NONE);
     case EOF:
         return NULL;
     default:
