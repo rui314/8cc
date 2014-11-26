@@ -57,7 +57,32 @@ static void t7() {
 static void subtract(void) {
     char *p = "abcdefg";
     char *q = p + 5;
+    expect(8, sizeof(q - p));
     expect(5, q - p);
+}
+
+static void compare(void) {
+    char *p = "abcdefg";
+    expect(0, p == p + 1);
+    expect(1, p == p);
+    expect(0, p != p);
+    expect(1, p != p + 1);
+    expect(0, p < p);
+    expect(1, p < p + 1);
+    expect(0, p > p);
+    expect(1, p + 1 > p);
+    expect(1, p >= p);
+    expect(1, p + 1 >= p);
+    expect(0, p >= p + 1);
+    expect(1, p <= p);
+    expect(1, p <= p + 1);
+    expect(0, p + 1 <= p);
+    expect(4, sizeof(p == p + 1));
+    expect(4, sizeof(p != p + 1));
+    expect(4, sizeof(p < p + 1));
+    expect(4, sizeof(p > p + 1));
+    expect(4, sizeof(p <= p + 1));
+    expect(4, sizeof(p >= p + 1));
 }
 
 void testmain(void) {
@@ -70,4 +95,5 @@ void testmain(void) {
     t6();
     t7();
     subtract();
+    compare();
 }

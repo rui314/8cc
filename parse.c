@@ -548,6 +548,10 @@ static Node *binop(int op, Node *lhs, Node *rhs) {
     if (lhs->ty->kind == KIND_PTR && rhs->ty->kind == KIND_PTR) {
         if (!valid_pointer_binop(op))
             error("invalid pointer arith");
+        // C11 6.5.6.9: Pointer subtractions have type ptrdiff_t.
+        if (op == '-')
+            return ast_binop(type_long, op, lhs, rhs);
+        // C11 6.5.8.6, 6.5.9.3: Pointer comparisons have type int.
         return ast_binop(type_int, op, lhs, rhs);
     }
     if (lhs->ty->kind == KIND_PTR)
