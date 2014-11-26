@@ -7,23 +7,22 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-struct Bucket;
-
 typedef struct Map {
     struct Map *parent;
-    struct Bucket **buckets;
+    char **key;
+    void **val;
+    int size;
     int nelem;
-    int cap;
+    int nused;
 } Map;
 
 typedef struct MapIter {
     Map *map;
     Map *cur;
-    struct Bucket *bucket;
     int i;
 } MapIter;
 
-#define EMPTY_MAP ((Map){ NULL, NULL, 0, 0 })
+#define EMPTY_MAP ((Map){ NULL, NULL, NULL, 0, 0, 0 })
 
 extern Map *make_map(void);
 extern Map *make_map_parent(Map *parent);

@@ -9,20 +9,7 @@
 #include "map.h"
 
 #define INIT_SIZE 16
-
-typedef struct Bucket {
-    char *key;
-    void *val;
-    struct Bucket *next;
-} Bucket;
-
-static Bucket *make_bucket(char *key, void *val, void *next) {
-    Bucket *b = malloc(sizeof(Bucket));
-    b->key = key;
-    b->val = val;
-    b->next = next;
-    return b;
-}
+#define TOMBSTONE ((void *)-1)
 
 static uint32_t hash(char *p) {
     // FNV hash
@@ -34,31 +21,46 @@ static uint32_t hash(char *p) {
     return r;
 }
 
-static Map *do_make_map(Map *parent, int cap) {
+static Map *do_make_map(Map *parent, int size) {
     Map *r = malloc(sizeof(Map));
     r->parent = parent;
-    r->buckets = malloc(sizeof(r->buckets[0]) * cap);
-    for (int i = 0; i < cap; i++)
-        r->buckets[i] = NULL;
+    r->key = calloc(size, sizeof(char **));
+    r->val = calloc(size, sizeof(void **));
+    r->size = size;
     r->nelem = 0;
-    r->cap = cap;
+    r->nused = 0;
     return r;
 }
 
-static void maybe_rehash(Map *map) {
-    if (!map->buckets) {
-        *map = *do_make_map(NULL, INIT_SIZE);
+static void maybe_rehash(Map *m) {
+    if (!m->key) {
+        m->key = calloc(INIT_SIZE, sizeof(char **));
+        m->val = calloc(INIT_SIZE, sizeof(void **));
+        m->size = INIT_SIZE;
         return;
     }
-    if (map->nelem * 3 < map->cap)
+    if (m->nused < m->size * 0.6)
         return;
-    Map *m = do_make_map(map->parent, map->cap * 2);
-    for (int i = 0; i < map->cap; i++) {
-        Bucket *b = map->buckets[i];
-        for (; b; b = b->next)
-            map_put(m, b->key, b->val);
+    int newsize = (m->nelem < m->size * 0.35) ? m->size : m->size * 2;
+    char **k = calloc(newsize, sizeof(char **));
+    void **v = calloc(newsize, sizeof(void **));
+    int mask = newsize - 1;
+    for (int i = 0; i < m->size; i++) {
+        if (m->key[i] == NULL || m->key[i] == TOMBSTONE)
+            continue;
+        int j = hash(m->key[i]) & mask;
+        for (;; j = (j + 1) & mask) {
+            if (k[j] != NULL)
+                continue;
+            k[j] = m->key[i];
+            v[j] = m->val[i];
+            break;
+        }
     }
-    *map = *m;
+    m->key = k;
+    m->val = v;
+    m->size = newsize;
+    m->nused = m->nelem;
 }
 
 Map *make_map(void) {
@@ -69,89 +71,88 @@ Map *make_map_parent(Map *parent) {
     return do_make_map(parent, INIT_SIZE);
 }
 
-static void *map_get_nostack(Map *map, char *key) {
-    if (!map->buckets)
+static void *map_get_nostack(Map *m, char *key) {
+    if (!m->key)
         return NULL;
-    uint32_t h = hash(key);
-    Bucket *b = map->buckets[h % map->cap];
-    for (; b; b = b->next)
-        if (!strcmp(b->key, key))
-            return b->val;
+    int mask = m->size - 1;
+    int i = hash(key) & mask;
+    for (; m->key[i] != NULL; i = (i + 1) & mask)
+        if (m->key[i] != TOMBSTONE && !strcmp(m->key[i], key))
+            return m->val[i];
     return NULL;
 }
 
-void *map_get(Map *map, char *key) {
-    void *r = map_get_nostack(map, key);
+void *map_get(Map *m, char *key) {
+    void *r = map_get_nostack(m, key);
     if (r)
         return r;
-    // Map is stackable; if no value is found,
+    // Map is stackable. If no value is found,
     // continue searching from the parent.
-    if (map->parent)
-        return map_get(map->parent, key);
+    if (m->parent)
+        return map_get(m->parent, key);
     return NULL;
 }
 
-void map_put(Map *map, char *key, void *val) {
-    maybe_rehash(map);
-    uint32_t h = hash(key);
-    int idx = h % map->cap;
-    Bucket *b = map->buckets[idx];
-    for (; b; b = b->next) {
-        if (!strcmp(b->key, key)) {
-            b->val = val;
+void map_put(Map *m, char *key, void *val) {
+    maybe_rehash(m);
+    int mask = m->size - 1;
+    int i = hash(key) & mask;
+    for (;; i = (i + 1) & mask) {
+        char *k = m->key[i];
+        if (k == NULL || k == TOMBSTONE) {
+            m->key[i] = key;
+            m->val[i] = val;
+            m->nelem++;
+            if (k == NULL)
+                m->nused++;
+            return;
+        }
+        if (!strcmp(k, key)) {
+            m->val[i] = val;
             return;
         }
     }
-    map->buckets[idx] = make_bucket(key, val, map->buckets[idx]);
-    map->nelem++;
 }
 
-void map_remove(Map *map, char *key) {
-    if (!map->buckets)
+void map_remove(Map *m, char *key) {
+    if (!m->key)
         return;
-    uint32_t h = hash(key);
-    int idx = h % map->cap;
-    Bucket *b = map->buckets[idx];
-    Bucket **prev = &map->buckets[idx];
-    for (; b; prev = &(*prev)->next, b = b->next) {
-        if (!strcmp(b->key, key)) {
-            *prev = b->next;
-            map->nelem--;
-            return;
-        }
+    int mask = m->size - 1;
+    int i = hash(key) & mask;
+    for (; m->key[i] != NULL; i = (i + 1) & mask) {
+        if (m->key[i] == TOMBSTONE || strcmp(m->key[i], key))
+            continue;
+        m->key[i] = TOMBSTONE;
+        m->val[i] = NULL;
+        m->nelem--;
+        return;
     }
 }
 
-size_t map_len(Map *map) {
-  return map->nelem;
+size_t map_len(Map *m) {
+    return m->nelem;
 }
 
-MapIter *map_iter(Map *map) {
+MapIter *map_iter(Map *m) {
     MapIter *r = malloc(sizeof(MapIter));
-    r->map = map;
-    r->cur = map;
-    r->bucket = NULL;
+    r->map = m;
+    r->cur = m;
     r->i = 0;
     return r;
 }
 
 static char *do_map_next(MapIter *iter, void **val) {
-    if (iter->bucket && iter->bucket->next) {
-        iter->bucket = iter->bucket->next;
+    Map *m = iter->cur;
+    for (int i = iter->i; i < m->size; i++) {
+        char *k = m->key[i];
+        if (k == NULL || k == TOMBSTONE)
+            continue;
         if (val)
-            *val = iter->bucket->val;
-        return iter->bucket->key;
+            *val = m->val[i];
+        iter->i = i + 1;
+        return k;
     }
-    while (iter->i < iter->cur->cap) {
-        Bucket *b = iter->cur->buckets[iter->i];
-        iter->i++;
-        if (b) {
-            iter->bucket = b;
-            if (val)
-                *val = b->val;
-            return b->key;
-        }
-    }
+    iter->i = m->size;
     return NULL;
 }
 
@@ -175,7 +176,6 @@ char *map_next(MapIter *iter, void **val) {
     }
     iter->cur = iter->cur->parent;
     if (iter->cur) {
-        iter->bucket = NULL;
         iter->i = 0;
         return map_next(iter, val);
     }
