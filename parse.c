@@ -1271,7 +1271,7 @@ static Node *read_assignment_expr(void) {
         Node *value = conv(read_assignment_expr());
         if (is_keyword(tok, '=') || cop)
             ensure_lvalue(node);
-        Node *right = cop ? binop(cop, node, value) : value;
+        Node *right = cop ? binop(cop, conv(node), value) : value;
         if (is_arithtype(node->ty) && node->ty->kind != right->ty->kind)
             right = ast_conv(node->ty, right);
         return ast_binop(node->ty, '=', node, right);
