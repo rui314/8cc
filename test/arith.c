@@ -44,6 +44,8 @@ static void test_relative(void) {
     expect(1, -1 >= 1U);
     expect(0, -1L > 1U);
     expect(0, -1L >= 1U);
+    expect(0, 1.0 < 0.0);
+    expect(1, 0.0 < 1.0);
 }
 
 static void test_inc_dec(void) {

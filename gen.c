@@ -438,7 +438,10 @@ static void emit_comp(char *inst, char *usiginst, Node *node) {
         else
           emit("cmp #eax, #ecx");
     }
-    emit("%s #al", node->left->ty->usig ? usiginst : inst);
+    if (is_flotype(node->left->ty) || node->left->ty->usig)
+        emit("%s #al", usiginst);
+    else
+        emit("%s #al", inst);
     emit("movzb #al, #eax");
 }
 
