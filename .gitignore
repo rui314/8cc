@@ -1,5 +1,5 @@
 8cc
-gen?
+stage?
 *.o
 *.o2
 *.s
