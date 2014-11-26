@@ -548,7 +548,7 @@ static Node *binop(int op, Node *lhs, Node *rhs) {
     if (lhs->ty->kind == KIND_PTR && rhs->ty->kind == KIND_PTR) {
         if (!valid_pointer_binop(op))
             error("invalid pointer arith");
-        return ast_binop(type_int, op, lhs, rhs);
+        return ast_binop(type_llong, op, lhs, rhs);
     }
     if (lhs->ty->kind == KIND_PTR)
         return ast_binop(lhs->ty, op, lhs, rhs);

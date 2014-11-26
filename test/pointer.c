@@ -51,7 +51,15 @@ static void t7() {
     int a;
     int *p1 = &a + 1;
     int *p2 = 1 + &a;
+    expect(sizeof(ptrdiff_t), sizeof(p1 - p2));
     expect(0, p1 - p2);
+}
+
+static void t8() {
+    typedef struct { int foo[32]; } test_t;
+    test_t x, *p1, *p2;
+    p1 = p2 = &x;
+    expect(sizeof(x), sizeof(*(p1 = p2)));
 }
 
 static void subtract(void) {
@@ -69,5 +77,6 @@ void testmain(void) {
     t5();
     t6();
     t7();
+    t8();
     subtract();
 }

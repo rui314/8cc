@@ -14,6 +14,7 @@ int test_if8(void) { if (0) return 0; else return 'h'; return 0; }
 int test_if9(void) { if (0+1) return 'i'; return 0; }
 int test_if10(void) { if (1-1) return 0; return 'j'; }
 int test_if11(void) { if (0.5) return 'k'; return 0; }
+int test_if12(void) { if (0) foo: return 0; return 'l'; }
 
 static void test_if(void) {
     expect('a', test_if1());
@@ -27,6 +28,7 @@ static void test_if(void) {
     expect('i', test_if9());
     expect('j', test_if10());
     expect('k', test_if11());
+    expect('l', test_if12());
 }
 
 static void test_for(void) {
