@@ -974,27 +974,38 @@ static Token *read_token_sub(bool return_at_eol) {
     }
 }
 
-Token *read_token(void) {
-    Token *tok;
+// C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
+Token *read_concatenate_string(Token *tok) {
+    Vector *v = make_vector();
+    vec_push(v, tok);
     for (;;) {
-        tok = read_token_sub(false);
-        if (!tok) return NULL;
-        assert(tok->kind != TNEWLINE);
-        assert(tok->kind != TSPACE);
-        assert(tok->kind != TMACRO_PARAM);
-        if (tok->kind != TSTRING)
-            break;
         Token *tok2 = read_token_sub(false);
         if (!tok2 || tok2->kind != TSTRING) {
             unget_token(tok2);
             break;
         }
-        Token *conc = copy_token(tok);
-        conc->sval = format("%s%s", tok->sval, tok2->sval);
-        unget_token(conc);
+        vec_push(v, tok2);
     }
-    Token *r = maybe_convert_keyword(tok);
-    if (debug_cpp)
-        fprintf(stderr, "  token=%s\n", t2s(r));
+    Buffer *b = make_buffer();
+    for (int i = 0; i < vec_len(v); i++) {
+        Token *t = vec_get(v, i);
+        buf_printf(b, "%s", t->sval);
+    }
+    Token *r = copy_token(tok);
+    r->sval = buf_body(b);
     return r;
+}
+
+Token *read_token(void) {
+    Token *tok = read_token_sub(false);
+    if (!tok) return NULL;
+    assert(tok->kind != TNEWLINE);
+    assert(tok->kind != TSPACE);
+    assert(tok->kind != TMACRO_PARAM);
+    if (tok->kind == TSTRING)
+        tok = read_concatenate_string(tok);
+    tok = maybe_convert_keyword(tok);
+    if (debug_cpp)
+        fprintf(stderr, "  token=%s\n", t2s(tok));
+    return tok;
 }
