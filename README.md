@@ -25,6 +25,12 @@ I fix all known miscompilations and implement an optimization pass.
 As of 2014, I'm using Ubuntu 14 as my development platform.
 It should work on other x86-64 Linux distributions though.
 
+Note: Do not have high expectations on this compiler.
+If you try to compile a program other than the compiler itself,
+there's a good chance to see compile errors or miscompilations.
+This is basically a one-man project, and I have spent only a few
+months of my spare time so far.
+
 Build
 -----
 
