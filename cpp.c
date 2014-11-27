@@ -51,15 +51,11 @@ static Token *read_expand(void);
  */
 
 void cpp_eval(char *buf) {
-    // fmemopen() is not widely available because it's relatively new
-    // (defined since POSIX.1-2008). Do real file I/O to read from the string.
-    FILE *fp = tmpfile();
-    fwrite(buf, 1, strlen(buf), fp);
-    fseek(fp, 0, SEEK_SET);
-    set_input_file("(eval)", NULL, fp);
+    push_stream_string(buf);
     Vector *toplevels = read_toplevels();
     for (int i = 0; i < vec_len(toplevels); i++)
         emit_toplevel(vec_get(toplevels, i));
+    pop_stream();
 }
 
 /*
@@ -276,10 +272,7 @@ static Token *glue_tokens(Token *t0, Token *t1) {
     Buffer *b = make_buffer();
     paste(b, t0);
     paste(b, t1);
-    Token *r = copy_token(t0);
-    bool isnum = strchr("0123456789.", buf_body(b)[0]);
-    r->kind = isnum ? TNUMBER : TIDENT;
-    r->sval = buf_body(b);
+    Token *r = lex_string(buf_body(b));
     return r;
 }
 
@@ -689,7 +682,7 @@ static bool try_include(char *dir, char *filename, bool isimport) {
         return false;
     if (isimport)
         map_put(once, path, (void *)1);
-    push_input_file(path, path, fp);
+    insert_stream(fp, path);
     return true;
 }
 
@@ -698,8 +691,8 @@ static void read_include(bool isimport) {
     char *filename = read_cpp_header_name(&std);
     expect_newline();
     if (!std) {
-        char *cur = get_current_file();
-        char *dir = cur ? dirname(strdup(cur)) : ".";
+        File *f = current_file();
+        char *dir = f->name ? dirname(strdup(f->name)) : ".";
         if (try_include(dir, filename, isimport))
             return;
     }
@@ -715,7 +708,8 @@ static void read_include(bool isimport) {
 
 static void parse_pragma_operand(char *s) {
     if (!strcmp(s, "once")) {
-        map_put(once, fullpath(get_current_file()), (void *)1);
+        char *path = fullpath(current_file()->name);
+        map_put(once, path, (void *)1);
     } else if (!strcmp(s, "enable_warning")) {
         enable_warning = true;
     } else if (!strcmp(s, "disable_warning")) {
@@ -754,9 +748,10 @@ static void read_line(void) {
     } else if (tok->kind != TNEWLINE) {
         error("newline or a source name are expected, but got %s", t2s(tok));
     }
-    set_current_line(line);
+    File *f = current_file();
+    f->line = line;
     if (filename)
-        set_current_displayname(filename);
+        f->name = filename;
 }
 
 /*
@@ -814,11 +809,13 @@ static void handle_timestamp_macro(Token *tmpl) {
 }
 
 static void handle_file_macro(Token *tmpl) {
-    make_token_pushback(tmpl, TSTRING, get_current_displayname());
+    File *f = current_file();
+    make_token_pushback(tmpl, TSTRING, f->name);
 }
 
 static void handle_line_macro(Token *tmpl) {
-    make_token_pushback(tmpl, TNUMBER, format("%d", get_current_line()));
+    File *f = current_file();
+    make_token_pushback(tmpl, TNUMBER, format("%d", f->line));
 }
 
 static void handle_pragma_macro(Token *tmpl) {
@@ -841,7 +838,7 @@ static void handle_counter_macro(Token *tmpl) {
 }
 
 static void handle_include_level_macro(Token *tmpl) {
-    make_token_pushback(tmpl, TNUMBER, format("%d", include_level_depth()));
+    make_token_pushback(tmpl, TNUMBER, format("%d", stream_depth() - 1));
 }
 
 /*

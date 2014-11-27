@@ -9,6 +9,7 @@
 #include "buffer.h"
 #include "dict.h"
 #include "error.h"
+#include "file.h"
 #include "map.h"
 #include "vector.h"
 
@@ -239,21 +240,16 @@ extern void lex_init(char *filename);
 extern char *get_base_file(void);
 extern char *read_error_directive(void);
 extern void unget_token(Token *tok);
+extern Token *lex_string(char *s);
 extern Token *lex(void);
 extern void set_input_buffer(Vector *tokens);
 extern Vector *get_input_buffer(void);
-extern int include_level_depth(void);
 extern void skip_cond_incl(void);
 extern char *read_header_file_name(bool *std);
 extern void push_input_file(char *displayname, char *realname, FILE *input);
 extern void set_input_file(char *displayname, char *realname, FILE *input);
 extern char *input_position(void);
-extern char *get_current_file(void);
 extern char *fullpath(char *path);
-extern int get_current_line(void);
-extern char *get_current_displayname(void);
-extern void set_current_displayname(char *name);
-extern void set_current_line(int line);
 extern void cpp_eval(char *buf);
 extern void add_include_path(char *path);
 extern void parse_init(void);

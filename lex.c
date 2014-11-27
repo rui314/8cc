@@ -7,57 +7,32 @@
 #include <string.h>
 #include "8cc.h"
 
-typedef struct {
-    char *displayname;
-    char *realname;
-    int line;
-    int column;
-    FILE *fp;
-} File;
-
-static bool at_bol = true;
 static Vector *buffer = &EMPTY_VECTOR;
 static Vector *altbuffer = NULL;
-static Vector *file_stack = &EMPTY_VECTOR;
-static File *file;
-static int line_mark = -1;
-static int column_mark = -1;
-static int ungotten = -1;
 static Token *space_token = &(Token){ .kind = TSPACE, .space = false };
 static Token *newline_token = &(Token){ .kind = TNEWLINE, .space = false };
 
 static void skip_block_comment(void);
 
-static File *make_file(char *displayname, char *realname, FILE *fp) {
-    File *r = malloc(sizeof(File));
-    r->displayname = displayname;
-    r->realname = realname;
-    r->line = 1;
-    r->column = 0;
-    r->fp = fp;
-    return r;
-}
-
 void lex_init(char *filename) {
     if (!strcmp(filename, "-")) {
-        set_input_file("(stdin)", NULL, stdin);
+        push_stream(stdin, NULL);
         return;
     }
     FILE *fp = fopen(filename, "r");
     if (!fp)
         error("Cannot open %s: %s", filename, strerror(errno));
-    set_input_file(filename, filename, fp);
+    push_stream(fp, filename);
 }
 
 static Token *make_token(Token *tmpl) {
     Token *r = malloc(sizeof(Token));
     *r = *tmpl;
     r->hideset = make_map();
-    r->file = file->displayname;
-    r->line = (line_mark < 0) ? file->line : line_mark;
-    r->column = (column_mark < 0) ? file->column : column_mark;
-    line_mark = -1;
-    column_mark = -1;
+    File *f = current_file();
+    r->file = f->name;
+    r->line = f->line;
+    r->column = f->column;
     return r;
 }
 
@@ -81,61 +56,6 @@ static Token *make_char(char c) {
     return make_token(&(Token){ TCHAR, .space = false, .c = c });
 }
 
-void push_input_file(char *displayname, char *realname, FILE *fp) {
-    vec_push(file_stack, file);
-    file = make_file(displayname, realname, fp);
-    at_bol = true;
-}
-
-int include_level_depth(void) {
-    return vec_len(file_stack);
-}
-
-void set_input_file(char *displayname, char *realname, FILE *fp) {
-    file = make_file(displayname, realname, fp);
-    at_bol = true;
-}
-
-char *input_position(void) {
-    if (!file)
-        return "(unknown)";
-    return format("%s:%d:%d", file->displayname, file->line, file->column);
-}
-
-char *get_current_file(void) {
-    return file->realname;
-}
-
-int get_current_line(void) {
-    return file->line;
-}
-
-void set_current_line(int line) {
-    file->line = line;
-}
-
-char *get_current_displayname(void) {
-    return file->displayname;
-}
-
-void set_current_displayname(char *name) {
-    file->displayname = name;
-}
-
-static void mark_input(void) {
-    line_mark = file->line;
-    column_mark = file->column;
-}
-
-static void unget(int c) {
-    if (c == '\n')
-        file->line--;
-    if (ungotten >= 0)
-        ungetc(ungotten, file->fp);
-    ungotten = c;
-    file->column--;
-}
-
 static bool iswhitespace(int c) {
     return c == ' ' || c == '\t' || c == '\f' || c == '\v';
 }
@@ -143,61 +63,38 @@ static bool iswhitespace(int c) {
 static bool skip_whitespace(void) {
     bool r = false;
     for (;;) {
-        int c = getc(file->fp);
+        int c = readc();
         if (iswhitespace(c)) {
-            file->column++;
             r = true;
             continue;
         }
-        ungetc(c, file->fp);
+        unreadc(c);
         return r;
     }
 }
 
-static bool skip_newline(int c) {
-    if (c == '\n')
-        return true;
-    if (c == '\r') {
-        c = getc(file->fp);
-        if (c == '\n')
-            return true;
-        ungetc(c, file->fp);
-        return true;
-    }
-    return false;
-}
-
 static int get(void) {
-    int c = (ungotten >= 0) ? ungotten : getc(file->fp);
-    file->column++;
-    ungotten = -1;
+    int c = readc();
     if (c == '\\') {
-        bool space_exist = skip_whitespace();
-        c = getc(file->fp);
-        if (skip_newline(c)) {
-            if (space_exist)
+        bool space_exists = skip_whitespace();
+        c = readc();
+        if (c == '\n') {
+            if (space_exists)
                 warn("backslash and newline separated by space");
-            file->line++;
-            file->column = 0;
             return get();
         }
-        unget(c);
-        at_bol = false;
+        unreadc(c);
         return '\\';
     }
-    if (skip_newline(c)) {
-        file->line++;
-        file->column = 0;
-        at_bol = true;
-        return '\n';
+    if (c == '\n') {
+        return c;
     }
-    at_bol = false;
     return c;
 }
 
 static int peek(void) {
     int r = get();
-    unget(r);
+    unreadc(r);
     return r;
 }
 
@@ -205,7 +102,7 @@ static bool next(int expect) {
     int c = get();
     if (c == expect)
         return true;
-    unget(c);
+    unreadc(c);
     return false;
 }
 
@@ -215,7 +112,7 @@ static void skip_line(void) {
         if (c == EOF)
             return;
         if (c == '\n') {
-            unget(c);
+            unreadc(c);
             return;
         }
     }
@@ -243,7 +140,7 @@ static bool skip_space(void) {
                 continue;
             }
         }
-        unget(c);
+        unreadc(c);
         break;
     }
     return r;
@@ -271,7 +168,7 @@ static void skip_string(void) {
 void skip_cond_incl(void) {
     int nest = 0;
     for (;;) {
-        bool bol = at_bol;
+        bool bol = (current_file()->column == 0);
         skip_space();
         int c = get();
         if (c == EOF)
@@ -312,7 +209,7 @@ static Token *read_number(char c) {
         int c = get();
         bool flonum = strchr("eEpP", last) && strchr("+-", c);
         if (!isdigit(c) && !isalpha(c) && c != '.' && !flonum) {
-            unget(c);
+            unreadc(c);
             buf_write(b, '\0');
             return make_number(buf_body(b));
         }
@@ -346,7 +243,7 @@ static int read_hex_char(void) {
         case '0' ... '9': r = (r << 4) | (c - '0'); continue;
         case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
         case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
-        default: unget(c); return r;
+        default: unreadc(c); return r;
         }
     }
 }
@@ -438,7 +335,7 @@ static Token *read_ident(char c) {
             buf_write(b, c);
             continue;
         }
-        unget(c);
+        unreadc(c);
         buf_write(b, '\0');
         return make_ident(buf_body(b));
     }
@@ -470,7 +367,6 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
 }
 
 static Token *do_read_token(void) {
-    mark_input();
     int c = get();
     switch (c) {
     case ' ': case '\t': case '\v': case '\f':
@@ -491,7 +387,7 @@ static Token *do_read_token(void) {
         if (next('8')) {
             if (next('"'))
                 return read_string();
-            unget('8');
+            unreadc('8');
         }
         return read_ident(c);
     case 'a' ... 't': case 'v' ... 'z': case 'A' ... 'K':
@@ -541,7 +437,7 @@ static Token *do_read_token(void) {
             if (next('%')) {
                 if (next(':'))
                     return make_keyword(KSHARPSHARP);
-                unget('%');
+                unreadc('%');
             }
             return make_keyword('#');
         }
@@ -617,7 +513,7 @@ char *read_error_directive(void) {
         if (c == EOF)
             break;
         if (c == '\n') {
-            unget(c);
+            unreadc(c);
             break;
         }
         if (bol && iswhitespace(c))
@@ -634,6 +530,15 @@ void unget_token(Token *tok) {
     vec_push(altbuffer ? altbuffer : buffer, tok);
 }
 
+Token *lex_string(char *s) {
+    push_stream_string(s);
+    Token *r = do_read_token();
+    if (peek() != EOF)
+        error("unconsumed input: %s", s);
+    pop_stream();
+    return r;
+}
+
 Token *lex(void) {
     if (altbuffer) {
         if (vec_len(altbuffer) == 0)
@@ -642,19 +547,14 @@ Token *lex(void) {
     }
     if (vec_len(buffer) > 0)
         return vec_pop(buffer);
-    bool bol = at_bol;
+    bool bol = (current_file()->column == 0);
     Token *tok = do_read_token();
     while (tok && tok->kind == TSPACE) {
         tok = do_read_token();
         if (tok)
             tok->space = true;
     }
-    if (!tok && vec_len(file_stack) > 0) {
-        fclose(file->fp);
-        file = vec_pop(file_stack);
-        at_bol = true;
-        return newline_token;
-    }
-    if (tok) tok->bol = bol;
+    if (tok)
+        tok->bol = bol;
     return tok;
 }
