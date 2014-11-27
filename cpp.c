@@ -8,10 +8,8 @@
 
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <libgen.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -45,7 +43,7 @@ static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
 static void read_directive(void);
-static Token *read_token_sub(bool return_at_eol);
+static Token *do_read_token(bool return_at_eol);
 static Token *read_expand(void);
 
 /*
@@ -68,9 +66,9 @@ void cpp_eval(char *buf) {
  * Constructors
  */
 
-static CondIncl *make_cond_incl(CondInclCtx ctx, bool wastrue) {
+static CondIncl *make_cond_incl(bool wastrue) {
     CondIncl *r = malloc(sizeof(CondIncl));
-    r->ctx = ctx;
+    r->ctx = IN_THEN;
     r->wastrue = wastrue;
     return r;
 }
@@ -537,7 +535,7 @@ static void read_undef(void) {
 }
 
 /*
- * defined()
+ * #if and the like
  */
 
 static Token *read_defined_op(void) {
@@ -551,14 +549,10 @@ static Token *read_defined_op(void) {
     return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
-/*
- * #if and the like
- */
-
 static Vector *read_intexpr_line(void) {
     Vector *r = make_vector();
     for (;;) {
-        Token *tok = read_token_sub(true);
+        Token *tok = do_read_token(true);
         if (!tok) return r;
         if (is_ident(tok, "defined"))
             vec_push(r, read_defined_op());
@@ -582,31 +576,31 @@ static bool read_constexpr(void) {
     return eval_intexpr(expr);
 }
 
-static void read_if_generic(bool cond) {
-    vec_push(cond_incl_stack, make_cond_incl(IN_THEN, cond));
-    if (!cond)
+static void do_read_if(bool istrue) {
+    vec_push(cond_incl_stack, make_cond_incl(istrue));
+    if (!istrue)
         skip_cond_incl();
 }
 
 static void read_if(void) {
-    read_if_generic(read_constexpr());
+    do_read_if(read_constexpr());
 }
 
-static void read_ifdef_generic(bool is_ifdef) {
+static void do_read_ifdef(bool is_ifdef) {
     Token *tok = lex();
     if (!tok || tok->kind != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
-    bool cond = map_get(macros, tok->sval);
+    bool istrue = map_get(macros, tok->sval);
     expect_newline();
-    read_if_generic(is_ifdef ? cond : !cond);
+    do_read_if(is_ifdef ? istrue : !istrue);
 }
 
 static void read_ifdef(void) {
-    read_ifdef_generic(true);
+    do_read_ifdef(true);
 }
 
 static void read_ifndef(void) {
-    read_ifdef_generic(false);
+    do_read_ifdef(false);
 }
 
 static void read_else(void) {
@@ -950,7 +944,7 @@ Token *peek_token(void) {
     return r;
 }
 
-static Token *read_token_sub(bool return_at_eol) {
+static Token *do_read_token(bool return_at_eol) {
     for (;;) {
         Token *tok = lex();
         if (!tok)
@@ -979,7 +973,7 @@ Token *read_concatenate_string(Token *tok) {
     Vector *v = make_vector();
     vec_push(v, tok);
     for (;;) {
-        Token *tok2 = read_token_sub(false);
+        Token *tok2 = do_read_token(false);
         if (!tok2 || tok2->kind != TSTRING) {
             unget_token(tok2);
             break;
@@ -997,7 +991,7 @@ Token *read_concatenate_string(Token *tok) {
 }
 
 Token *read_token(void) {
-    Token *tok = read_token_sub(false);
+    Token *tok = do_read_token(false);
     if (!tok) return NULL;
     assert(tok->kind != TNEWLINE);
     assert(tok->kind != TSPACE);
