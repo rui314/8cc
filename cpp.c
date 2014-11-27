@@ -19,7 +19,6 @@
 
 bool debug_cpp;
 static Map *macros = &EMPTY_MAP;
-static Map *imported = &EMPTY_MAP;
 static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
 static Vector *cond_incl_stack = &EMPTY_VECTOR;
@@ -689,24 +688,19 @@ static char *read_cpp_header_name(bool *std) {
 static char *get_realpath(char *path) {
     char buf[PATH_MAX];
     if (!realpath(path, buf))
-        error("realpath failed: %s", strerror(errno));
+        return path;
     return format("%s", buf);
 }
 
 static bool try_include(char *dir, char *filename, bool isimport) {
-    char *path = format("%s/%s", dir, filename);
-    char *real = NULL;
-    if (isimport || map_len(once) > 0)
-        real = get_realpath(path);
-    if (real && map_get(once, real))
-        return true;
-    if (isimport && map_get(imported, real))
+    char *path = get_realpath(format("%s/%s", dir, filename));
+    if (map_get(once, path))
         return true;
     FILE *fp = fopen(path, "r");
     if (!fp)
         return false;
     if (isimport)
-        map_put(imported, real, (void *)1);
+        map_put(once, path, (void *)1);
     push_input_file(path, path, fp);
     return true;
 }
