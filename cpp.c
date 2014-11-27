@@ -277,7 +277,8 @@ static Token *glue_tokens(Token *t0, Token *t1) {
     paste(b, t0);
     paste(b, t1);
     Token *r = copy_token(t0);
-    r->kind = isdigit(buf_body(b)[0]) ? TNUMBER : TIDENT;
+    bool isnum = strchr("0123456789.", buf_body(b)[0]);
+    r->kind = isnum ? TNUMBER : TIDENT;
     r->sval = buf_body(b);
     return r;
 }

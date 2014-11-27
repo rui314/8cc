@@ -385,6 +385,7 @@ static void funclike(void) {
     expect(2, m8(TW, O));
     expect(0, m8(ZERO,));
     expect(8, 1 m8(<, <) 3);
+    expectf(.123, m8(., 123));
 
 #define m9(x, y, z) x y + z
     expect(8, m9(1,, 7));
