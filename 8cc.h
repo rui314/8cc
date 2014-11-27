@@ -249,6 +249,7 @@ extern void push_input_file(char *displayname, char *realname, FILE *input);
 extern void set_input_file(char *displayname, char *realname, FILE *input);
 extern char *input_position(void);
 extern char *get_current_file(void);
+extern char *fullpath(char *path);
 extern int get_current_line(void);
 extern char *get_current_displayname(void);
 extern void set_current_displayname(char *name);

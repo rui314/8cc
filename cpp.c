@@ -685,15 +685,8 @@ static char *read_cpp_header_name(bool *std) {
     return join_tokens(tokens, false);
 }
 
-static char *get_realpath(char *path) {
-    char buf[PATH_MAX];
-    if (!realpath(path, buf))
-        return path;
-    return format("%s", buf);
-}
-
 static bool try_include(char *dir, char *filename, bool isimport) {
-    char *path = get_realpath(format("%s/%s", dir, filename));
+    char *path = fullpath(format("%s/%s", dir, filename));
     if (map_get(once, path))
         return true;
     FILE *fp = fopen(path, "r");
@@ -727,7 +720,7 @@ static void read_include(bool isimport) {
 
 static void parse_pragma_operand(char *s) {
     if (!strcmp(s, "once")) {
-        map_put(once, get_realpath(get_current_file()), (void *)1);
+        map_put(once, fullpath(get_current_file()), (void *)1);
     } else if (!strcmp(s, "enable_warning")) {
         enable_warning = true;
     } else if (!strcmp(s, "disable_warning")) {
