@@ -29,3 +29,6 @@
 #define __x86_64 1
 #define __x86_64__ 1
 #define linux 1
+
+#define __restrict restrict
+#define __restrict__ restrict
