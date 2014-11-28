@@ -10,7 +10,7 @@ typedef struct Vector {
     int nalloc;
 } Vector;
 
-#define EMPTY_VECTOR ((Vector){ .len = 0, .nalloc = 0 })
+#define EMPTY_VECTOR ((Vector){})
 
 extern Vector *make_vector(void);
 extern Vector *make_vector1(void *e);

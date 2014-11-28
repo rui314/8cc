@@ -9,8 +9,8 @@
 
 static Vector *buffer = &EMPTY_VECTOR;
 static Vector *altbuffer = NULL;
-static Token *space_token = &(Token){ .kind = TSPACE, .space = false };
-static Token *newline_token = &(Token){ .kind = TNEWLINE, .space = false };
+static Token *space_token = &(Token){ TSPACE };
+static Token *newline_token = &(Token){ TNEWLINE };
 
 static void skip_block_comment(void);
 
@@ -38,23 +38,23 @@ static Token *make_token(Token *tmpl) {
 }
 
 static Token *make_ident(char *p) {
-    return make_token(&(Token){ TIDENT, .space = false, .sval = p });
+    return make_token(&(Token){ TIDENT, .sval = p });
 }
 
 static Token *make_strtok(char *s, int enc) {
-    return make_token(&(Token){ TSTRING, .space = false, .sval = s, .enc = enc });
+    return make_token(&(Token){ TSTRING, .sval = s, .enc = enc });
 }
 
 static Token *make_keyword(int id) {
-    return make_token(&(Token){ TKEYWORD, .space = false, .id = id });
+    return make_token(&(Token){ TKEYWORD, .id = id });
 }
 
 static Token *make_number(char *s) {
-    return make_token(&(Token){ TNUMBER, .space = false, .sval = s });
+    return make_token(&(Token){ TNUMBER, .sval = s });
 }
 
 static Token *make_char(char c, int enc) {
-    return make_token(&(Token){ TCHAR, .space = false, .c = c, .enc = enc });
+    return make_token(&(Token){ TCHAR, .c = c, .enc = enc });
 }
 
 static bool iswhitespace(int c) {
