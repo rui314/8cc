@@ -599,19 +599,12 @@ static void read_elif(void) {
         skip_cond_incl();
 }
 
-static void peek_nonblank_token(void) {
-    Vector *v = make_vector();
-    for (;;) {
-        Token *tok = lex();
-        if (tok && (tok->kind == TNEWLINE || tok->kind == TSPACE)) {
-            vec_push(v, tok);
-            continue;
-        }
-        unget_token(tok);
-        break;
-    }
-    while (vec_len(v) > 0)
-        unget_token(vec_pop(v));
+static void skip_newlines(void) {
+    // Skip all but the last newline.
+    Token *tok = lex();
+    while (is_keyword(tok, TNEWLINE) && is_keyword(peek_token(), TNEWLINE))
+        tok = lex();
+    unget_token(tok);
 }
 
 static void read_endif(void) {
@@ -627,7 +620,7 @@ static void read_endif(void) {
     if (!ci->include_guard)
         return;
     File *f = current_file();
-    peek_nonblank_token();
+    skip_newlines();
     if (f != current_file())
         map_put(include_guard, f->name, ci->include_guard);
 }
