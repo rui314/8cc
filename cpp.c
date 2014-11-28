@@ -16,9 +16,11 @@
 #include "8cc.h"
 
 bool debug_cpp;
+bool bof;
 static Map *macros = &EMPTY_MAP;
 static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
+static Map *include_guard = &EMPTY_MAP;
 static Vector *cond_incl_stack = &EMPTY_VECTOR;
 static Vector *std_include_path = &EMPTY_VECTOR;
 static struct tm now;
@@ -28,7 +30,12 @@ static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
 typedef void SpecialMacroHandler(Token *tok);
 typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
 typedef enum { MACRO_OBJ, MACRO_FUNC, MACRO_SPECIAL } MacroType;
-typedef struct { CondInclCtx ctx; bool wastrue; } CondIncl;
+
+typedef struct {
+    CondInclCtx ctx;
+    char *include_guard;
+    bool wastrue;
+} CondIncl;
 
 typedef struct {
     MacroType kind;
@@ -42,6 +49,7 @@ static void map_copy(Map *dst, Map *src);
 static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
+static void define_obj_macro(char *name, Token *value);
 static void read_directive(void);
 static Token *do_read_token(bool return_at_eol);
 static Token *read_expand(void);
@@ -544,21 +552,24 @@ static void read_if(void) {
     do_read_if(read_constexpr());
 }
 
-static void do_read_ifdef(bool is_ifdef) {
+static void read_ifdef(void) {
     Token *tok = lex();
     if (!tok || tok->kind != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
-    bool istrue = map_get(macros, tok->sval);
     expect_newline();
-    do_read_if(is_ifdef ? istrue : !istrue);
-}
-
-static void read_ifdef(void) {
-    do_read_ifdef(true);
+    do_read_if(map_get(macros, tok->sval));
 }
 
 static void read_ifndef(void) {
-    do_read_ifdef(false);
+    Token *tok = lex();
+    if (!tok || tok->kind != TIDENT)
+        error("identifier expected, but got %s", t2s(tok));
+    expect_newline();
+    do_read_if(!map_get(macros, tok->sval));
+    if (bof) {
+        CondIncl *ci = vec_tail(cond_incl_stack);
+        ci->include_guard = tok->sval;
+    }
 }
 
 static void read_else(void) {
@@ -568,6 +579,7 @@ static void read_else(void) {
     if (ci->ctx == IN_ELSE)
         error("#else appears in #else");
     expect_newline();
+    ci->include_guard = NULL;
     if (ci->wastrue)
         skip_cond_incl();
 }
@@ -578,6 +590,7 @@ static void read_elif(void) {
     CondIncl *ci = vec_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
         error("#elif after #else");
+    ci->include_guard = NULL;
     if (ci->wastrue)
         skip_cond_incl();
     else if (read_constexpr())
@@ -586,11 +599,37 @@ static void read_elif(void) {
         skip_cond_incl();
 }
 
+static void peek_nonblank_token(void) {
+    Vector *v = make_vector();
+    for (;;) {
+        Token *tok = lex();
+        if (tok && (tok->kind == TNEWLINE || tok->kind == TSPACE)) {
+            vec_push(v, tok);
+            continue;
+        }
+        unget_token(tok);
+        break;
+    }
+    while (vec_len(v) > 0)
+        unget_token(vec_pop(v));
+}
+
 static void read_endif(void) {
     if (vec_len(cond_incl_stack) == 0)
         error("stray #endif");
+    CondIncl *ci = vec_tail(cond_incl_stack);
     vec_pop(cond_incl_stack);
     expect_newline();
+
+    // Detect an #ifndef and #endif pair that guards the entire
+    // header file. Remember the macro name guarding the file
+    // so that we can skip the file next file.
+    if (!ci->include_guard)
+        return;
+    File *f = current_file();
+    peek_nonblank_token();
+    if (f != current_file())
+        map_put(include_guard, f->name, ci->include_guard);
 }
 
 /*
@@ -637,9 +676,18 @@ static char *read_cpp_header_name(bool *std) {
     return join_tokens(tokens, false);
 }
 
+static bool guarded(char *path) {
+    char *guard = map_get(include_guard, path);
+    bool r = (guard && map_get(macros, guard));
+    define_obj_macro("__8cc_include_guard", r ? cpp_token_one : cpp_token_zero);
+    return r;
+}
+
 static bool try_include(char *dir, char *filename, bool isimport) {
     char *path = fullpath(format("%s/%s", dir, filename));
     if (map_get(once, path))
+        return true;
+    if (guarded(path))
         return true;
     FILE *fp = fopen(path, "r");
     if (!fp)
@@ -647,6 +695,7 @@ static bool try_include(char *dir, char *filename, bool isimport) {
     if (isimport)
         map_put(once, path, (void *)1);
     insert_stream(fp, path);
+    bof = true;
     return true;
 }
 
@@ -816,6 +865,10 @@ void add_include_path(char *path) {
     vec_push(std_include_path, path);
 }
 
+static void define_obj_macro(char *name, Token *value) {
+    map_put(macros, name, make_obj_macro(make_vector1(value)));
+}
+
 static void define_special_macro(char *name, SpecialMacroHandler *fn) {
     map_put(macros, name, make_special_macro(fn));
 }
@@ -899,6 +952,7 @@ static Token *do_read_token(bool return_at_eol) {
             read_directive();
             continue;
         }
+        bof = false;
         unget_token(tok);
         Token *r = read_expand();
         if (r && r->bol && is_keyword(r, '#') && map_len(r->hideset) == 0) {

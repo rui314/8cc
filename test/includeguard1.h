@@ -1,0 +1,3 @@
+#ifndef INCLUDEGUARD1_H
+#define INCLUDEGUARD1_H
+#endif
