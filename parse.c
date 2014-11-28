@@ -1097,8 +1097,7 @@ static Node *read_unary_expr(void) {
     if (tok->kind == TKEYWORD) {
         switch (tok->id) {
         case KSIZEOF: return read_sizeof_operand();
-        case KALIGNOF:
-        case K__ALIGNOF__: return read_alignof_operand();
+        case KALIGNOF: return read_alignof_operand();
         case OP_INC: return read_unary_incdec(OP_PRE_INC);
         case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
         case OP_LOGAND: return read_label_addr();
@@ -2034,8 +2033,7 @@ static Type *read_decl_spec(int *rsclass) {
         case KINT:        SET(kind, kint); continue;
         case KFLOAT:      SET(kind, kfloat); continue;
         case KDOUBLE:     SET(kind, kdouble); continue;
-        case KSIGNED:
-        case K__SIGNED__: SET(sig, ksigned); continue;
+        case KSIGNED:     SET(sig, ksigned); continue;
         case KUNSIGNED:   SET(sig, kunsigned); continue;
         case KSHORT:      SET(size, kshort); continue;
         case KSTRUCT:     SET(usertype, read_struct_def()); continue;
@@ -2058,7 +2056,7 @@ static Type *read_decl_spec(int *rsclass) {
             else goto err;
             continue;
         }
-        case KTYPEOF: case K__TYPEOF__: {
+        case KTYPEOF: {
             SET(usertype, read_typeof());
             continue;
         }

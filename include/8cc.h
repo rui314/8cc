@@ -30,5 +30,11 @@
 #define __x86_64__ 1
 #define linux 1
 
+#define __alignof__ alignof
+#define __const__ const
+#define __inline__ inline
 #define __restrict restrict
 #define __restrict__ restrict
+#define __signed__ signed
+#define __typeof__ typeof
+#define __volatile__ volatile
