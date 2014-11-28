@@ -212,7 +212,7 @@ static Vector *read_args(Macro *macro) {
         if (macro->nargs == 0 &&
             vec_len(args) == 1 &&
             vec_len(vec_get(args, 0)) == 0)
-            return &EMPTY_VECTOR;
+            return make_vector();
         error("Macro argument number does not match");
     }
     return args;
