@@ -107,12 +107,6 @@ static Token *copy_token(Token *tok) {
     return r;
 }
 
-static Token *make_number(char *s) {
-    Token *r = malloc(sizeof(Token));
-    *r = (Token){ TNUMBER, .sval = s };
-    return r;
-}
-
 static void expect(char id) {
     Token *tok = lex();
     if (!tok || !is_keyword(tok, id))
@@ -660,7 +654,10 @@ static void read_include(bool isimport) {
     bool std;
     char *filename = read_cpp_header_name(&std);
     expect_newline();
-    if (!std) {
+    if (filename[0] == '/') {
+        if (try_include("/", filename, isimport))
+            return;
+    } else if (!std) {
         File *f = current_file();
         char *dir = f->name ? dirname(strdup(f->name)) : ".";
         if (try_include(dir, filename, isimport))
@@ -669,7 +666,7 @@ static void read_include(bool isimport) {
     for (int i = vec_len(std_include_path) - 1; i >= 0; i--)
         if (try_include(vec_get(std_include_path, i), filename, isimport))
             return;
-    error("Cannot find header file: %s", filename);
+    error("cannot find header file: %s", filename);
 }
 
 /*
@@ -819,10 +816,6 @@ void add_include_path(char *path) {
     vec_push(std_include_path, path);
 }
 
-static void define_obj_macro(char *name, Token *value) {
-    map_put(macros, name, make_obj_macro(make_vector1(value)));
-}
-
 static void define_special_macro(char *name, SpecialMacroHandler *fn) {
     map_put(macros, name, make_special_macro(fn));
 }
@@ -854,27 +847,7 @@ static void init_predefined_macros(void) {
     define_special_macro("__INCLUDE_LEVEL__", handle_include_level_macro);
     define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
 
-    char *predefined[] = {
-        "__8cc__", "__amd64", "__amd64__", "__x86_64", "__x86_64__",
-        "linux", "__linux", "__linux__", "__gnu_linux__", "__unix", "__unix__",
-        "_LP64", "__LP64__", "__ELF__", "__STDC__", "__STDC_HOSTED__",
-        "__STDC_NO_ATOMICS__", "__STDC_NO_COMPLEX__", "__STDC_NO_THREADS__",
-        "__STDC_NO_VLA__", };
-
-    for (int i = 0; i < sizeof(predefined) / sizeof(*predefined); i++)
-        define_obj_macro(predefined[i], cpp_token_one);
-
-    define_obj_macro("__STDC_VERSION__", make_number("201112L"));
-    define_obj_macro("__SIZEOF_SHORT__", make_number("2"));
-    define_obj_macro("__SIZEOF_INT__", make_number("4"));
-    define_obj_macro("__SIZEOF_LONG__", make_number("8"));
-    define_obj_macro("__SIZEOF_LONG_LONG__", make_number("8"));
-    define_obj_macro("__SIZEOF_FLOAT__", make_number("4"));
-    define_obj_macro("__SIZEOF_DOUBLE__", make_number("8"));
-    define_obj_macro("__SIZEOF_LONG_DOUBLE__", make_number("8"));
-    define_obj_macro("__SIZEOF_POINTER__", make_number("8"));
-    define_obj_macro("__SIZEOF_PTRDIFF_T__", make_number("8"));
-    define_obj_macro("__SIZEOF_SIZE_T__", make_number("8"));
+    cpp_eval("#include <" BUILD_DIR "/include/8cc.h>\n");
 }
 
 void init_now(void) {
@@ -884,8 +857,8 @@ void init_now(void) {
 
 void cpp_init(void) {
     init_keywords();
-    init_predefined_macros();
     init_now();
+    init_predefined_macros();
 }
 
 /*
