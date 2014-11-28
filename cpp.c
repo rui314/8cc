@@ -688,7 +688,6 @@ static bool try_include(char *dir, char *filename, bool isimport) {
     if (isimport)
         map_put(once, path, (void *)1);
     insert_stream(fp, path);
-    bof = true;
     return true;
 }
 
@@ -942,7 +941,9 @@ static Token *do_read_token(bool return_at_eol) {
             continue;
         }
         if (tok->bol && is_keyword(tok, '#')) {
+            int include_level = stream_depth();
             read_directive();
+            bof = (include_level < stream_depth());
             continue;
         }
         bof = false;

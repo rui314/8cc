@@ -41,6 +41,15 @@
 # error "include guard"
 #endif
 
+#include "includeguard5.h"
+#if __8cc_include_guard == 1
+# error "include guard"
+#endif
+#include "includeguard5.h"
+#if __8cc_include_guard == 1
+# error "include guard"
+#endif
+
 #endif
 
 void testmain(void) {
