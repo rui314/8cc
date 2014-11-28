@@ -151,12 +151,23 @@ static void test_dict(void) {
     assert_int(2, vec_len(dict_keys(dict)));
 }
 
+static void test_path(void) {
+    assert_string("/abc", fullpath("/abc"));
+    assert_string("/abc/def", fullpath("/abc/def"));
+    assert_string("/abc/def", fullpath("/abc///def"));
+    assert_string("/abc/def", fullpath("//abc///def"));
+    assert_string("/abc/xyz", fullpath("/abc/def/../xyz"));
+    assert_string("/xyz", fullpath("/abc/def/../../../xyz"));
+    assert_string("/xyz", fullpath("/abc/def/../../../../xyz"));
+}
+
 int main(int argc, char **argv) {
     test_buf();
     test_list();
     test_map();
     test_map_stack();
     test_dict();
+    test_path();
     printf("Passed\n");
     return 0;
 }
