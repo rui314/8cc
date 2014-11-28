@@ -9,6 +9,7 @@ typedef struct {
     char *name;
     int line;
     int column;
+    int ntok;  // number of tokens in the file (except space and newline)
     bool autopop;
     union {
         // stream backed by FILE

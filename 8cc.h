@@ -40,6 +40,7 @@ typedef struct {
     char *file;
     int line;
     int column;
+    int count;
     Map *hideset;
     union {
         // TKEYWORD

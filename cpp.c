@@ -16,7 +16,6 @@
 #include "8cc.h"
 
 bool debug_cpp;
-bool bof;
 static Map *macros = &EMPTY_MAP;
 static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
@@ -566,7 +565,9 @@ static void read_ifndef(void) {
         error("identifier expected, but got %s", t2s(tok));
     expect_newline();
     do_read_if(!map_get(macros, tok->sval));
-    if (bof) {
+    if (tok->count == 2) {
+        // "ifndef" is the second token in this file.
+        // Prepare to detect an include guard.
         CondIncl *ci = vec_tail(cond_incl_stack);
         ci->include_guard = tok->sval;
     }
@@ -941,12 +942,9 @@ static Token *do_read_token(bool return_at_eol) {
             continue;
         }
         if (tok->bol && is_keyword(tok, '#')) {
-            int include_level = stream_depth();
             read_directive();
-            bof = (include_level < stream_depth());
             continue;
         }
-        bof = false;
         unget_token(tok);
         Token *r = read_expand();
         if (r && r->bol && is_keyword(r, '#') && map_len(r->hideset) == 0) {

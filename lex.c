@@ -33,6 +33,7 @@ static Token *make_token(Token *tmpl) {
     r->file = f->name;
     r->line = f->line;
     r->column = f->column;
+    r->count = f->ntok++;
     return r;
 }
 
