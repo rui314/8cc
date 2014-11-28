@@ -16,6 +16,7 @@ static bool dumpast;
 static bool cpponly;
 static bool dumpasm;
 static bool dontlink;
+static bool newcodegen;
 static Buffer *cppdefs;
 static Vector *tmpfiles = &EMPTY_VECTOR;
 
@@ -108,6 +109,8 @@ static void parse_f_arg(char *s) {
         dumpstack = true;
     else if (!strcmp(s, "no-dump-source"))
         dumpsource = false;
+    else if (!strcmp(s, "newgen"))
+        newcodegen = true;
     else
         usage();
 }
@@ -187,7 +190,8 @@ int main(int argc, char **argv) {
     lex_init(infile);
     cpp_init();
     parse_init();
-    set_output_file(open_asmfile());
+    FILE *asmfp = open_asmfile();
+    set_output_file(asmfp);
     if (buf_len(cppdefs) > 0)
         cpp_eval(buf_body(cppdefs));
 
@@ -195,12 +199,16 @@ int main(int argc, char **argv) {
         preprocess();
 
     Vector *toplevels = read_toplevels();
-    for (int i = 0; i < vec_len(toplevels); i++) {
-        Node *v = vec_get(toplevels, i);
-        if (dumpast)
-            printf("%s", node2s(v));
-        else
-            emit_toplevel(v);
+    if (newcodegen) {
+        codegen(toplevels, asmfp);
+    } else {
+        for (int i = 0; i < vec_len(toplevels); i++) {
+            Node *v = vec_get(toplevels, i);
+            if (dumpast)
+                printf("%s", node2s(v));
+            else
+                emit_toplevel(v);
+        }
     }
 
     close_output_file();
