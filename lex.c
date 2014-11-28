@@ -30,7 +30,7 @@ static Token *make_token(Token *tmpl) {
     *r = *tmpl;
     r->hideset = make_map();
     File *f = current_file();
-    r->file = f->name;
+    r->file = f;
     r->line = f->line;
     r->column = f->column;
     r->count = f->ntok++;

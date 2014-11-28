@@ -119,7 +119,7 @@ static void mark_location(void) {
         return;
     }
     source_loc = malloc(sizeof(SourceLoc));
-    source_loc->file = tok->file;
+    source_loc->file = tok->file->name;
     source_loc->line = tok->line;
 }
 

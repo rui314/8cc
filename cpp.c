@@ -33,6 +33,7 @@ typedef enum { MACRO_OBJ, MACRO_FUNC, MACRO_SPECIAL } MacroType;
 typedef struct {
     CondInclCtx ctx;
     char *include_guard;
+    File *file;
     bool wastrue;
 } CondIncl;
 
@@ -570,6 +571,7 @@ static void read_ifndef(void) {
         // Prepare to detect an include guard.
         CondIncl *ci = vec_tail(cond_incl_stack);
         ci->include_guard = tok->sval;
+        ci->file = tok->file;
     }
 }
 
@@ -617,13 +619,12 @@ static void read_endif(void) {
 
     // Detect an #ifndef and #endif pair that guards the entire
     // header file. Remember the macro name guarding the file
-    // so that we can skip the file next file.
-    if (!ci->include_guard)
+    // so that we can skip the file next time.
+    if (!ci->include_guard || ci->file != current_file())
         return;
-    File *f = current_file();
     skip_newlines();
-    if (f != current_file())
-        map_put(include_guard, f->name, ci->include_guard);
+    if (ci->file != current_file())
+        map_put(include_guard, ci->file->name, ci->include_guard);
 }
 
 /*

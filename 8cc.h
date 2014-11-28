@@ -37,7 +37,7 @@ typedef struct {
     int kind;
     int space; // true if the token has a leading space
     bool bol;  // true if the token is at the beginning of a line
-    char *file;
+    File *file;
     int line;
     int column;
     int count;
