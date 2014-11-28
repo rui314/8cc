@@ -1,20 +1,21 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include "8cc.h"
 
-static Vector *buffer = &EMPTY_VECTOR;
-static Vector *altbuffer = NULL;
+static Vector *buffers = &EMPTY_VECTOR;
 static Token *space_token = &(Token){ TSPACE };
 static Token *newline_token = &(Token){ TNEWLINE };
 
 static void skip_block_comment(void);
 
 void lex_init(char *filename) {
+    vec_push(buffers, make_vector());
     if (!strcmp(filename, "-")) {
         push_stream(stdin, NULL);
         return;
@@ -468,7 +469,12 @@ static Token *do_read_token(void) {
     }
 }
 
+static bool buffer_empty(void) {
+    return vec_len(buffers) == 1 && vec_len(vec_head(buffers)) == 0;
+}
+
 char *read_header_file_name(bool *std) {
+    assert(buffer_empty());
     skip_space();
     char close;
     if (next('"')) {
@@ -499,12 +505,12 @@ bool is_keyword(Token *tok, int c) {
     return tok && (tok->kind == TKEYWORD) && (tok->id == c);
 }
 
-void set_input_buffer(Vector *tokens) {
-    altbuffer = tokens;
+void push_token_buffer(Vector *buf) {
+    vec_push(buffers, buf);
 }
 
-Vector *get_input_buffer(void) {
-    return altbuffer;
+void pop_token_buffer() {
+    vec_pop(buffers);
 }
 
 char *read_error_directive(void) {
@@ -529,7 +535,8 @@ char *read_error_directive(void) {
 
 void unget_token(Token *tok) {
     if (!tok) return;
-    vec_push(altbuffer ? altbuffer : buffer, tok);
+    Vector *buf = vec_tail(buffers);
+    vec_push(buf, tok);
 }
 
 Token *lex_string(char *s) {
@@ -542,13 +549,11 @@ Token *lex_string(char *s) {
 }
 
 Token *lex(void) {
-    if (altbuffer) {
-        if (vec_len(altbuffer) == 0)
-            return NULL;
-        return vec_pop(altbuffer);
-    }
-    if (vec_len(buffer) > 0)
-        return vec_pop(buffer);
+    Vector *buf = vec_tail(buffers);
+    if (vec_len(buf) > 0)
+        return vec_pop(buf);
+    if (vec_len(buffers) > 1)
+        return NULL;
     bool bol = (current_file()->column == 0);
     Token *tok = do_read_token();
     while (tok && tok->kind == TSPACE) {

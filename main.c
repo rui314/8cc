@@ -207,13 +207,13 @@ int main(int argc, char **argv) {
     setbuf(stdout, NULL);
     if (atexit(delete_temp_files))
         perror("atexit");
+    parseopt(argc, argv);
+    lex_init(infile);
     cpp_init();
     parse_init();
-    parseopt(argc, argv);
+    set_output_file(open_asmfile());
     if (buf_len(cppdefs) > 0)
         cpp_eval(buf_body(cppdefs));
-    lex_init(infile);
-    set_output_file(open_asmfile());
 
     if (cpponly)
         preprocess();

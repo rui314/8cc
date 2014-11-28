@@ -289,13 +289,12 @@ static Token *stringize(Token *tmpl, Vector *args) {
 
 static Vector *expand_all(Vector *tokens, Token *tmpl) {
     Vector *r = make_vector();
-    Vector *orig = get_input_buffer();
-    set_input_buffer(vec_reverse(tokens));
+    push_token_buffer(vec_reverse(tokens));
     Token *tok;
     while ((tok = read_expand()) != NULL)
         vec_push(r, tok);
     propagate_space(r, tmpl);
-    set_input_buffer(orig);
+    pop_token_buffer();
     return r;
 }
 
@@ -532,13 +531,12 @@ static Vector *read_intexpr_line(void) {
 }
 
 static bool read_constexpr(void) {
-    Vector *orig = get_input_buffer();
-    set_input_buffer(vec_reverse(read_intexpr_line()));
+    push_token_buffer(vec_reverse(read_intexpr_line()));
     Node *expr = read_expr();
-    Vector *buf = get_input_buffer();
-    if (vec_len(buf) > 0)
-        error("Stray token: %s", t2s(vec_get(buf, 0)));
-    set_input_buffer(orig);
+    Token *tok = lex();
+    if (tok)
+        error("Stray token: %s", t2s(tok));
+    pop_token_buffer();
     return eval_intexpr(expr);
 }
 
@@ -644,11 +642,18 @@ static void read_warning(void) {
  */
 
 static char *read_cpp_header_name(bool *std) {
-    if (!get_input_buffer()) {
-        char *r = read_header_file_name(std);
-        if (r)
-            return r;
-    }
+    // Filename after #include needs a special tokenization treatment.
+    // It may be quoted by < and > instead of "". Even if it's quoted
+    // by "", it's still different from a regular string token.
+    // For example, \ in a file name should not be interpreted as a
+    // quote. (Think of Windows path.)
+    char *path = read_header_file_name(std);
+    if (path)
+        return path;
+
+    // If a token following #include does not start with < nor ",
+    // try to read the token as a regular token. Macro-expanded
+    // form may be a valid header file path.
     Token *tok = read_expand();
     if (!tok || tok->kind == TNEWLINE)
         error("expected file name, but got %s", t2s(tok));
