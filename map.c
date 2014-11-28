@@ -39,7 +39,7 @@ static void maybe_rehash(Map *m) {
         m->size = INIT_SIZE;
         return;
     }
-    if (m->nused < m->size * 0.6)
+    if (m->nused < m->size * 0.7)
         return;
     int newsize = (m->nelem < m->size * 0.35) ? m->size : m->size * 2;
     char **k = calloc(newsize, sizeof(char **));
