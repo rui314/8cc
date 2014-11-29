@@ -2,6 +2,7 @@
 *.o
 *.s
 *~
+a.out
 8cc
 stage?
 utiltest

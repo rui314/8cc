@@ -67,7 +67,7 @@ clean: cleanobj
 	rm -f 8cc stage?
 
 cleanobj:
-	rm -f *.o *.s test/*.o test/*.bin utiltest
+	rm -f *.o *.s test/*.o test/*.bin utiltest a.out
 
 all: 8cc
 

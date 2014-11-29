@@ -7,9 +7,13 @@ function fail {
 }
 
 function run {
-    out=`echo "$1" | ./8cc -S -o- -fnewgen -`
-    [ $out != "$2" ] && fail "\"$2\" expected but got $out"
+    echo "$2" | ./8cc -S -fnewgen -o- - | cc -o a.out -x assembler -
+    ./a.out
+    c=$?
+    [ $c -eq "$1" ] || fail "$1 expected, but got $c"
 }
 
-run "int x(){}" "nop"
+run 7 'int main() { int x = 2; return x + 5; }'
+run 10 'int main() { int x = 2; int y = 3; return x + y + 5; }'
+echo OK
 exit 0
