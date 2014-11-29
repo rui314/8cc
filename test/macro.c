@@ -343,6 +343,9 @@ static void funclike(void) {
     expect_string("x+y", stringify( x+y ));
     expect_string("'a'", stringify('a'));
     expect_string("'\\''", stringify('\''));
+    expect_string("L'a'", stringify(L'a'));
+    expect_string("U'a'", stringify(U'a'));
+    expect_string("u'a'", stringify(u'a'));
     expect_string("\"abc\"", stringify("abc"));
     expect_string("L\"abc\"", stringify(L"abc"));
     expect_string("U\"abc\"", stringify(U"abc"));
@@ -390,6 +393,9 @@ static void funclike(void) {
     expect(0, m8(ZERO,));
     expect(8, 1 m8(<, <) 3);
     expectf(.123, m8(., 123));
+    expect('a', m8(L, 'a'));
+    expect('a', m8(U, 'a'));
+    expect('a', m8(u, 'a'));
     expect_string(L"abc", m8(L, "abc"));
     expect_string(U"abc", m8(U, "abc"));
     expect_string(u"abc", m8(u, "abc"));
