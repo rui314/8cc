@@ -76,22 +76,19 @@ static bool skip_whitespace(void) {
 }
 
 static int get(void) {
-    int c = readc();
-    if (c == '\\') {
+    for (;;) {
+        int c = readc();
+        if (c != '\\')
+            return c;
         bool space_exists = skip_whitespace();
         c = readc();
-        if (c == '\n') {
-            if (space_exists)
-                warn("backslash and newline separated by space");
-            return get();
+        if (c != '\n') {
+            unreadc(c);
+            return '\\';
         }
-        unreadc(c);
-        return '\\';
+        if (space_exists)
+            warn("backslash and newline separated by space");
     }
-    if (c == '\n') {
-        return c;
-    }
-    return c;
 }
 
 static int peek(void) {
@@ -120,32 +117,31 @@ static void skip_line(void) {
     }
 }
 
-static bool skip_space(void) {
-    bool r = false;
-    for (;;) {
-        int c = get();
-        if (c == EOF)
-            break;
-        if (iswhitespace(c)) {
-            r = true;
-            continue;
+static bool do_skip_space(void) {
+    int c = get();
+    if (c == EOF)
+        return false;
+    if (iswhitespace(c))
+        return true;
+    if (c == '/') {
+        if (next('*')) {
+            skip_block_comment();
+            return true;
         }
-        if (c == '/') {
-            if (next('*')) {
-                skip_block_comment();
-                r = true;
-                continue;
-            }
-            if (next('/')) {
-                skip_line();
-                r = true;
-                continue;
-            }
+        if (next('/')) {
+            skip_line();
+            return true;
         }
-        unreadc(c);
-        break;
     }
-    return r;
+    unreadc(c);
+    return false;
+}
+
+static bool skip_space(void) {
+    if (!do_skip_space())
+        return false;
+    while (do_skip_space());
+    return true;
 }
 
 static void skip_char(void) {
@@ -284,21 +280,15 @@ static int read_escaped_char(void) {
     case 'r': return '\r';
     case 't': return '\t';
     case 'v': return '\v';
-    case 'e': return '\033'; // '\e' is GNU extension
-    case '0' ... '7':
-        return read_octal_char(c);
-    case 'x':
-        return read_hex_char();
-    case 'u':
-        return read_universal_char(4);
-    case 'U':
-        return read_universal_char(8);
-    case EOF:
-        error("premature end of input");
-    default:
-        warn("unknown escape character: \\%c", c);
-        return c;
+    case 'e': return '\033';  // '\e' is GNU extension
+    case 'x': return read_hex_char();
+    case 'u': return read_universal_char(4);
+    case 'U': return read_universal_char(8);
+    case '0' ... '7': return read_octal_char(c);
+    case EOF: error("premature end of input");
     }
+    warn("unknown escape character: \\%c", c);
+    return c;
 }
 
 static Token *read_char(int enc) {
@@ -349,13 +339,28 @@ static void skip_block_comment(void) {
         int c = get();
         if (c == EOF)
             error("premature end of block comment");
-        if (c == '*')
+        if (c == '*') {
             state = asterisk_read;
-        else if (state == asterisk_read && c == '/')
+        } else if (c == '/' && state == asterisk_read) {
             return;
-        else
+        } else {
             state = in_comment;
+        }
     }
+}
+
+static Token *read_digraph(void) {
+    if (next('>'))
+        return make_keyword('}');
+    if (next(':')) {
+        if (next('%')) {
+            if (next(':'))
+                return make_keyword(KSHARPSHARP);
+            unreadc('%');
+        }
+        return make_keyword('#');
+    }
+    return NULL;
 }
 
 static Token *read_rep(char expect, int t1, int els) {
@@ -369,13 +374,29 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
 }
 
 static Token *do_read_token(void) {
+    if (skip_space())
+        return space_token;
     int c = get();
     switch (c) {
-    case ' ': case '\t': case '\v': case '\f':
-        skip_space();
-        return space_token;
-    case '\n':
-        return newline_token;
+    case '\n': return newline_token;
+    case ':': return make_keyword(next('>') ? ']' : ':');
+    case '#': return make_keyword(next('#') ? KSHARPSHARP : '#');
+    case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
+    case '*': return read_rep('=', OP_A_MUL, '*');
+    case '%': return read_digraph() ?: read_rep('=', OP_A_MOD, '%');
+    case '=': return read_rep('=', OP_EQ, '=');
+    case '!': return read_rep('=', OP_NE, '!');
+    case '&': return read_rep2('&', OP_LOGAND, '=', OP_A_AND, '&');
+    case '|': return read_rep2('|', OP_LOGOR, '=', OP_A_OR, '|');
+    case '^': return read_rep('=', OP_A_XOR, '^');
+    case '"': return read_string(ENC_NONE);
+    case '\'': return read_char(ENC_NONE);
+    case '/': return make_keyword(next('=') ? OP_A_DIV : '/');
+    case 'a' ... 't': case 'v' ... 'z': case 'A' ... 'K':
+    case 'M' ... 'T': case 'V' ... 'Z': case '_': case '$':
+        return read_ident(c);
+    case '0' ... '9':
+        return read_number(c);
     case 'L': case 'U': {
         // Wide/char32_t character/string literal
         int enc = (c == 'L') ? ENC_WCHAR : ENC_CHAR32;
@@ -393,21 +414,6 @@ static Token *do_read_token(void) {
             unreadc('8');
         }
         return read_ident(c);
-    case 'a' ... 't': case 'v' ... 'z': case 'A' ... 'K':
-    case 'M' ... 'T': case 'V' ... 'Z': case '_': case '$':
-        return read_ident(c);
-    case '0' ... '9':
-        return read_number(c);
-    case '/':
-        if (next('/')) {
-            skip_line();
-            return space_token;
-        }
-        if (next('*')) {
-            skip_block_comment();
-            return space_token;
-        }
-        return make_keyword(next('=') ? OP_A_DIV : '/');
     case '.':
         if (isdigit(peek()))
             return read_number(c);
@@ -420,36 +426,11 @@ static Token *do_read_token(void) {
     case '(': case ')': case ',': case ';': case '[': case ']': case '{':
     case '}': case '?': case '~':
         return make_keyword(c);
-    case ':':
-        return make_keyword(next('>') ? ']' : ':');
-    case '#':
-        return make_keyword(next('#') ? KSHARPSHARP : '#');
-    case '+':
-        return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '-':
         if (next('-')) return make_keyword(OP_DEC);
         if (next('>')) return make_keyword(OP_ARROW);
         if (next('=')) return make_keyword(OP_A_SUB);
         return make_keyword('-');
-    case '*':
-        return read_rep('=', OP_A_MUL, '*');
-    case '%':
-        if (next('>'))
-            return make_keyword('}');
-        if (next(':')) {
-            if (next('%')) {
-                if (next(':'))
-                    return make_keyword(KSHARPSHARP);
-                unreadc('%');
-            }
-            return make_keyword('#');
-        }
-        return read_rep('=', OP_A_MOD, '%');
-    case '=': return read_rep('=', OP_EQ, '=');
-    case '!': return read_rep('=', OP_NE, '!');
-    case '&': return read_rep2('&', OP_LOGAND, '=', OP_A_AND, '&');
-    case '|': return read_rep2('|', OP_LOGOR, '=', OP_A_OR, '|');
-    case '^': return read_rep('=', OP_A_XOR, '^');
     case '<':
         if (next('<')) return read_rep('=', OP_A_SAL, OP_SAL);
         if (next('=')) return make_keyword(OP_LE);
@@ -460,12 +441,8 @@ static Token *do_read_token(void) {
         if (next('=')) return make_keyword(OP_GE);
         if (next('>')) return read_rep('=', OP_A_SAR, OP_SAR);
         return make_keyword('>');
-    case '"': return read_string(ENC_NONE);
-    case '\'': return read_char(ENC_NONE);
-    case EOF:
-        return NULL;
-    default:
-        error("Unexpected character: '%c'", c);
+    case EOF: return NULL;
+    default: error("Unexpected character: '%c'", c);
     }
 }
 
@@ -487,12 +464,10 @@ char *read_header_file_name(bool *std) {
         return NULL;
     }
     Buffer *b = make_buffer();
-    for (;;) {
+    while (!next(close)) {
         int c = get();
         if (c == EOF || c == '\n')
             error("premature end of header name");
-        if (c == close)
-            break;
         buf_write(b, c);
     }
     if (buf_len(b) == 0)
