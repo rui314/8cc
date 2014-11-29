@@ -262,8 +262,6 @@ extern void push_token_buffer(Vector *buf);
 extern void pop_token_buffer();
 extern void skip_cond_incl(void);
 extern char *read_header_file_name(bool *std);
-extern void push_input_file(char *displayname, char *realname, FILE *input);
-extern void set_input_file(char *displayname, char *realname, FILE *input);
 extern char *input_position(void);
 extern char *fullpath(char *path);
 extern void cpp_eval(char *buf);
