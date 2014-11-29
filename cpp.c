@@ -27,7 +27,7 @@ static Token *cpp_token_zero = &(Token){ .kind = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
 
 typedef void SpecialMacroHandler(Token *tok);
-typedef enum { IN_THEN, IN_ELSE } CondInclCtx;
+typedef enum { IN_THEN, IN_ELIF, IN_ELSE } CondInclCtx;
 typedef enum { MACRO_OBJ, MACRO_FUNC, MACRO_SPECIAL } MacroType;
 
 typedef struct {
@@ -580,6 +580,7 @@ static void read_else(void) {
     if (ci->ctx == IN_ELSE)
         error("#else appears in #else");
     expect_newline();
+    ci->ctx = IN_ELSE;
     ci->include_guard = NULL;
     if (ci->wastrue)
         skip_cond_incl();
@@ -591,13 +592,13 @@ static void read_elif(void) {
     CondIncl *ci = vec_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
         error("#elif after #else");
+    ci->ctx = IN_ELIF;
     ci->include_guard = NULL;
-    if (ci->wastrue)
+    if (ci->wastrue || !read_constexpr()) {
         skip_cond_incl();
-    else if (read_constexpr())
-        ci->wastrue = true;
-    else
-        skip_cond_incl();
+        return;
+    }
+    ci->wastrue = true;
 }
 
 static void skip_newlines(void) {
