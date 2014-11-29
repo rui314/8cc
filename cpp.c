@@ -288,9 +288,9 @@ static Token *stringize(Token *tmpl, Vector *args) {
 }
 
 static Vector *expand_all(Vector *tokens, Token *tmpl) {
-    Vector *r = make_vector();
     push_token_buffer(vec_reverse(tokens));
     Token *tok;
+    Vector *r = make_vector();
     while ((tok = read_expand()) != NULL)
         vec_push(r, tok);
     propagate_space(r, tmpl);
@@ -385,19 +385,17 @@ static Token *read_expand(void) {
         if (!next('('))
             return tok;
         Vector *args = read_args(macro);
-        Token *rparen = lex();
-        if (!is_keyword(rparen, ')'))
-            error("internal error: %s", t2s(rparen));
+        Token *rparen = peek_token();
+        expect(')');
         Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
         Vector *tokens = subst(macro, args, hideset);
         propagate_space(tokens, tok);
         unget_all(tokens);
         return read_expand();
     }
-    case MACRO_SPECIAL: {
+    case MACRO_SPECIAL:
         macro->fn(tok);
         return read_expand();
-    }
     default:
         error("internal error");
     }
@@ -424,13 +422,11 @@ static bool read_funclike_macro_params(Map *param) {
         if (tok->kind != TIDENT)
             error("identifier expected, but got '%s'", t2s(tok));
         char *arg = tok->sval;
-        tok = lex();
-        if (is_keyword(tok, KELLIPSIS)) {
+        if (next(KELLIPSIS)) {
             expect(')');
             map_put(param, arg, make_macro_token(pos++, true));
             return true;
         }
-        unget_token(tok);
         map_put(param, arg, make_macro_token(pos++, false));
     }
 }
@@ -519,14 +515,15 @@ static Vector *read_intexpr_line(void) {
     for (;;) {
         Token *tok = do_read_token(true);
         if (!tok) return r;
-        if (is_ident(tok, "defined"))
+        if (is_ident(tok, "defined")) {
             vec_push(r, read_defined_op());
-        // N1570 6.10.1.4 says that remaining identifiers should be
-        // replaced with pp-number 0.
-        else if (tok->kind == TIDENT)
+        } else if (tok->kind == TIDENT) {
+            // C11 6.10.1.4 says that remaining identifiers
+            // should be replaced with pp-number 0.
             vec_push(r, cpp_token_zero);
-        else
+        } else {
             vec_push(r, tok);
+        }
     }
 }
 
