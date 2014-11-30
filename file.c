@@ -126,6 +126,8 @@ int readc(void) {
             continue;
         }
         unreadc(c2);
+        if (space_exists)
+            unreadc(' ');
         return c;
     }
 }

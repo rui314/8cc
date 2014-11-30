@@ -19,6 +19,7 @@ enum {
     TNUMBER,
     TCHAR,
     TSTRING,
+    TINVALID,
     // Only in CPP
     TNEWLINE,
     TSPACE,

@@ -301,6 +301,8 @@ char *t2s(Token *tok) {
         return format("%s\"%s\"",
                       encoding_prefix(tok),
                       quote_cstring(tok->sval));
+    case TINVALID:
+        return format("%c", tok->c);
     case TNEWLINE:
         return "(newline)";
     case TSPACE:

@@ -13,7 +13,7 @@ typedef struct {
     int ntok;  // number of tokens in the file (except space and newline)
     bool autopop;
     int last;
-    int buf[2];
+    int buf[3];
     int buflen;
 } File;
 

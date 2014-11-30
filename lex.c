@@ -75,6 +75,10 @@ static Token *make_number(char *s) {
     return make_token(&(Token){ TNUMBER, .sval = s });
 }
 
+static Token *make_invalid(char c) {
+    return make_token(&(Token){ TINVALID, .c = c });
+}
+
 static Token *make_char(char c, int enc) {
     return make_token(&(Token){ TCHAR, .c = c, .enc = enc });
 }
@@ -434,7 +438,7 @@ static Token *do_read_token(void) {
         if (next('>')) return read_rep('=', OP_A_SAR, OP_SAR);
         return make_keyword('>');
     case EOF: return NULL;
-    default: error("Unexpected character: '%c'", c);
+    default: return make_invalid(c);
     }
 }
 
