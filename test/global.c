@@ -17,6 +17,9 @@ char *s2 = "ABCD";
 long l1 = 8;
 int *intp = &(int){ 9 };
 
+// Empty top level.
+;
+
 void testmain(void) {
     print("global variable");
 
