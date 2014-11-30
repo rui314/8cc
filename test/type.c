@@ -79,6 +79,18 @@ static void test_typedef(void) {
     strtype c;
     c.x = 5;
     expect(5, c.x);
+
+    typedef char x;
+    {
+        int x = 3;
+        expect(3, x);
+    }
+    {
+        int a = sizeof(x), x = 5, c = sizeof(x);
+        expect(1, a);
+        expect(5, x);
+        expect(4, c);
+    }
 }
 
 static void test_align(void) {

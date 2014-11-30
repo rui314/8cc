@@ -2006,7 +2006,7 @@ static Type *read_decl_spec(int *rsclass) {
         tok = read_token();
         if (!tok)
             error("premature end of input");
-        if (tok->kind == TIDENT && !usertype) {
+        if (kind == 0 && tok->kind == TIDENT && !usertype) {
             Type *def = get_typedef(tok->sval);
             if (def) {
                 SET(usertype, def);
