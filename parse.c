@@ -804,6 +804,8 @@ static Vector *read_func_args(Vector *params) {
     for (;;) {
         if (next_token(')')) break;
         Node *arg = conv(read_assignment_expr());
+        if (!arg)
+            error("previous argument is invalid");
         Type *paramtype;
         if (i < vec_len(params)) {
             paramtype = vec_get(params, i++);
