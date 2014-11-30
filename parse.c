@@ -2116,6 +2116,9 @@ static void read_static_local_var(Type *ty, char *name) {
 
 static void read_decl(Vector *block, bool isglobal) {
     int sclass;
+    // lone ';' at top level.
+    if (next_token(';'))
+        return;
     Type *basetype = read_decl_spec(&sclass);
     if (next_token(';'))
         return;
