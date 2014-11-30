@@ -1,9 +1,26 @@
 // Copyright 2014 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+/*
+ * This file provides character input stream for C source code.
+ * An input stream is either backed by stdio's FILE * or
+ * backed by a string.
+ * The following input processing is done at this stage.
+ *
+ * - C11 5.1.1.2p1: "\r\n" or "\r" are canonicalized to "\n".
+ * - C11 5.1.1.2p2: A sequence of backslash and newline is removed.
+ * - EOF not immediately following a newline is converted to
+ *   a sequence of newline and EOF. (The C spec requires source
+ *   files end in a newline character (5.1.1.2p2). Thus, if all
+ *   source files are comforming, this step wouldn't be needed.)
+ *
+ * Trigraphs are not supported by design.
+ */
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "8cc.h"
 
@@ -27,66 +44,104 @@ static File *make_file_string(char *s, bool autopop) {
 }
 
 static int readc_file(File *f) {
-    int c = (f->buflen > 0) ? f->buf[--f->buflen] : getc(f->file);
-    if (c == EOF)
-        return c;
-    if (c != '\r' && c != '\n') {
-        f->column++;
-        return c;
-    }
-    if (c == '\r') {
+    int c = getc(f->file);
+    if (c == EOF) {
+        c = (f->last == '\n' || f->last == EOF) ? EOF : '\n';
+    } else if (c == '\r') {
         int c2 = getc(f->file);
         if (c2 != '\n')
             ungetc(c2, f->file);
+        c = '\n';
     }
-    f->line++;
-    f->column = 0;
-    return '\n';
+    f->last = c;
+    return c;
 }
 
 static int readc_string(File *f) {
-    if (*f->p == '\0')
-        return EOF;
-    if (*f->p == '\n') {
+    int c;
+    if (*f->p == '\0') {
+        c = (f->last == '\n' || f->last == EOF) ? EOF : '\n';
+    } else if (*f->p == '\r') {
+        f->p++;
+        if (*f->p == '\n')
+            f->p++;
+        c = '\n';
+    } else {
+        c = *f->p++;
+    }
+    f->last = c;
+    return c;
+}
+
+static int get(void) {
+    File *f = vec_tail(files);
+    int c;
+    if (f->buflen > 0) {
+        c = f->buf[--f->buflen];
+    } else if (f->file) {
+        c = readc_file(f);
+    } else {
+        c = readc_string(f);
+    }
+    if (c == '\n') {
         f->line++;
         f->column = 0;
     } else {
         f->column++;
     }
-    return *f->p++;
+    return c;
+}
+
+static bool skip_whitespace(void) {
+    bool r = false;
+    for (;;) {
+        int c = get();
+        if (strchr(" \t\f\v", c)) {
+            r = true;
+            continue;
+        }
+        unreadc(c);
+        return r;
+    }
 }
 
 int readc(void) {
-    File *f = vec_tail(files);
-    int c = f->file ? readc_file(f) : readc_string(f);
-    if (c != EOF)
+    for (;;) {
+        int c = get();
+        if (c == EOF) {
+            File *f = vec_tail(files);
+            if (f->autopop) {
+                vec_pop(files);
+                continue;
+            }
+            return c;
+        }
+        if (c != '\\')
+            return c;
+        bool space_exists = skip_whitespace();
+        int c2 = get();
+        if (c2 == '\n') {
+            if (space_exists)
+                warn("backslash and newline separated by space");
+            continue;
+        }
+        unreadc(c2);
         return c;
-    if (vec_len(files) == 0)
-        return EOF;
-    if (f->autopop) {
-        vec_pop(files);
-        return '\n';
     }
-    return EOF;
 }
 
 void unreadc(int c) {
     if (c < 0)
         return;
     File *f = vec_tail(files);
+    assert(f->buflen < sizeof(f->buf) / sizeof(f->buf[0]));
+    f->buf[f->buflen++] = c;
     if (c == '\n') {
         f->column = 0;
         f->line--;
     } else {
         f->column--;
     }
-    if (f->file) {
-        assert(f->buflen < sizeof(f->buf) / sizeof(f->buf[0]));
-        f->buf[f->buflen++] = c;
-        return;
-    }
-    assert(f->p[-1] == c);
-    f->p--;
 }
 
 File *current_file(void) {

@@ -161,6 +161,21 @@ static void test_path(void) {
     assert_string("/xyz", fullpath("/abc/def/../../../../xyz"));
 }
 
+static void test_file(void) {
+    push_stream_string("abc");
+    assert_int('a', readc());
+    assert_int('b', readc());
+    unreadc('b');
+    unreadc('a');
+    assert_int('a', readc());
+    assert_int('b', readc());
+    assert_int('c', readc());
+    assert_int('\n', readc());
+    unreadc('\n');
+    assert_int('\n', readc());
+    assert_true(readc() < 0);
+}
+
 int main(int argc, char **argv) {
     test_buf();
     test_list();
@@ -168,6 +183,7 @@ int main(int argc, char **argv) {
     test_map_stack();
     test_dict();
     test_path();
+    test_file();
     printf("Passed\n");
     return 0;
 }

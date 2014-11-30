@@ -1,6 +1,10 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+/*
+ * Tokenizer
+ */
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -62,43 +66,14 @@ static bool iswhitespace(int c) {
     return c == ' ' || c == '\t' || c == '\f' || c == '\v';
 }
 
-static bool skip_whitespace(void) {
-    bool r = false;
-    for (;;) {
-        int c = readc();
-        if (iswhitespace(c)) {
-            r = true;
-            continue;
-        }
-        unreadc(c);
-        return r;
-    }
-}
-
-static int get(void) {
-    for (;;) {
-        int c = readc();
-        if (c != '\\')
-            return c;
-        bool space_exists = skip_whitespace();
-        c = readc();
-        if (c != '\n') {
-            unreadc(c);
-            return '\\';
-        }
-        if (space_exists)
-            warn("backslash and newline separated by space");
-    }
-}
-
 static int peek(void) {
-    int r = get();
+    int r = readc();
     unreadc(r);
     return r;
 }
 
 static bool next(int expect) {
-    int c = get();
+    int c = readc();
     if (c == expect)
         return true;
     unreadc(c);
@@ -107,7 +82,7 @@ static bool next(int expect) {
 
 static void skip_line(void) {
     for (;;) {
-        int c = get();
+        int c = readc();
         if (c == EOF)
             return;
         if (c == '\n') {
@@ -118,7 +93,7 @@ static void skip_line(void) {
 }
 
 static bool do_skip_space(void) {
-    int c = get();
+    int c = readc();
     if (c == EOF)
         return false;
     if (iswhitespace(c))
@@ -145,17 +120,17 @@ static bool skip_space(void) {
 }
 
 static void skip_char(void) {
-    if (get() == '\\')
-        get();
-    int c = get();
+    if (readc() == '\\')
+        readc();
+    int c = readc();
     while (c != EOF && c != '\'')
-        c = get();
+        c = readc();
 }
 
 static void skip_string(void) {
-    for (int c = get(); c != EOF && c != '"'; c = get())
+    for (int c = readc(); c != EOF && c != '"'; c = readc())
         if (c == '\\')
-            get();
+            readc();
 }
 
 // Skip the block excluded from the input by a #if-like directive.
@@ -168,7 +143,7 @@ void skip_cond_incl(void) {
     for (;;) {
         bool bol = (current_file()->column == 0);
         skip_space();
-        int c = get();
+        int c = readc();
         if (c == EOF)
             return;
         if (c == '\'') {
@@ -204,7 +179,7 @@ static Token *read_number(char c) {
     buf_write(b, c);
     char last = c;
     for (;;) {
-        int c = get();
+        int c = readc();
         bool flonum = strchr("eEpP", last) && strchr("+-", c);
         if (!isdigit(c) && !isalpha(c) && c != '.' && !flonum) {
             unreadc(c);
@@ -225,18 +200,18 @@ static int read_octal_char(int c) {
     int r = c - '0';
     if (!nextoct())
         return r;
-    r = (r << 3) | (get() - '0');
+    r = (r << 3) | (readc() - '0');
     if (!nextoct())
         return r;
-    return (r << 3) | (get() - '0');
+    return (r << 3) | (readc() - '0');
 }
 
 static int read_hex_char(void) {
-    int c = get();
+    int c = readc();
     int r = 0;
     if (!isxdigit(c))
         error("\\x is not followed by a hexadecimal character: %c", c);
-    for (;; c = get()) {
+    for (;; c = readc()) {
         switch (c) {
         case '0' ... '9': r = (r << 4) | (c - '0'); continue;
         case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
@@ -255,7 +230,7 @@ static bool is_valid_ucn(unsigned int c) {
 static int read_universal_char(int len) {
     unsigned int r = 0;
     for (int i = 0; i < len; i++) {
-        char c = get();
+        char c = readc();
         switch (c) {
         case '0' ... '9': r = (r << 4) | (c - '0'); continue;
         case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
@@ -269,7 +244,7 @@ static int read_universal_char(int len) {
 }
 
 static int read_escaped_char(void) {
-    int c = get();
+    int c = readc();
     switch (c) {
     case '\'': case '"': case '?': case '\\':
         return c;
@@ -292,9 +267,9 @@ static int read_escaped_char(void) {
 }
 
 static Token *read_char(int enc) {
-    int c = get();
+    int c = readc();
     char r = (c == '\\') ? read_escaped_char() : c;
-    c = get();
+    c = readc();
     if (c == EOF)
         error("premature end of input");
     if (c != '\'')
@@ -305,7 +280,7 @@ static Token *read_char(int enc) {
 static Token *read_string(int enc) {
     Buffer *b = make_buffer();
     for (;;) {
-        int c = get();
+        int c = readc();
         if (c == EOF)
             error("Unterminated string");
         if (c == '"')
@@ -322,7 +297,7 @@ static Token *read_ident(char c) {
     Buffer *b = make_buffer();
     buf_write(b, c);
     for (;;) {
-        c = get();
+        c = readc();
         if (isalnum(c) || c == '_' || c == '$') {
             buf_write(b, c);
             continue;
@@ -336,7 +311,7 @@ static Token *read_ident(char c) {
 static void skip_block_comment(void) {
     enum { in_comment, asterisk_read } state = in_comment;
     for (;;) {
-        int c = get();
+        int c = readc();
         if (c == EOF)
             error("premature end of block comment");
         if (c == '*') {
@@ -376,7 +351,7 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
 static Token *do_read_token(void) {
     if (skip_space())
         return space_token;
-    int c = get();
+    int c = readc();
     switch (c) {
     case '\n': return newline_token;
     case ':': return make_keyword(next('>') ? ']' : ':');
@@ -465,7 +440,7 @@ char *read_header_file_name(bool *std) {
     }
     Buffer *b = make_buffer();
     while (!next(close)) {
-        int c = get();
+        int c = readc();
         if (c == EOF || c == '\n')
             error("premature end of header name");
         buf_write(b, c);
@@ -492,7 +467,7 @@ char *read_error_directive(void) {
     Buffer *b = make_buffer();
     bool bol = true;
     for (;;) {
-        int c = get();
+        int c = readc();
         if (c == EOF)
             break;
         if (c == '\n') {
@@ -517,6 +492,7 @@ void unget_token(Token *tok) {
 Token *lex_string(char *s) {
     push_stream_string(s);
     Token *r = do_read_token();
+    next('\n');
     if (peek() != EOF)
         error("unconsumed input: %s", s);
     pop_stream();

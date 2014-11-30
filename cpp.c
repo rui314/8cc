@@ -405,6 +405,7 @@ static bool read_funclike_macro_params(Map *param) {
     int pos = 0;
     for (;;) {
         Token *tok = lex();
+        assert(tok);
         if (is_keyword(tok, ')'))
             return false;
         if (pos) {
@@ -412,7 +413,7 @@ static bool read_funclike_macro_params(Map *param) {
                 error("',' expected, but got '%s'", t2s(tok));
             tok = lex();
         }
-        if (!tok || tok->kind == TNEWLINE)
+        if (tok->kind == TNEWLINE)
             error("missing ')' in macro parameter list");
         if (is_keyword(tok, KELLIPSIS)) {
             map_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
@@ -435,7 +436,8 @@ static Vector *read_funclike_macro_body(Map *param) {
     Vector *r = make_vector();
     for (;;) {
         Token *tok = lex();
-        if (!tok || tok->kind == TNEWLINE)
+        assert(tok);
+        if (tok->kind == TNEWLINE)
             return r;
         if (tok->kind == TIDENT) {
             Token *subst = map_get(param, tok->sval);
@@ -463,7 +465,8 @@ static void read_obj_macro(char *name) {
     Vector *body = make_vector();
     for (;;) {
         Token *tok = lex();
-        if (!tok || tok->kind == TNEWLINE)
+        assert(tok);
+        if (tok->kind == TNEWLINE)
             break;
         vec_push(body, tok);
     }
@@ -549,7 +552,7 @@ static void read_if(void) {
 
 static void read_ifdef(void) {
     Token *tok = lex();
-    if (!tok || tok->kind != TIDENT)
+    if (tok->kind != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
     expect_newline();
     do_read_if(map_get(macros, tok->sval));
@@ -557,7 +560,7 @@ static void read_ifdef(void) {
 
 static void read_ifndef(void) {
     Token *tok = lex();
-    if (!tok || tok->kind != TIDENT)
+    if (tok->kind != TIDENT)
         error("identifier expected, but got %s", t2s(tok));
     expect_newline();
     do_read_if(!map_get(macros, tok->sval));
@@ -897,7 +900,7 @@ static void init_predefined_macros(void) {
     define_special_macro("__INCLUDE_LEVEL__", handle_include_level_macro);
     define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
 
-    cpp_eval("#include <" BUILD_DIR "/include/8cc.h>\n");
+    cpp_eval("#include <" BUILD_DIR "/include/8cc.h>");
 }
 
 void init_now(void) {
