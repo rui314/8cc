@@ -3,6 +3,23 @@
 
 /*
  * Tokenizer
+ *
+ * This is a translation phase after the phase 1 and 2 in file.c.
+ * In this phase, the source code is decomposed into preprocessing tokens.
+ *
+ * Each comment is treated as if it were a space character.
+ * Space characters are removed, but the presence of the characters is
+ * recorded to the token that immediately follows the spaces as a boolean flag.
+ * Newlines are converted to newline tokens.
+ *
+ * Note that the pp-token is different from the regular token.
+ * A keyword, such as "if", is just an identifier at this stage.
+ * The definition of the pp-token is usually more relaxed than
+ * the regular one. For example, ".32e." is a valid pp-number.
+ * Pp-tokens are converted to regular tokens by the C preprocesor
+ * (and invalid tokens are rejected by that).
+ * Some tokens are removed by the preprocessor (e.g. newline).
+ * For more information about pp-tokens, see C11 6.4 "Lexical Elements".
  */
 
 #include <assert.h>
