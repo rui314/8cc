@@ -1288,10 +1288,9 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
         emit(".long %d", *(uint32_t *)&f);
         break;
     }
-    case KIND_DOUBLE: {
+    case KIND_DOUBLE:
         emit(".quad %ld", *(uint64_t *)&val->fval);
         break;
-    }
     case KIND_BOOL:
         emit(".byte %d", !!eval_intexpr(val));
         break;
@@ -1306,7 +1305,11 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
         break;
     case KIND_LONG:
     case KIND_LLONG:
-    case KIND_PTR: {
+    case KIND_PTR:
+        if (val->kind == OP_LABEL_ADDR) {
+            emit(".quad %s", val->newlabel);
+            break;
+        }
         bool is_char_ptr = (val->operand->ty->kind == KIND_ARRAY && val->operand->ty->ptr->kind == KIND_CHAR);
         if (is_char_ptr) {
             emit_data_charptr(val->operand->sval, depth);
@@ -1316,7 +1319,6 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
             emit(".quad %u", eval_intexpr(val));
 	}
         break;
-    }
     default:
         error("don't know how to handle\n  <%s>\n  <%s>", c2s(ty), a2s(val));
     }

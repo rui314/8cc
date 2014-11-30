@@ -258,6 +258,10 @@ static void test_computed_goto(void) {
     goto *t.y;
  a:
     ;
+    static void *p = &&L;
+    goto *p;
+ L:
+    ;
 }
 
 static void test_logor(void) {
