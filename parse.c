@@ -1074,7 +1074,7 @@ static Node *read_unary_minus(void) {
     Node *expr = read_cast_expr();
     ensure_arithtype(expr);
     if (is_inttype(expr->ty))
-        return binop('-', ast_inttype(expr->ty, 0), expr);
+        return binop('-', conv(ast_inttype(expr->ty, 0)), conv(expr));
     return binop('-', ast_floattype(expr->ty, 0), expr);
 }
 
