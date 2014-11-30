@@ -124,12 +124,8 @@ static void parseopt(int argc, char **argv) {
         if (opt == -1)
             break;
         switch (opt) {
-        case 'I':
-            add_include_path(optarg);
-            break;
-        case 'E':
-            cpponly = true;
-            break;
+        case 'I': add_include_path(optarg); break;
+        case 'E': cpponly = true; break;
         case 'D': {
             char *p = strchr(optarg, '=');
             if (p)
@@ -137,40 +133,20 @@ static void parseopt(int argc, char **argv) {
             buf_printf(cppdefs, "#define %s\n", optarg);
             break;
         }
-        case 'O':
-            break;
-        case 'S':
-            dumpasm = true;
-            break;
+        case 'O': break;
+        case 'S': dumpasm = true; break;
         case 'U':
             buf_printf(cppdefs, "#undef %s\n", optarg);
             break;
-        case 'W':
-            parse_warnings_arg(optarg);
-            break;
-        case 'a':
-            dumpast = true;
-            break;
-        case 'c':
-            dontlink = true;
-            break;
-        case 'd':
-            parse_debug_arg(optarg);
-            break;
-        case 'f':
-            parse_f_arg(optarg);
-            break;
-        case 'm':
-            parse_m_arg(optarg);
-            break;
-        case 'g':
-            break;
-        case 'o':
-            outfile = optarg;
-            break;
-        case 'w':
-            enable_warning = false;
-            break;
+        case 'W': parse_warnings_arg(optarg); break;
+        case 'a': dumpast = true; break;
+        case 'c': dontlink = true; break;
+        case 'd': parse_debug_arg(optarg); break;
+        case 'f': parse_f_arg(optarg); break;
+        case 'm': parse_m_arg(optarg); break;
+        case 'g': break;
+        case 'o': outfile = optarg; break;
+        case 'w': enable_warning = false; break;
         case 'h':
         default:
             usage();

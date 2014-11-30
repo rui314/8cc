@@ -8,8 +8,6 @@
 #include <unistd.h>
 #include "8cc.h"
 
-static char cwd[PATH_MAX];
-
 // Returns the shortest path for the given full path to a file.
 static char *clean(char *p) {
     assert(*p == '/');
@@ -46,16 +44,12 @@ static char *clean(char *p) {
     }
 }
 
-static void init(void) {
-    if (!getcwd(cwd, sizeof(cwd)))
-        error("getcwd failed: %s", strerror(errno));
-}
-
 // Returns the shortest absolute path for the given path.
 char *fullpath(char *path) {
+    static char cwd[PATH_MAX];
     if (path[0] == '/')
         return clean(path);
-    if (*cwd == '\0')
-        init();
+    if (*cwd == '\0' && !getcwd(cwd, PATH_MAX))
+        error("getcwd failed: %s", strerror(errno));
     return clean(format("%s/%s", cwd, path));
 }
