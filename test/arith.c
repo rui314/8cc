@@ -75,6 +75,15 @@ static void test_ternary(void) {
     expect(3, (1 + 2) ?: 52);
 }
 
+static void test_unary(void) {
+    char x = 2;
+    short y = 2;
+    int z = 2;
+    expect(-2, -x);
+    expect(-2, -y);
+    expect(-2, -z);
+}
+
 static void test_comma(void) {
     expect(3, (1, 3));
     expectf(7.0, (1, 3, 5, 7.0));
@@ -86,6 +95,7 @@ void testmain(void) {
     test_relative();
     test_inc_dec();
     test_bool();
+    test_unary();
     test_ternary();
     test_comma();
 }

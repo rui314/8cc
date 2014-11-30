@@ -702,6 +702,7 @@ static void emit_literal(Node *node) {
     switch (node->ty->kind) {
     case KIND_BOOL:
     case KIND_CHAR:
+    case KIND_SHORT:
         emit("mov $%u, #rax", node->ival);
         break;
     case KIND_INT:
