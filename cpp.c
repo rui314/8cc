@@ -962,36 +962,12 @@ static Token *do_read_token(bool return_at_eol) {
     }
 }
 
-// C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
-Token *read_concatenate_string(Token *tok) {
-    Vector *v = make_vector();
-    vec_push(v, tok);
-    for (;;) {
-        Token *tok2 = do_read_token(false);
-        if (!tok2 || tok2->kind != TSTRING) {
-            unget_token(tok2);
-            break;
-        }
-        vec_push(v, tok2);
-    }
-    Buffer *b = make_buffer();
-    for (int i = 0; i < vec_len(v); i++) {
-        Token *t = vec_get(v, i);
-        buf_printf(b, "%s", t->sval);
-    }
-    Token *r = copy_token(tok);
-    r->sval = buf_body(b);
-    return r;
-}
-
 Token *read_token(void) {
     Token *tok = do_read_token(false);
     if (!tok) return NULL;
     assert(tok->kind != TNEWLINE);
     assert(tok->kind != TSPACE);
     assert(tok->kind != TMACRO_PARAM);
-    if (tok->kind == TSTRING)
-        tok = read_concatenate_string(tok);
     tok = maybe_convert_keyword(tok);
     if (debug_cpp)
         fprintf(stderr, "  token=%s\n", t2s(tok));

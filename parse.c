@@ -2630,10 +2630,38 @@ Vector *read_toplevels(void) {
     }
 }
 
+/*
+ * Token handling
+ */
+
+// C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
+static void concatenate_string(Token *tok) {
+    Vector *v = make_vector();
+    vec_push(v, tok);
+    for (;;) {
+        Token *tok2 = read_token();
+        if (!tok2 || tok2->kind != TSTRING) {
+            unget_token(tok2);
+            break;
+        }
+        vec_push(v, tok2);
+    }
+    Buffer *b = make_buffer();
+    for (int i = 0; i < vec_len(v); i++) {
+        Token *t = vec_get(v, i);
+        buf_printf(b, "%s", t->sval);
+    }
+    tok->sval = buf_body(b);
+}
+
 static Token *get(void) {
     Token *r = read_token();
+    if (!r)
+        return r;
     if (r->kind == TINVALID)
         error("stray character in program: '%c'", r->c);
+    if (r->kind == TSTRING)
+        concatenate_string(r);
     return r;
 }
 
