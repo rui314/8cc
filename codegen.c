@@ -12,11 +12,13 @@ static Vector *insts = &EMPTY_VECTOR;
 static int offset;
 static FILE *out;
 
+#define NUMREGS 6
+
 static char *regs[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 
 enum { VAR, LIT };
-enum { I32, PTR };
-enum { ADD, RET, ALLOC, LOAD, STORE };
+enum { I32 };
+enum { ADD, MUL, RET, ALLOC, LOAD, STORE };
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
@@ -31,8 +33,8 @@ typedef struct {
         // VAR
         struct {
             int id;
-            Mem *ptr;
-            char *reg;
+            int off;
+            bool spilled;
         };
         // LIT
         int val;
@@ -44,6 +46,7 @@ typedef struct {
     void *arg1;
     void *arg2;
     void *arg3;
+    void *arg4;
     int size; // ALLOC
 } Inst;
 
@@ -51,6 +54,10 @@ typedef struct {
     char *name;
     Vector *insts;
 } Func;
+
+/*
+ * Constructors
+ */
 
 static Mem* make_mem(int size) {
     Mem *r = malloc(sizeof(Mem));
@@ -60,19 +67,13 @@ static Mem* make_mem(int size) {
     return r;
 }
 
-static Var *make_var(Mem *mem) {
+static Var *make_var(void) {
     static int id = 1;
     Var *r = malloc(sizeof(Var));
     r->kind = VAR;
     r->id = id++;
     vec_push(vars, r);
     return r;
-}
-
-static Mem *alloc(int size) {
-    Mem *m = make_mem(size);
-    vec_push(mems, m);
-    return m;
 }
 
 static Var *make_literal(int val) {
@@ -88,40 +89,46 @@ static Inst *make_inst(Inst *in) {
     return r;
 }
 
-static Func *make_func(Func *f) {
+static Func *make_func(char *name, Vector *insts) {
     Func *r = malloc(sizeof(Func));
-    *r = *f;
+    r->name = name;
+    r->insts = insts;
     return r;
 }
 
-static char *nextreg(void) {
-    static int cnt = 0;
-    if (cnt == sizeof(regs) / sizeof(regs[0]))
-        error("register exhausted");
-    return regs[cnt++];
-}
+/*
+ * Node -> Inst
+ */
 
 static void emit(Inst *in) {
     vec_push(insts, in);
 }
 
+static Var *alloc(int size) {
+    Mem *m = make_mem(size);
+    vec_push(mems, m);
+    Var *r = make_var();
+    emit(make_inst(&(Inst){ ALLOC, r, m }));
+    return r;
+}
+
 static Var *walk(Node *node) {
     switch (node->kind) {
     case AST_DECL: {
-        Mem *m = alloc(MAX(node->declvar->ty->size, 8));
-        map_put(lvars, node->declvar->varname, m);
+        Var *ptr = alloc(MAX(node->declvar->ty->size, 8));
+        map_put(lvars, node->declvar->varname, ptr);
         if (vec_len(node->declinit) > 0) {
             Node *init = vec_get(node->declinit, 0);
             Var *rhs = walk(init->initval);
-            emit(make_inst(&(Inst){ STORE, m, rhs }));
+            emit(make_inst(&(Inst){ STORE, ptr, rhs }));
         }
         return NULL;
     }
     case AST_LVAR: {
-        Mem *m = map_get(lvars, node->varname);
-        assert(m);
-        Var *r = make_var(NULL);
-        emit(make_inst(&(Inst){ LOAD, r, m }));
+        Var *ptr = map_get(lvars, node->varname);
+        assert(ptr);
+        Var *r = make_var();
+        emit(make_inst(&(Inst){ LOAD, r, ptr }));
         return r;
     }
     case AST_COMPOUND_STMT: {
@@ -135,20 +142,24 @@ static Var *walk(Node *node) {
         emit(make_inst(&(Inst){ RET, v }));
         return NULL;
     }
-    case AST_CONV:
+    case AST_CONV: {
+        if (!is_inttype(node->ty) || !is_inttype(node->operand->ty))
+            error("incompatible type");
         return walk(node->operand);
-    case '+': {
-        Var *dst = make_var(NULL);
+    }
+    case '+': case '*': {
+        Var *dst = make_var();
         Var *lhs = walk(node->left);
         Var *rhs = walk(node->right);
-        emit(make_inst(&(Inst){ ADD, dst, lhs, rhs }));
+        int op = (node->kind == '+') ? ADD : MUL;
+        emit(make_inst(&(Inst){ op, dst, lhs, rhs }));
         return dst;
     }
     case AST_LITERAL:
         assert(node->ty->kind == KIND_INT);
         return make_literal(node->ival);
     default:
-        error("unknown node: %s", a2s(node));
+        error("unknown node: %s", node2s(node));
     }
 }
 
@@ -159,13 +170,79 @@ static Func *translate(Vector *toplevels) {
 
     char *name = node->fname;
     walk(node->body);
-    return make_func(&(Func){ name, insts });
+    return make_func(name, insts);
 }
+
+/*
+ * Register allocator
+ *
+ * We don't have liveness analysis.
+ * Each temporary variable is allocated to the stack
+ * even if it's not going to be spilled.
+ * Machine registers are used as a cache.
+ */
+
+static void write_noindent(char *fmt, ...);
+static void write(char *fmt, ...);
+
+typedef struct {
+    Var *v;
+    char *reg;
+} Regmap;
+
+static Regmap reg2var[6];
+
+static void move_to_head(int i) {
+    // Avoid using struct assignment because it doesn't
+    // work with the current (old) code generator.
+    Var *v = reg2var[i].v;
+    char *reg = reg2var[i].reg;
+    for (int j = i; j > 0; j--) {
+        reg2var[j].v = reg2var[j-1].v;
+        reg2var[j].reg = reg2var[j-1].reg;
+    }
+    reg2var[0].v = v;
+    reg2var[0].reg = reg;
+}
+
+static char *regname(Var *v) {
+    // Check if it's cached
+    for (int i = 0; i < NUMREGS; i++) {
+        if (reg2var[i].v != v)
+            continue;
+        move_to_head(i);
+        return reg2var[0].reg;
+    }
+    // Look for an empty slot
+    for (int i = 0; i < NUMREGS; i++) {
+        if (reg2var[i].v)
+            continue;
+        reg2var[i].v = v;
+        reg2var[i].reg = regs[i];
+        move_to_head(i);
+        return regs[i];
+    }
+    // Spill the least-recently used variable
+    Regmap *last = &reg2var[NUMREGS - 1];
+    char *reg = last->reg;
+    write("movq %%%s, %d(%%rbp)  # spill", reg, last->v->off);
+    last->v->spilled = true;
+    if (v->spilled)
+        write("movq %d(%%rbp), %%%s  # load", v->off, reg);
+    last->v = v;
+    last->reg = reg;
+    move_to_head(NUMREGS - 1);
+    return reg;
+}
+
+/*
+ * Inst -> x86-64 assembly
+ */
 
 static char *str(Var *v) {
     switch (v->kind) {
     case VAR:
-        return format("%%%s", v->reg);
+        return format("%%%s", regname(v));
     case LIT:
         return format("$%d", v->val);
     default:
@@ -198,20 +275,30 @@ static void print(Func *f) {
             write("movq %s, %s", str(in->arg2), str(in->arg1));
             write("addq %s, %s", str(in->arg3), str(in->arg1));
             break;
+        case ALLOC: {
+            Var *ptr = in->arg1;
+            Mem *mem = in->arg2;
+            write("leaq %d(%%rsp), %s", mem->off, str(ptr));
+            break;
+        }
+        case MUL:
+            write("movq %s, %s", str(in->arg2), str(in->arg1));
+            write("imulq %s, %s", str(in->arg3), str(in->arg1));
+            break;
         case RET:
             write("movq %s, %%rax", str(in->arg1));
             write("jmp end");
             break;
         case LOAD: {
-            Var *lhs = in->arg1;
-            Mem *rhs = in->arg2;
-            write("movq %d(%%rbp), %s", rhs->off, str(lhs));
+            Var *var = in->arg1;
+            Var *ptr = in->arg2;
+            write("movq (%s), %s", str(ptr), str(var));
             break;
         }
         case STORE: {
-            Mem *lhs = in->arg1;
-            Var *rhs = in->arg2;
-            write("movq %s, %d(%%rbp)", str(rhs), lhs->off);
+            Var *ptr = in->arg1;
+            Var *var = in->arg2;
+            write("movq %s, (%s)", str(var), str(ptr));
             break;
         }
         default:
@@ -223,7 +310,8 @@ static void print(Func *f) {
 static void regalloc(void) {
     for (int i = 0; i < vec_len(vars); i++) {
         Var *v = vec_get(vars, i);
-        v->reg = nextreg();
+        offset += 8;
+        v->off = -offset;
     }
 }
 
