@@ -77,6 +77,14 @@ void fexpectl(char *file, int line, long a, long b) {
     }
 }
 
+void fexpectll(char *file, int line, long long a, long long b) {
+    if (!(a == b)) {
+        printfail();
+        printf("%s:%d: %lld expected, but got %lld\n", file, line, a, b);
+        exit(1);
+    }
+}
+
 int main() {
     testmain();
     printf(isatty(fileno(stdout)) ? "\e[32mOK\e[0m\n" : "OK\n");

@@ -17,6 +17,8 @@ char *s2 = "ABCD";
 long l1 = 8;
 int *intp = &(int){ 9 };
 
+long long z = 5LL;
+
 void testmain(void) {
     print("global variable");
 
@@ -45,4 +47,6 @@ void testmain(void) {
 
     expectl(8, l1);
     expectl(9, *intp);
+
+    expectll(5, z);
 }
