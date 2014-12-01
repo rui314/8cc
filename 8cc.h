@@ -282,9 +282,9 @@ extern bool is_flotype(Type *ty);
 
 // Debug
 extern bool debug_cpp;
-extern char *t2s(Token *tok);
-extern char *a2s(Node *node);
-extern char *c2s(Type *ty);
+extern char *tok2s(Token *tok);
+extern char *node2s(Node *node);
+extern char *ty2s(Type *ty);
 
 // Gen
 extern void emit_toplevel(Node *v);

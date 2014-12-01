@@ -118,7 +118,7 @@ static char *get_int_reg(Type *ty, char r) {
     case 4: return (r == 'a') ? "eax" : "ecx";
     case 8: return (r == 'a') ? "rax" : "rcx";
     default:
-        error("Unknown data size: %s: %d", c2s(ty), ty->size);
+        error("Unknown data size: %s: %d", ty2s(ty), ty->size);
     }
 }
 
@@ -129,7 +129,7 @@ static char *get_load_inst(Type *ty) {
     case 4: return "movslq";
     case 8: return "mov";
     default:
-        error("Unknown data size: %s: %d", c2s(ty), ty->size);
+        error("Unknown data size: %s: %d", ty2s(ty), ty->size);
     }
 }
 
@@ -361,7 +361,7 @@ static void emit_assign_struct_ref(Node *struc, Type *field, int off) {
         do_emit_assign_deref(field, field->offset + off);
         break;
     default:
-        error("internal error: %s", a2s(struc));
+        error("internal error: %s", node2s(struc));
     }
 }
 
@@ -383,7 +383,7 @@ static void emit_load_struct_ref(Node *struc, Type *field, int off) {
         emit_lload(field, "rax", field->offset + off);
         break;
     default:
-        error("internal error: %s", a2s(struc));
+        error("internal error: %s", node2s(struc));
     }
 }
 
@@ -539,7 +539,7 @@ static void emit_binop(Node *node) {
     else if (is_flotype(node->ty))
         emit_binop_float_arith(node);
     else
-        error("internal error: %s", a2s(node));
+        error("internal error: %s", node2s(node));
 }
 
 static void emit_save_literal(Node *node, Type *totype, int off) {
@@ -567,7 +567,7 @@ static void emit_save_literal(Node *node, Type *totype, int off) {
         break;
     }
     default:
-        error("internal error: <%s> <%s> <%d>", a2s(node), c2s(totype), off);
+        error("internal error: <%s> <%s> <%d>", node2s(node), ty2s(totype), off);
     }
 }
 
@@ -591,7 +591,7 @@ static void emit_addr(Node *node) {
         emit("lea %s(#rip), #rax", node->fname);
         break;
     default:
-        error("internal error: %s", a2s(node));
+        error("internal error: %s", node2s(node));
     }
 }
 
@@ -1320,7 +1320,7 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
         }
         break;
     default:
-        error("don't know how to handle\n  <%s>\n  <%s>", c2s(ty), a2s(val));
+        error("don't know how to handle\n  <%s>\n  <%s>", ty2s(ty), node2s(val));
     }
 }
 

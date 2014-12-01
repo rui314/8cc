@@ -173,7 +173,7 @@ static void preprocess(void) {
             printf("\n");
         if (tok->space)
             printf(" ");
-        printf("%s", t2s(tok));
+        printf("%s", tok2s(tok));
     }
     printf("\n");
     exit(0);
@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < vec_len(toplevels); i++) {
         Node *v = vec_get(toplevels, i);
         if (dumpast)
-            printf("%s", a2s(v));
+            printf("%s", node2s(v));
         else
             emit_toplevel(v);
     }

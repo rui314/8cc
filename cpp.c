@@ -118,7 +118,7 @@ static Token *copy_token(Token *tok) {
 static void expect(char id) {
     Token *tok = lex();
     if (!tok || !is_keyword(tok, id))
-        error("%c expected, but got %s", id, t2s(tok));
+        error("%c expected, but got %s", id, tok2s(tok));
 }
 
 /*
@@ -152,14 +152,14 @@ static void propagate_space(Vector *tokens, Token *tmpl) {
 static Token *read_ident(void) {
     Token *r = lex();
     if (r->kind != TIDENT)
-        error("identifier expected, but got %s", t2s(r));
+        error("identifier expected, but got %s", tok2s(r));
     return r;
 }
 
 void expect_newline(void) {
     Token *tok = lex();
     if (!tok || tok->kind != TNEWLINE)
-        error("Newline expected, but got %s", t2s(tok));
+        error("Newline expected, but got %s", tok2s(tok));
 }
 
 static Vector *read_one_arg(bool *end, bool readall) {
@@ -255,8 +255,8 @@ static Vector *add_hide_set(Vector *tokens, Map *hideset) {
 
 static Token *glue_tokens(Token *t, Token *u) {
     Buffer *b = make_buffer();
-    buf_printf(b, "%s", t2s(t));
-    buf_printf(b, "%s", t2s(u));
+    buf_printf(b, "%s", tok2s(t));
+    buf_printf(b, "%s", tok2s(u));
     Token *r = lex_string(buf_body(b));
     return r;
 }
@@ -272,7 +272,7 @@ static char *join_tokens(Vector *args, bool sep) {
         Token *tok = vec_get(args, i);
         if (sep && buf_len(b) && tok->space)
             buf_printf(b, " ");
-        buf_printf(b, "%s", t2s(tok));
+        buf_printf(b, "%s", tok2s(tok));
     }
     return buf_body(b);
 }
@@ -407,7 +407,7 @@ static bool read_funclike_macro_params(Map *param) {
             return false;
         if (pos) {
             if (!is_keyword(tok, ','))
-                error("',' expected, but got '%s'", t2s(tok));
+                error("',' expected, but got '%s'", tok2s(tok));
             tok = lex();
         }
         if (tok->kind == TNEWLINE)
@@ -418,7 +418,7 @@ static bool read_funclike_macro_params(Map *param) {
             return true;
         }
         if (tok->kind != TIDENT)
-            error("identifier expected, but got '%s'", t2s(tok));
+            error("identifier expected, but got '%s'", tok2s(tok));
         char *arg = tok->sval;
         if (next(KELLIPSIS)) {
             expect(')');
@@ -506,7 +506,7 @@ static Token *read_defined_op(void) {
         expect(')');
     }
     if (tok->kind != TIDENT)
-        error("Identifier expected, but got %s", t2s(tok));
+        error("Identifier expected, but got %s", tok2s(tok));
     return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
@@ -532,7 +532,7 @@ static bool read_constexpr(void) {
     Node *expr = read_expr();
     Token *tok = lex();
     if (tok)
-        error("Stray token: %s", t2s(tok));
+        error("Stray token: %s", tok2s(tok));
     pop_token_buffer();
     return eval_intexpr(expr);
 }
@@ -550,7 +550,7 @@ static void read_if(void) {
 static void read_ifdef(void) {
     Token *tok = lex();
     if (tok->kind != TIDENT)
-        error("identifier expected, but got %s", t2s(tok));
+        error("identifier expected, but got %s", tok2s(tok));
     expect_newline();
     do_read_if(map_get(macros, tok->sval));
 }
@@ -558,7 +558,7 @@ static void read_ifdef(void) {
 static void read_ifndef(void) {
     Token *tok = lex();
     if (tok->kind != TIDENT)
-        error("identifier expected, but got %s", t2s(tok));
+        error("identifier expected, but got %s", tok2s(tok));
     expect_newline();
     do_read_if(!map_get(macros, tok->sval));
     if (tok->count == 2) {
@@ -654,13 +654,13 @@ static char *read_cpp_header_name(bool *std) {
     // form may be a valid header file path.
     Token *tok = read_expand();
     if (!tok || tok->kind == TNEWLINE)
-        error("expected file name, but got %s", t2s(tok));
+        error("expected file name, but got %s", tok2s(tok));
     if (tok->kind == TSTRING) {
         *std = false;
         return tok->sval;
     }
     if (!is_keyword(tok, '<'))
-        error("'<' expected, but got %s", t2s(tok));
+        error("'<' expected, but got %s", tok2s(tok));
     Vector *tokens = make_vector();
     for (;;) {
         Token *tok = read_expand();
@@ -751,7 +751,7 @@ static bool is_digit_sequence(char *p) {
 static void read_line(void) {
     Token *tok = lex();
     if (!tok || tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
-        error("number expected after #line, but got %s", t2s(tok));
+        error("number expected after #line, but got %s", tok2s(tok));
     int line = atoi(tok->sval);
     tok = lex();
     char *filename = NULL;
@@ -759,7 +759,7 @@ static void read_line(void) {
         filename = tok->sval;
         expect_newline();
     } else if (tok->kind != TNEWLINE) {
-        error("newline or a source name are expected, but got %s", t2s(tok));
+        error("newline or a source name are expected, but got %s", tok2s(tok));
     }
     File *f = current_file();
     f->line = line;
@@ -788,7 +788,7 @@ static void read_directive(void) {
     else if (is_ident(tok, "pragma"))  read_pragma();
     else if (is_ident(tok, "line"))    read_line();
     else if (tok->kind != TNEWLINE)
-        error("unsupported preprocessor directive: %s", t2s(tok));
+        error("unsupported preprocessor directive: %s", tok2s(tok));
 }
 
 /*
@@ -835,7 +835,7 @@ static void handle_pragma_macro(Token *tmpl) {
     expect('(');
     Token *operand = read_token();
     if (!operand || operand->kind != TSTRING)
-        error("_Pragma takes a string literal, but got %s", t2s(operand));
+        error("_Pragma takes a string literal, but got %s", tok2s(operand));
     expect(')');
     parse_pragma_operand(operand->sval);
     make_token_pushback(tmpl, TNUMBER, "1");
@@ -967,6 +967,6 @@ Token *read_token(void) {
     assert(tok->kind != TMACRO_PARAM);
     tok = maybe_convert_keyword(tok);
     if (debug_cpp)
-        fprintf(stderr, "  token=%s\n", t2s(tok));
+        fprintf(stderr, "  token=%s\n", tok2s(tok));
     return tok;
 }

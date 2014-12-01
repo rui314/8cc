@@ -10,7 +10,7 @@ static char *decorate_int(char *name, Type *ty) {
     return format("%s%s", u, name);
 }
 
-static char *do_c2s(Dict *dict, Type *ty) {
+static char *do_ty2s(Dict *dict, Type *ty) {
     if (!ty)
         return "(nil)";
     switch (ty->kind) {
@@ -25,9 +25,9 @@ static char *do_c2s(Dict *dict, Type *ty) {
     case KIND_DOUBLE: return "double";
     case KIND_LDOUBLE: return "long double";
     case KIND_PTR:
-        return format("*%s", do_c2s(dict, ty->ptr));
+        return format("*%s", do_ty2s(dict, ty->ptr));
     case KIND_ARRAY:
-        return format("[%d]%s", ty->len, do_c2s(dict, ty->ptr));
+        return format("[%d]%s", ty->len, do_ty2s(dict, ty->ptr));
     case KIND_STRUCT: {
         char *kind = ty->is_struct ? "struct" : "union";
         if (dict_get(dict, format("%p", ty)))
@@ -40,7 +40,7 @@ static char *do_c2s(Dict *dict, Type *ty) {
             for (int i = 0; i < vec_len(keys); i++) {
                 char *key = vec_get(keys, i);
                 Type *fieldtype = dict_get(ty->fields, key);
-                buf_printf(b, " (%s)", do_c2s(dict, fieldtype));
+                buf_printf(b, " (%s)", do_ty2s(dict, fieldtype));
             }
             buf_printf(b, ")");
             return buf_body(b);
@@ -54,10 +54,10 @@ static char *do_c2s(Dict *dict, Type *ty) {
                 if (i > 0)
                     buf_printf(b, ",");
                 Type *t = vec_get(ty->params, i);
-                buf_printf(b, "%s", do_c2s(dict, t));
+                buf_printf(b, "%s", do_ty2s(dict, t));
             }
         }
-        buf_printf(b, ")=>%s", do_c2s(dict, ty->rettype));
+        buf_printf(b, ")=>%s", do_ty2s(dict, ty->rettype));
         return buf_body(b);
     }
     default:
@@ -65,16 +65,16 @@ static char *do_c2s(Dict *dict, Type *ty) {
     }
 }
 
-char *c2s(Type *ty) {
-    return do_c2s(make_dict(), ty);
+char *ty2s(Type *ty) {
+    return do_ty2s(make_dict(), ty);
 }
 
 static void uop_to_string(Buffer *b, char *op, Node *node) {
-    buf_printf(b, "(%s %s)", op, a2s(node->operand));
+    buf_printf(b, "(%s %s)", op, node2s(node->operand));
 }
 
 static void binop_to_string(Buffer *b, char *op, Node *node) {
-    buf_printf(b, "(%s %s %s)", op, a2s(node->left), a2s(node->right));
+    buf_printf(b, "(%s %s %s)", op, node2s(node->left), node2s(node->right));
 }
 
 static void a2s_declinit(Buffer *b, Vector *initlist) {
@@ -82,11 +82,11 @@ static void a2s_declinit(Buffer *b, Vector *initlist) {
         if (i > 0)
             buf_printf(b, " ");
         Node *init = vec_get(initlist, i);
-        buf_printf(b, "%s", a2s(init));
+        buf_printf(b, "%s", node2s(init));
     }
 }
 
-static void do_a2s(Buffer *b, Node *node) {
+static void do_node2s(Buffer *b, Node *node) {
     if (!node) {
         buf_printf(b, "(nil)");
         return;
@@ -134,12 +134,12 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     case AST_FUNCALL:
     case AST_FUNCPTR_CALL: {
-        buf_printf(b, "(%s)%s(", c2s(node->ty),
-                   node->kind == AST_FUNCALL ? node->fname : a2s(node));
+        buf_printf(b, "(%s)%s(", ty2s(node->ty),
+                   node->kind == AST_FUNCALL ? node->fname : node2s(node));
         for (int i = 0; i < vec_len(node->args); i++) {
             if (i > 0)
                 buf_printf(b, ",");
-            buf_printf(b, "%s", a2s(vec_get(node->args, i)));
+            buf_printf(b, "%s", node2s(vec_get(node->args, i)));
         }
         buf_printf(b, ")");
         break;
@@ -149,15 +149,15 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     }
     case AST_FUNC: {
-        buf_printf(b, "(%s)%s(", c2s(node->ty), node->fname);
+        buf_printf(b, "(%s)%s(", ty2s(node->ty), node->fname);
         for (int i = 0; i < vec_len(node->params); i++) {
             if (i > 0)
                 buf_printf(b, ",");
             Node *param = vec_get(node->params, i);
-            buf_printf(b, "%s %s", c2s(param->ty), a2s(param));
+            buf_printf(b, "%s %s", ty2s(param->ty), node2s(param));
         }
         buf_printf(b, ")");
-        do_a2s(b, node->body);
+        do_node2s(b, node->body);
         break;
     }
     case AST_GOTO:
@@ -165,7 +165,7 @@ static void do_a2s(Buffer *b, Node *node) {
         break;
     case AST_DECL:
         buf_printf(b, "(decl %s %s",
-                   c2s(node->declvar->ty),
+                   ty2s(node->declvar->ty),
                    node->declvar->varname);
         if (node->declinit) {
             buf_printf(b, " ");
@@ -174,39 +174,39 @@ static void do_a2s(Buffer *b, Node *node) {
         buf_printf(b, ")");
         break;
     case AST_INIT:
-        buf_printf(b, "%s@%d", a2s(node->initval), node->initoff, c2s(node->totype));
+        buf_printf(b, "%s@%d", node2s(node->initval), node->initoff, ty2s(node->totype));
         break;
     case AST_CONV:
-        buf_printf(b, "(conv %s=>%s)", a2s(node->operand), c2s(node->ty));
+        buf_printf(b, "(conv %s=>%s)", node2s(node->operand), ty2s(node->ty));
         break;
     case AST_IF:
         buf_printf(b, "(if %s %s",
-                   a2s(node->cond),
-                   a2s(node->then));
+                   node2s(node->cond),
+                   node2s(node->then));
         if (node->els)
-            buf_printf(b, " %s", a2s(node->els));
+            buf_printf(b, " %s", node2s(node->els));
         buf_printf(b, ")");
         break;
     case AST_TERNARY:
         buf_printf(b, "(? %s %s %s)",
-                   a2s(node->cond),
-                   a2s(node->then),
-                   a2s(node->els));
+                   node2s(node->cond),
+                   node2s(node->then),
+                   node2s(node->els));
         break;
     case AST_RETURN:
-        buf_printf(b, "(return %s)", a2s(node->retval));
+        buf_printf(b, "(return %s)", node2s(node->retval));
         break;
     case AST_COMPOUND_STMT: {
         buf_printf(b, "{");
         for (int i = 0; i < vec_len(node->stmts); i++) {
-            do_a2s(b, vec_get(node->stmts, i));
+            do_node2s(b, vec_get(node->stmts, i));
             buf_printf(b, ";");
         }
         buf_printf(b, "}");
         break;
     }
     case AST_STRUCT_REF:
-        do_a2s(b, node->struc);
+        do_node2s(b, node->struc);
         buf_printf(b, ".");
         buf_printf(b, node->field);
         break;
@@ -240,17 +240,17 @@ static void do_a2s(Buffer *b, Node *node) {
     case '|': binop_to_string(b, "|", node); break;
     case OP_CAST: {
         buf_printf(b, "((%s)=>(%s) %s)",
-                   c2s(node->operand->ty),
-                   c2s(node->ty),
-                   a2s(node->operand));
+                   ty2s(node->operand->ty),
+                   ty2s(node->ty),
+                   node2s(node->operand));
         break;
     }
     case OP_LABEL_ADDR:
         buf_printf(b, "&&%s", node->label);
         break;
     default: {
-        char *left = a2s(node->left);
-        char *right = a2s(node->right);
+        char *left = node2s(node->left);
+        char *right = node2s(node->right);
         if (node->kind == OP_EQ)
             buf_printf(b, "(== ");
         else
@@ -260,9 +260,9 @@ static void do_a2s(Buffer *b, Node *node) {
     }
 }
 
-char *a2s(Node *node) {
+char *node2s(Node *node) {
     Buffer *b = make_buffer();
-    do_a2s(b, node);
+    do_node2s(b, node);
     return buf_body(b);
 }
 
@@ -276,7 +276,7 @@ static char *encoding_prefix(Token *tok) {
     return "";
 }
 
-char *t2s(Token *tok) {
+char *tok2s(Token *tok) {
     if (!tok)
         return "(null)";
     switch (tok->kind) {
