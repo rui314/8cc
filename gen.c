@@ -1313,11 +1313,11 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
         bool is_char_ptr = (val->operand->ty->kind == KIND_ARRAY && val->operand->ty->ptr->kind == KIND_CHAR);
         if (is_char_ptr) {
             emit_data_charptr(val->operand->sval, depth);
-	} else if (val->kind == AST_GVAR) {
+        } else if (val->kind == AST_GVAR) {
             emit(".quad %s", val->glabel);
-	} else {
+        } else {
             emit(".quad %u", eval_intexpr(val));
-	}
+        }
         break;
     default:
         error("don't know how to handle\n  <%s>\n  <%s>", c2s(ty), a2s(val));
