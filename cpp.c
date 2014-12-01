@@ -118,7 +118,7 @@ static Token *copy_token(Token *tok) {
 static void expect(char id) {
     Token *tok = lex();
     if (!tok || !is_keyword(tok, id))
-        error("%c expected, but got %s", t2s(tok));
+        error("%c expected, but got %s", id, t2s(tok));
 }
 
 /*
@@ -162,10 +162,9 @@ void expect_newline(void) {
         error("Newline expected, but got %s", t2s(tok));
 }
 
-static Vector *do_read_args(Macro *macro) {
+static Vector *read_one_arg(bool *end, bool readall) {
     Vector *r = make_vector();
-    Vector *arg = make_vector();
-    int depth = 0;
+    int level = 0;
     for (;;) {
         Token *tok = lex();
         if (!tok)
@@ -176,45 +175,43 @@ static Vector *do_read_args(Macro *macro) {
             read_directive();
             continue;
         }
-        if (is_keyword(tok, '(')) {
-            depth++;
-        } else if (depth) {
-            if (is_keyword(tok, ')'))
-                depth--;
-            vec_push(arg, tok);
-            continue;
-        }
-        if (is_keyword(tok, ')')) {
+        if (level == 0 && is_keyword(tok, ')')) {
             unget_token(tok);
-            vec_push(r, arg);
+            *end = true;
             return r;
         }
-        bool in_ellipsis = macro->is_varg && vec_len(r) + 1 == macro->nargs;
-        if (is_keyword(tok, ',') && !in_ellipsis) {
-            vec_push(r, arg);
-            arg = make_vector();
-            continue;
-        }
-        vec_push(arg, tok);
+        if (level == 0 && is_keyword(tok, ',') && !readall)
+            return r;
+        if (is_keyword(tok, '('))
+            level++;
+        if (is_keyword(tok, ')'))
+            level--;
+        vec_push(r, tok);
     }
 }
 
+static Vector *do_read_args(Macro *macro) {
+    Vector *r = make_vector();
+    bool end = false;
+    while (!end) {
+        bool in_ellipsis = (macro->is_varg && vec_len(r) + 1 == macro->nargs);
+        vec_push(r, read_one_arg(&end, in_ellipsis));
+    }
+    if (macro->is_varg && vec_len(r) == macro->nargs - 1)
+        vec_push(r, make_vector());
+    return r;
+}
+
 static Vector *read_args(Macro *macro) {
+    if (macro->nargs == 0 && is_keyword(peek_token(), ')')) {
+        // If a macro M has no parameter, argument list of M()
+        // is an empty list. If it has one parameter,
+        // argument list of M() is a list containing an empty list.
+        return make_vector();
+    }
     Vector *args = do_read_args(macro);
-    if (macro->is_varg) {
-        if (vec_len(args) == macro->nargs - 1)
-            vec_push(args, make_vector());
-        else if (vec_len(args) < macro->nargs)
-            error("Macro argument number is less than expected");
-        return args;
-    }
-    if (!macro->is_varg && vec_len(args) != macro->nargs) {
-        if (macro->nargs == 0 &&
-            vec_len(args) == 1 &&
-            vec_len(vec_get(args, 0)) == 0)
-            return make_vector();
-        error("Macro argument number does not match");
-    }
+    if (vec_len(args) != macro->nargs)
+        error("macro argument number does not match");
     return args;
 }
 
