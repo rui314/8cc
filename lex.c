@@ -351,7 +351,7 @@ static Token *read_digraph(void) {
     if (next(':')) {
         if (next('%')) {
             if (next(':'))
-                return make_keyword(KSHARPSHARP);
+                return make_keyword(KHASHHASH);
             unreadc('%');
         }
         return make_keyword('#');
@@ -376,7 +376,7 @@ static Token *do_read_token(void) {
     switch (c) {
     case '\n': return newline_token;
     case ':': return make_keyword(next('>') ? ']' : ':');
-    case '#': return make_keyword(next('#') ? KSHARPSHARP : '#');
+    case '#': return make_keyword(next('#') ? KHASHHASH : '#');
     case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '*': return read_rep('=', OP_A_MUL, '*');
     case '%': return read_digraph() ?: read_rep('=', OP_A_MOD, '%');

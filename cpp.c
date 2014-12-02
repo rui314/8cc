@@ -309,7 +309,7 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
             i++;
             continue;
         }
-        if (is_keyword(t0, KSHARPSHARP) && t1_param) {
+        if (is_keyword(t0, KHASHHASH) && t1_param) {
             Vector *arg = vec_get(args, t1->position);
             // [GNU] [,##__VA_ARG__] is expanded to the empty token sequence
             // if __VA_ARG__ is empty. Otherwise it's expanded to
@@ -327,13 +327,13 @@ static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
             i++;
             continue;
         }
-        if (is_keyword(t0, KSHARPSHARP) && t1) {
+        if (is_keyword(t0, KHASHHASH) && t1) {
             hideset = t1->hideset;
             glue_push(r, t1);
             i++;
             continue;
         }
-        if (t0_param && t1 && is_keyword(t1, KSHARPSHARP)) {
+        if (t0_param && t1 && is_keyword(t1, KHASHHASH)) {
             hideset = t1->hideset;
             Vector *arg = vec_get(args, t0->position);
             if (vec_len(arg) == 0)
