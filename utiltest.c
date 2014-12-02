@@ -151,6 +151,25 @@ static void test_dict(void) {
     assert_int(2, vec_len(dict_keys(dict)));
 }
 
+static void test_set(void) {
+    Set *s = NULL;
+    assert_int(0, set_has(s, "abc"));
+    s = set_add(s, "abc");
+    s = set_add(s, "def");
+    assert_int(1, set_has(s, "abc"));
+    assert_int(1, set_has(s, "def"));
+    assert_int(0, set_has(s, "xyz"));
+    Set *t = NULL;
+    t = set_add(t, "abc");
+    t = set_add(t, "DEF");
+    assert_int(1, set_has(set_union(s, t), "abc"));
+    assert_int(1, set_has(set_union(s, t), "def"));
+    assert_int(1, set_has(set_union(s, t), "DEF"));
+    assert_int(1, set_has(set_intersection(s, t), "abc"));
+    assert_int(0, set_has(set_intersection(s, t), "def"));
+    assert_int(0, set_has(set_intersection(s, t), "DEF"));
+}
+
 static void test_path(void) {
     assert_string("/abc", fullpath("/abc"));
     assert_string("/abc/def", fullpath("/abc/def"));
@@ -182,6 +201,7 @@ int main(int argc, char **argv) {
     test_map();
     test_map_stack();
     test_dict();
+    test_set();
     test_path();
     test_file();
     printf("Passed\n");

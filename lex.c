@@ -50,7 +50,7 @@ void lex_init(char *filename) {
 static Token *make_token(Token *tmpl) {
     Token *r = malloc(sizeof(Token));
     *r = *tmpl;
-    r->hideset = make_map();
+    r->hideset = NULL;
     File *f = current_file();
     r->file = f;
     r->line = f->line;

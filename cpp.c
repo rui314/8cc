@@ -45,7 +45,6 @@ typedef struct {
     SpecialMacroHandler *fn;
 } Macro;
 
-static void map_copy(Map *dst, Map *src);
 static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
@@ -100,7 +99,7 @@ static Token *make_macro_token(int position, bool is_vararg) {
     Token *r = malloc(sizeof(Token));
     r->kind = TMACRO_PARAM;
     r->is_vararg = is_vararg;
-    r->hideset = make_map();
+    r->hideset = NULL;
     r->position = position;
     r->space = false;
     r->bol = false;
@@ -110,8 +109,6 @@ static Token *make_macro_token(int position, bool is_vararg) {
 static Token *copy_token(Token *tok) {
     Token *r = malloc(sizeof(Token));
     *r = *tok;
-    r->hideset = make_map();
-    map_copy(r->hideset, tok->hideset);
     return r;
 }
 
@@ -215,39 +212,11 @@ static Vector *read_args(Macro *macro) {
     return args;
 }
 
-static void map_copy(Map *dst, Map *src) {
-    MapIter *i = map_iter(src);
-    for (char *k = map_next(i, NULL); k; k = map_next(i, NULL))
-        map_put(dst, k, (void *)1);
-}
-
-static Map *map_union(Map *a, Map *b) {
-    Map *r = make_map();
-    map_copy(r, a);
-    map_copy(r, b);
-    return r;
-}
-
-static Map *map_intersection(Map *a, Map *b) {
-    Map *r = make_map();
-    MapIter *i = map_iter(a);
-    for (char *k = map_next(i, NULL); k; k = map_next(i, NULL))
-        if (map_get(b, k))
-            map_put(r, k, (void *)1);
-    return r;
-}
-
-static Map *map_append(Map *parent, char *k) {
-    Map *r = make_map_parent(parent);
-    map_put(r, k, (void *)1);
-    return r;
-}
-
-static Vector *add_hide_set(Vector *tokens, Map *hideset) {
+static Vector *add_hide_set(Vector *tokens, Set *hideset) {
     Vector *r = make_vector();
     for (int i = 0; i < vec_len(tokens); i++) {
         Token *t = copy_token(vec_get(tokens, i));
-        t->hideset = map_union(t->hideset, hideset);
+        t->hideset = set_union(t->hideset, hideset);
         vec_push(r, t);
     }
     return r;
@@ -295,7 +264,7 @@ static Vector *expand_all(Vector *tokens, Token *tmpl) {
     return r;
 }
 
-static Vector *subst(Macro *macro, Vector *args, Map *hideset) {
+static Vector *subst(Macro *macro, Vector *args, Set *hideset) {
     Vector *r = make_vector();
     int len = vec_len(macro->body);
     for (int i = 0; i < len; i++) {
@@ -367,12 +336,12 @@ static Token *read_expand(void) {
         return tok;
     char *name = tok->sval;
     Macro *macro = map_get(macros, name);
-    if (!macro || map_get(tok->hideset, name))
+    if (!macro || set_has(tok->hideset, name))
         return tok;
 
     switch (macro->kind) {
     case MACRO_OBJ: {
-        Map *hideset = map_append(tok->hideset, name);
+        Set *hideset = set_add(tok->hideset, name);
         Vector *tokens = subst(macro, NULL, hideset);
         propagate_space(tokens, tok);
         unget_all(tokens);
@@ -384,7 +353,7 @@ static Token *read_expand(void) {
         Vector *args = read_args(macro);
         Token *rparen = peek_token();
         expect(')');
-        Map *hideset = map_append(map_intersection(tok->hideset, rparen->hideset), name);
+        Set *hideset = set_add(set_intersection(tok->hideset, rparen->hideset), name);
         Vector *tokens = subst(macro, args, hideset);
         propagate_space(tokens, tok);
         unget_all(tokens);
@@ -951,7 +920,7 @@ static Token *do_read_token(bool return_at_eol) {
         }
         unget_token(tok);
         Token *r = read_expand();
-        if (r && r->bol && is_keyword(r, '#') && map_len(r->hideset) == 0) {
+        if (r && r->bol && is_keyword(r, '#') && r->hideset == NULL) {
             read_directive();
             continue;
         }

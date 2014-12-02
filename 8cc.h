@@ -11,6 +11,7 @@
 #include "error.h"
 #include "file.h"
 #include "map.h"
+#include "set.h"
 #include "vector.h"
 
 enum {
@@ -42,7 +43,7 @@ typedef struct {
     int line;
     int column;
     int count;
-    Map *hideset;
+    Set *hideset;
     union {
         // TKEYWORD
         int id;
