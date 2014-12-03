@@ -53,8 +53,7 @@ Vector *make_vector1(void *e) {
 
 Vector *vec_copy(Vector *src) {
     Vector *r = do_make_vector(src->len);
-    for (int i = 0; i < src->len; i++)
-        r->body[i] = src->body[i];
+    memcpy(r->body, src->body, sizeof(void *) * src->len);
     r->len = src->len;
     return r;
 }
@@ -66,8 +65,7 @@ void vec_push(Vector *vec, void *elem) {
 
 void vec_append(Vector *a, Vector *b) {
     extend(a, b->len);
-    for (int i = 0; i < b->len; i++)
-        a->body[a->len + i] = b->body[i];
+    memcpy(a->body + a->len, b->body, sizeof(void *) * b->len);
     a->len += b->len;
 }
 
