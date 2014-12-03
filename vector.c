@@ -1,6 +1,10 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+/*
+ * Vectors are containers of void pointers that can change in size.
+ */
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -102,8 +106,8 @@ Vector *vec_reverse(Vector *vec) {
     return r;
 }
 
-void vec_clear(Vector *vec) {
-    vec->len = 0;
+void *vec_body(Vector *vec) {
+    return vec->body;
 }
 
 int vec_len(Vector *vec) {

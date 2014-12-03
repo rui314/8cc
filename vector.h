@@ -23,7 +23,7 @@ extern void vec_set(Vector *vec, int index, void *val);
 extern void *vec_head(Vector *vec);
 extern void *vec_tail(Vector *vec);
 extern Vector *vec_reverse(Vector *vec);
-extern void vec_clear(Vector *vec);
+extern void *vec_body(Vector *vec);
 extern int vec_len(Vector *vec);
 
 #endif

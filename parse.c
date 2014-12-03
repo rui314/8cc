@@ -1646,18 +1646,7 @@ static int comp_init(const void *p, const void *q) {
 }
 
 static void sort_inits(Vector *inits) {
-    int len = vec_len(inits);
-    Node **tmp = malloc(sizeof(Node *) * len);
-    int i = 0;
-    for (; i < vec_len(inits); i++) {
-        Node *init = vec_get(inits, i);
-        assert(init->kind == AST_INIT);
-        tmp[i] = init;
-    }
-    qsort(tmp, len, sizeof(Node *), comp_init);
-    vec_clear(inits);
-    for (int i = 0; i < len; i++)
-        vec_push(inits, tmp[i]);
+    qsort(vec_body(inits), vec_len(inits), sizeof(void *), comp_init);
 }
 
 static void read_struct_initializer_sub(Vector *inits, Type *ty, int off, bool designated) {
