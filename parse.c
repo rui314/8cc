@@ -23,7 +23,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 // The last source location we want to point to when we find an error in the
-// soruce code.
+// source code.
 SourceLoc *source_loc;
 
 // Objects representing various scopes. Did you know C has so many different
