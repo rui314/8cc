@@ -3,6 +3,25 @@
 
 /*
  * Vectors are containers of void pointers that can change in size.
+ *
+ * Note on memory management:
+ *
+ * No memory management is a memory management scheme in 8cc.
+ * Memory regions allocated using malloc are never freed
+ * until the process terminates. That has greatly simplified
+ * the code and the API because 1) when you want to write
+ * a function returning a new heap-allocated value, you can
+ * just malloc a new value and return that, and 2) that design
+ * decision has eliminated use-after-free bugs entirely.
+ *
+ * Modern computers have gigs of memory. 8cc consumes
+ * only about 100MB to compile 10K lines of C source file.
+ * Compiler is not a long-running process.
+ * It will never run out of memory unless you give an
+ * unrealistically large source file.
+ *
+ * If we really need to free memory, we could use Boehm garbage
+ * collector. I don't see that need at this moment though.
  */
 
 #include <assert.h>
