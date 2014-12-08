@@ -104,22 +104,23 @@ static void emit(Inst *in) {
     vec_push(insts, in);
 }
 
-static Var *alloc(int size) {
+static Var *alloc(Type *ty) {
+    int size = MAX(ty->size, 8);
     Mem *m = make_mem(size);
     vec_push(mems, m);
-    Var *r = make_var();
-    emit(make_inst(&(Inst){ ALLOC, r, m }));
-    return r;
+    Var *v = make_var();
+    emit(make_inst(&(Inst){ ALLOC, v, m }));
+    return v;
 }
 
-static Var *walk(Node *node) {
+static Var *walk(Node *node, bool lval) {
     switch (node->kind) {
     case AST_DECL: {
-        Var *ptr = alloc(MAX(node->declvar->ty->size, 8));
+        Var *ptr = alloc(node->declvar->ty);
         map_put(lvars, node->declvar->varname, ptr);
-        if (vec_len(node->declinit) > 0) {
+        if (node->declinit && vec_len(node->declinit) > 0) {
             Node *init = vec_get(node->declinit, 0);
-            Var *rhs = walk(init->initval);
+            Var *rhs = walk(init->initval, false);
             emit(make_inst(&(Inst){ STORE, ptr, rhs }));
         }
         return NULL;
@@ -127,6 +128,10 @@ static Var *walk(Node *node) {
     case AST_LVAR: {
         Var *ptr = map_get(lvars, node->varname);
         assert(ptr);
+        if (node->ty->kind == KIND_ARRAY)
+            return ptr;
+        if (lval)
+            return ptr;
         Var *r = make_var();
         emit(make_inst(&(Inst){ LOAD, r, ptr }));
         return r;
@@ -134,26 +139,49 @@ static Var *walk(Node *node) {
     case AST_COMPOUND_STMT: {
         Vector *body = node->stmts;
         for (int i = 0; i < vec_len(body); i++)
-            walk(vec_get(body, i));
+            walk(vec_get(body, i), false);
         return NULL;
     }
     case AST_RETURN: {
-        Var *v = walk(node->retval);
+        Var *v = walk(node->retval, false);
         emit(make_inst(&(Inst){ RET, v }));
         return NULL;
     }
-    case AST_CONV: {
-        if (!is_inttype(node->ty) || !is_inttype(node->operand->ty))
-            error("incompatible type");
-        return walk(node->operand);
+    case AST_CONV:
+        return walk(node->operand, false);
+    case AST_DEREF: {
+        Var *ptr = walk(node->operand, lval);
+        if (lval)
+            return ptr;
+        Var *r = make_var();
+        emit(make_inst(&(Inst){ LOAD, r, ptr }));
+        return r;
     }
-    case '+': case '*': {
+    case '+': {
         Var *dst = make_var();
-        Var *lhs = walk(node->left);
-        Var *rhs = walk(node->right);
-        int op = (node->kind == '+') ? ADD : MUL;
-        emit(make_inst(&(Inst){ op, dst, lhs, rhs }));
+        Var *lhs = walk(node->left, false);
+        Var *rhs = walk(node->right, false);
+        if (node->left->ty->kind == KIND_PTR) {
+            Var *tmp = make_var();
+            Var *size = make_literal(node->left->ty->ptr->size);
+            emit(make_inst(&(Inst){ MUL, tmp, rhs, size }));
+            rhs = tmp;
+        }
+        emit(make_inst(&(Inst){ ADD, dst, lhs, rhs }));
         return dst;
+    }
+    case '*': {
+        Var *dst = make_var();
+        Var *lhs = walk(node->left, false);
+        Var *rhs = walk(node->right, false);
+        emit(make_inst(&(Inst){ MUL, dst, lhs, rhs }));
+        return dst;
+    }
+    case '=': {
+        Var *lhs = walk(node->left, true);
+        Var *rhs = walk(node->right, false);
+        emit(make_inst(&(Inst) { STORE, lhs, rhs }));
+        return rhs;
     }
     case AST_LITERAL:
         assert(node->ty->kind == KIND_INT);
@@ -167,9 +195,8 @@ static Func *translate(Vector *toplevels) {
     assert(vec_len(toplevels) == 1);
     Node *node = vec_head(toplevels);
     assert(node->kind == AST_FUNC);
-
     char *name = node->fname;
-    walk(node->body);
+    walk(node->body, false);
     return make_func(name, insts);
 }
 
@@ -272,30 +299,36 @@ static void print(Func *f) {
         Inst *in = vec_get(f->insts, i);
         switch (in->kind) {
         case ADD:
+            write("# add");
             write("movq %s, %s", str(in->arg2), str(in->arg1));
             write("addq %s, %s", str(in->arg3), str(in->arg1));
             break;
         case ALLOC: {
             Var *ptr = in->arg1;
             Mem *mem = in->arg2;
+            write("# alloc");
             write("leaq %d(%%rsp), %s", mem->off, str(ptr));
             break;
         }
         case MUL:
+            write("# mul");
             write("movq %s, %s", str(in->arg2), str(in->arg1));
             write("imulq %s, %s", str(in->arg3), str(in->arg1));
             break;
         case RET:
+            write("# ret");
             write("movq %s, %%rax", str(in->arg1));
             write("jmp end");
             break;
         case LOAD: {
+            write("# load");
             Var *var = in->arg1;
             Var *ptr = in->arg2;
             write("movq (%s), %s", str(ptr), str(var));
             break;
         }
         case STORE: {
+            write("# store");
             Var *ptr = in->arg1;
             Var *var = in->arg2;
             write("movq %s, (%s)", str(var), str(ptr));
