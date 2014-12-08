@@ -352,6 +352,8 @@ static void funclike(void) {
     expect_string("u\"abc\"", stringify(u"abc"));
     expect_string("u8\"abc\"", stringify(u8"abc"));
     expect_string("ZERO", stringify(ZERO));
+    expect_string("1 2", stringify(1
+2));
 
 #define m1(x) x
     expect(5, m1(5));

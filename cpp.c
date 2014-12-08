@@ -183,6 +183,10 @@ static Vector *read_one_arg(bool *end, bool readall) {
             level++;
         if (is_keyword(tok, ')'))
             level--;
+        if (tok->bol) {
+            tok->bol = false;
+            tok->space = true;
+        }
         vec_push(r, tok);
     }
 }
