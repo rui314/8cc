@@ -676,7 +676,9 @@ static void read_include(bool isimport) {
     if (filename[0] == '/') {
         if (try_include("/", filename, isimport))
             return;
-    } else if (!std) {
+        goto err;
+    }
+    if (!std) {
         File *f = current_file();
         char *dir = f->name ? dirname(strdup(f->name)) : ".";
         if (try_include(dir, filename, isimport))
@@ -685,6 +687,7 @@ static void read_include(bool isimport) {
     for (int i = vec_len(std_include_path) - 1; i >= 0; i--)
         if (try_include(vec_get(std_include_path, i), filename, isimport))
             return;
+  err:
     error("cannot find header file: %s", filename);
 }
 
