@@ -777,20 +777,20 @@ static void read_line(void) {
 static void read_directive(void) {
     Token *tok = lex();
     if (is_ident(tok, "define"))            read_define();
-    else if (is_ident(tok, "undef"))        read_undef();
+    else if (is_ident(tok, "elif"))         read_elif();
+    else if (is_ident(tok, "else"))         read_else();
+    else if (is_ident(tok, "endif"))        read_endif();
+    else if (is_ident(tok, "error"))        read_error();
     else if (is_ident(tok, "if"))           read_if();
     else if (is_ident(tok, "ifdef"))        read_ifdef();
     else if (is_ident(tok, "ifndef"))       read_ifndef();
-    else if (is_ident(tok, "else"))         read_else();
-    else if (is_ident(tok, "elif"))         read_elif();
-    else if (is_ident(tok, "endif"))        read_endif();
-    else if (is_ident(tok, "error"))        read_error();
-    else if (is_ident(tok, "warning"))      read_warning();
+    else if (is_ident(tok, "import"))       read_include(true);
     else if (is_ident(tok, "include"))      read_include(false);
     else if (is_ident(tok, "include_next")) read_include_next();
-    else if (is_ident(tok, "import"))       read_include(true);
-    else if (is_ident(tok, "pragma"))       read_pragma();
     else if (is_ident(tok, "line"))         read_line();
+    else if (is_ident(tok, "pragma"))       read_pragma();
+    else if (is_ident(tok, "undef"))        read_undef();
+    else if (is_ident(tok, "warning"))      read_warning();
     else if (tok->kind != TNEWLINE)
         error("unsupported preprocessor directive: %s", tok2s(tok));
 }
