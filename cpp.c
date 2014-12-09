@@ -688,6 +688,33 @@ static void read_include(bool isimport) {
     error("cannot find header file: %s", filename);
 }
 
+static void read_include_next(void) {
+    // [GNU] #include_next is a directive to include the "next" file
+    // from the search path. This feature is used to override a
+    // header file without getting into infinite inclusion loop.
+    // This directive doesn't distinguish <> and "".
+    bool std;
+    char *filename = read_cpp_header_name(&std);
+    expect_newline();
+    if (filename[0] == '/') {
+        if (try_include("/", filename, false))
+            return;
+        goto err;
+    }
+    char *cur = fullpath(current_file()->name);
+    int i = vec_len(std_include_path) - 1;
+    for (; i >= 0; i--) {
+        char *dir = vec_get(std_include_path, i);
+        if (!strcmp(cur, fullpath(format("%s/%s", dir, filename))))
+            break;
+    }
+    for (i--; i >= 0; i--)
+        if (try_include(vec_get(std_include_path, i), filename, false))
+            return;
+  err:
+    error("cannot find header file: %s", filename);
+}
+
 /*
  * #pragma
  */
@@ -746,20 +773,21 @@ static void read_line(void) {
 
 static void read_directive(void) {
     Token *tok = lex();
-    if (is_ident(tok, "define"))       read_define();
-    else if (is_ident(tok, "undef"))   read_undef();
-    else if (is_ident(tok, "if"))      read_if();
-    else if (is_ident(tok, "ifdef"))   read_ifdef();
-    else if (is_ident(tok, "ifndef"))  read_ifndef();
-    else if (is_ident(tok, "else"))    read_else();
-    else if (is_ident(tok, "elif"))    read_elif();
-    else if (is_ident(tok, "endif"))   read_endif();
-    else if (is_ident(tok, "error"))   read_error();
-    else if (is_ident(tok, "warning")) read_warning();
-    else if (is_ident(tok, "include")) read_include(false);
-    else if (is_ident(tok, "import"))  read_include(true);
-    else if (is_ident(tok, "pragma"))  read_pragma();
-    else if (is_ident(tok, "line"))    read_line();
+    if (is_ident(tok, "define"))            read_define();
+    else if (is_ident(tok, "undef"))        read_undef();
+    else if (is_ident(tok, "if"))           read_if();
+    else if (is_ident(tok, "ifdef"))        read_ifdef();
+    else if (is_ident(tok, "ifndef"))       read_ifndef();
+    else if (is_ident(tok, "else"))         read_else();
+    else if (is_ident(tok, "elif"))         read_elif();
+    else if (is_ident(tok, "endif"))        read_endif();
+    else if (is_ident(tok, "error"))        read_error();
+    else if (is_ident(tok, "warning"))      read_warning();
+    else if (is_ident(tok, "include"))      read_include(false);
+    else if (is_ident(tok, "include_next")) read_include_next();
+    else if (is_ident(tok, "import"))       read_include(true);
+    else if (is_ident(tok, "pragma"))       read_pragma();
+    else if (is_ident(tok, "line"))         read_line();
     else if (tok->kind != TNEWLINE)
         error("unsupported preprocessor directive: %s", tok2s(tok));
 }
