@@ -2630,6 +2630,8 @@ Vector *read_toplevels(void) {
 
 // C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
 static void concatenate_string(Token *tok) {
+    if (!peek_token() || peek_token()->kind != TSTRING)
+        return;
     Vector *v = make_vector();
     vec_push(v, tok);
     for (;;) {
