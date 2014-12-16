@@ -776,29 +776,61 @@ static void read_line(void) {
         f->name = filename;
 }
 
+// GNU CPP outputs "# linenum filename flags" to preserve original
+// source file information. This function reads them. Flags are ignored.
+static void read_linemarker(Token *tok) {
+    if (!is_digit_sequence(tok->sval))
+        error("line number expected, but got %s", tok2s(tok));
+    int line = atoi(tok->sval);
+    tok = lex();
+    if (!tok || tok->kind != TSTRING)
+        error("file name expected, but got %s", tok2s(tok));
+    char *filename = tok->sval;
+    do {
+        tok = lex();
+    } while (tok && tok->kind != TNEWLINE);
+    File *file = current_file();
+    file->line = line;
+    file->name = filename;
+}
+
 /*
  * #-directive
  */
 
 static void read_directive(void) {
     Token *tok = lex();
-    if (is_ident(tok, "define"))            read_define();
-    else if (is_ident(tok, "elif"))         read_elif();
-    else if (is_ident(tok, "else"))         read_else();
-    else if (is_ident(tok, "endif"))        read_endif();
-    else if (is_ident(tok, "error"))        read_error();
-    else if (is_ident(tok, "if"))           read_if();
-    else if (is_ident(tok, "ifdef"))        read_ifdef();
-    else if (is_ident(tok, "ifndef"))       read_ifndef();
-    else if (is_ident(tok, "import"))       read_include(true);
-    else if (is_ident(tok, "include"))      read_include(false);
-    else if (is_ident(tok, "include_next")) read_include_next();
-    else if (is_ident(tok, "line"))         read_line();
-    else if (is_ident(tok, "pragma"))       read_pragma();
-    else if (is_ident(tok, "undef"))        read_undef();
-    else if (is_ident(tok, "warning"))      read_warning();
-    else if (tok->kind != TNEWLINE)
-        error("unsupported preprocessor directive: %s", tok2s(tok));
+    if (!tok)
+        goto err;
+    if (tok->kind == TNEWLINE)
+        return;
+    if (tok->kind == TNUMBER) {
+        read_linemarker(tok);
+        return;
+    }
+    if (tok->kind != TIDENT)
+        goto err;
+    char *s = tok->sval;
+    if (!strcmp(s, "define"))            read_define();
+    else if (!strcmp(s, "elif"))         read_elif();
+    else if (!strcmp(s, "else"))         read_else();
+    else if (!strcmp(s, "endif"))        read_endif();
+    else if (!strcmp(s, "error"))        read_error();
+    else if (!strcmp(s, "if"))           read_if();
+    else if (!strcmp(s, "ifdef"))        read_ifdef();
+    else if (!strcmp(s, "ifndef"))       read_ifndef();
+    else if (!strcmp(s, "import"))       read_include(true);
+    else if (!strcmp(s, "include"))      read_include(false);
+    else if (!strcmp(s, "include_next")) read_include_next();
+    else if (!strcmp(s, "line"))         read_line();
+    else if (!strcmp(s, "pragma"))       read_pragma();
+    else if (!strcmp(s, "undef"))        read_undef();
+    else if (!strcmp(s, "warning"))      read_warning();
+    else goto err;
+    return;
+
+  err:
+    error("unsupported preprocessor directive: %s", tok2s(tok));
 }
 
 /*

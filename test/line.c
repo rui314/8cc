@@ -22,4 +22,12 @@ void testmain(void) {
 #line Y
     expect(5, __LINE__);
     expect_string("bar", __FILE__);
+
+# 1 "xyz"
+    expect(1, __LINE__);
+    expect_string("xyz", __FILE__);
+
+# 2 "XYZ" 1 3 4
+    expect(2, __LINE__);
+    expect_string("XYZ", __FILE__);
 }
