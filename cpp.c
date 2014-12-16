@@ -331,11 +331,9 @@ static void unget_all(Vector *tokens) {
 }
 
 // This is "expand" function in the Dave Prosser's document.
-static Token *read_expand(void) {
+static Token *read_expand_newline(void) {
     Token *tok = lex();
     if (!tok) return NULL;
-    if (tok->kind == TNEWLINE)
-        return read_expand();
     if (tok->kind != TIDENT)
         return tok;
     char *name = tok->sval;
@@ -368,6 +366,14 @@ static Token *read_expand(void) {
         return read_expand();
     default:
         error("internal error");
+    }
+}
+
+static Token *read_expand(void) {
+    for (;;) {
+        Token *tok = read_expand_newline();
+        if (!tok || tok->kind != TNEWLINE)
+            return tok;
     }
 }
 
@@ -625,7 +631,7 @@ static char *read_cpp_header_name(bool *std) {
     // If a token following #include does not start with < nor ",
     // try to read the token as a regular token. Macro-expanded
     // form may be a valid header file path.
-    Token *tok = read_expand();
+    Token *tok = read_expand_newline();
     if (!tok || tok->kind == TNEWLINE)
         error("expected file name, but got %s", tok2s(tok));
     if (tok->kind == TSTRING) {
@@ -636,7 +642,7 @@ static char *read_cpp_header_name(bool *std) {
         error("'<' expected, but got %s", tok2s(tok));
     Vector *tokens = make_vector();
     for (;;) {
-        Token *tok = read_expand();
+        Token *tok = read_expand_newline();
         if (!tok || tok->kind == TNEWLINE)
             error("premature end of header name");
         if (is_keyword(tok, '>'))
@@ -752,11 +758,11 @@ static bool is_digit_sequence(char *p) {
 }
 
 static void read_line(void) {
-    Token *tok = lex();
+    Token *tok = read_expand_newline();
     if (!tok || tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
         error("number expected after #line, but got %s", tok2s(tok));
     int line = atoi(tok->sval);
-    tok = lex();
+    tok = read_expand_newline();
     char *filename = NULL;
     if (tok && tok->kind == TSTRING) {
         filename = tok->sval;

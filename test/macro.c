@@ -455,14 +455,6 @@ static void noarg(void) {
     expect(55, NOARG());
 }
 
-static void line(void) {
-#line 99
-    expect(99, __LINE__);
-#line 199 "foo"
-    expect(199, __LINE__);
-    expect_string("foo", __FILE__);
-}
-
 static void null(void) {
     #
 }
@@ -492,7 +484,6 @@ static void gnuext(void) {
 
 void testmain(void) {
     print("macros");
-
     special();
     include();
     predefined();
@@ -506,7 +497,6 @@ void testmain(void) {
     funclike();
     empty();
     noarg();
-    line();
     null();
     counter();
     gnuext();
