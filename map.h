@@ -16,12 +16,6 @@ typedef struct Map {
     int nused;
 } Map;
 
-typedef struct MapIter {
-    Map *map;
-    Map *cur;
-    int i;
-} MapIter;
-
 #define EMPTY_MAP ((Map){ NULL, NULL, NULL, 0, 0, 0 })
 
 extern Map *make_map(void);
@@ -30,7 +24,5 @@ extern void *map_get(Map *map, char *key);
 extern void map_put(Map *map, char *key, void *val);
 extern void map_remove(Map *map, char *key);
 extern size_t map_len(Map *map);
-extern MapIter *map_iter(Map *map);
-extern char *map_next(MapIter *iter, void **val);
 
 #endif
