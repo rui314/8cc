@@ -386,7 +386,6 @@ static bool read_funclike_macro_params(Map *param) {
     int pos = 0;
     for (;;) {
         Token *tok = lex();
-        assert(tok);
         if (is_keyword(tok, ')'))
             return false;
         if (pos) {
@@ -417,7 +416,6 @@ static Vector *read_funclike_macro_body(Map *param) {
     Vector *r = make_vector();
     for (;;) {
         Token *tok = lex();
-        assert(tok);
         if (tok->kind == TNEWLINE)
             return r;
         if (tok->kind == TIDENT) {
@@ -446,7 +444,6 @@ static void read_obj_macro(char *name) {
     Vector *body = make_vector();
     for (;;) {
         Token *tok = lex();
-        assert(tok);
         if (tok->kind == TNEWLINE)
             break;
         vec_push(body, tok);
