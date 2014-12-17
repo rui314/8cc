@@ -16,7 +16,7 @@ typedef struct Map {
     int nused;
 } Map;
 
-#define EMPTY_MAP ((Map){ NULL, NULL, NULL, 0, 0, 0 })
+#define EMPTY_MAP ((Map){})
 
 extern Map *make_map(void);
 extern Map *make_map_parent(Map *parent);
