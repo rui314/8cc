@@ -167,7 +167,7 @@ char *get_base_file(void) {
 static void preprocess(void) {
     for (;;) {
         Token *tok = read_token();
-        if (!tok)
+        if (tok->kind == TEOF)
             break;
         if (tok->bol)
             printf("\n");

@@ -32,6 +32,7 @@
 static Vector *buffers = &EMPTY_VECTOR;
 static Token *space_token = &(Token){ TSPACE };
 static Token *newline_token = &(Token){ TNEWLINE };
+static Token *eof_token = &(Token){ TEOF };
 
 static void skip_block_comment(void);
 
@@ -437,7 +438,7 @@ static Token *do_read_token(void) {
         if (next('=')) return make_keyword(OP_GE);
         if (next('>')) return read_rep('=', OP_A_SAR, OP_SAR);
         return make_keyword('>');
-    case EOF: return NULL;
+    case EOF: return eof_token;
     default: return make_invalid(c);
     }
 }
@@ -473,7 +474,7 @@ char *read_header_file_name(bool *std) {
 }
 
 bool is_keyword(Token *tok, int c) {
-    return tok && (tok->kind == TKEYWORD) && (tok->id == c);
+    return (tok->kind == TKEYWORD) && (tok->id == c);
 }
 
 void push_token_buffer(Vector *buf) {
@@ -505,7 +506,8 @@ char *read_error_directive(void) {
 }
 
 void unget_token(Token *tok) {
-    if (!tok) return;
+    if (tok->kind == TEOF)
+        return;
     Vector *buf = vec_tail(buffers);
     vec_push(buf, tok);
 }
@@ -525,15 +527,13 @@ Token *lex(void) {
     if (vec_len(buf) > 0)
         return vec_pop(buf);
     if (vec_len(buffers) > 1)
-        return NULL;
+        return eof_token;
     bool bol = (current_file()->column == 0);
     Token *tok = do_read_token();
-    while (tok && tok->kind == TSPACE) {
+    while (tok->kind == TSPACE) {
         tok = do_read_token();
-        if (tok)
-            tok->space = true;
+        tok->space = true;
     }
-    if (tok)
-        tok->bol = bol;
+    tok->bol = bol;
     return tok;
 }

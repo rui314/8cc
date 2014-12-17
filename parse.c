@@ -115,10 +115,6 @@ enum {
 
 static void mark_location(void) {
     Token *tok = peek_token();
-    if (!tok) {
-        source_loc = NULL;
-        return;
-    }
     source_loc = malloc(sizeof(SourceLoc));
     source_loc->file = tok->file->name;
     source_loc->line = tok->line;
@@ -2594,9 +2590,9 @@ static Node *read_compound_stmt(void) {
 
 static void read_decl_or_stmt(Vector *list) {
     Token *tok = peek_token();
-    mark_location();
-    if (tok == NULL)
+    if (tok->kind == TEOF)
         error("premature end of input");
+    mark_location();
     if (is_type_keyword(tok)) {
         read_decl(list, false);
     } else if (next_token(KSTATIC_ASSERT)) {
@@ -2615,7 +2611,7 @@ static void read_decl_or_stmt(Vector *list) {
 Vector *read_toplevels(void) {
     toplevels = make_vector();
     for (;;) {
-        if (!peek_token())
+        if (peek_token()->kind == TEOF)
             return toplevels;
         if (is_funcdef())
             vec_push(toplevels, read_funcdef());
@@ -2630,13 +2626,13 @@ Vector *read_toplevels(void) {
 
 // C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
 static void concatenate_string(Token *tok) {
-    if (!peek_token() || peek_token()->kind != TSTRING)
+    if (peek_token()->kind != TSTRING)
         return;
     Vector *v = make_vector();
     vec_push(v, tok);
     for (;;) {
         Token *tok2 = read_token();
-        if (!tok2 || tok2->kind != TSTRING) {
+        if (tok2->kind != TSTRING) {
             unget_token(tok2);
             break;
         }
@@ -2652,8 +2648,6 @@ static void concatenate_string(Token *tok) {
 
 static Token *get(void) {
     Token *r = read_token();
-    if (!r)
-        return r;
     if (r->kind == TINVALID)
         error("stray character in program: '%c'", r->c);
     if (r->kind == TSTRING)

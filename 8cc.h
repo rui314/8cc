@@ -20,6 +20,7 @@ enum {
     TNUMBER,
     TCHAR,
     TSTRING,
+    TEOF,
     TINVALID,
     // Only in CPP
     TNEWLINE,

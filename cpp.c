@@ -25,6 +25,7 @@ static Vector *std_include_path = &EMPTY_VECTOR;
 static struct tm now;
 static Token *cpp_token_zero = &(Token){ .kind = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
+static Token *eof_token = &(Token){ TEOF };
 
 typedef void SpecialMacroHandler(Token *tok);
 typedef enum { IN_THEN, IN_ELIF, IN_ELSE } CondInclCtx;
@@ -114,7 +115,7 @@ static Token *copy_token(Token *tok) {
 
 static void expect(char id) {
     Token *tok = lex();
-    if (!tok || !is_keyword(tok, id))
+    if (!is_keyword(tok, id))
         error("%c expected, but got %s", id, tok2s(tok));
 }
 
@@ -155,8 +156,8 @@ static Token *read_ident(void) {
 
 void expect_newline(void) {
     Token *tok = lex();
-    if (!tok || tok->kind != TNEWLINE)
-        error("Newline expected, but got %s", tok2s(tok));
+    if (tok->kind != TNEWLINE)
+        error("newline expected, but got %s", tok2s(tok));
 }
 
 static Vector *read_one_arg(bool *end, bool readall) {
@@ -164,7 +165,7 @@ static Vector *read_one_arg(bool *end, bool readall) {
     int level = 0;
     for (;;) {
         Token *tok = lex();
-        if (!tok)
+        if (tok->kind == TEOF)
             error("unterminated macro argument list");
         if (tok->kind == TNEWLINE)
             continue;
@@ -259,10 +260,13 @@ static Token *stringize(Token *tmpl, Vector *args) {
 
 static Vector *expand_all(Vector *tokens, Token *tmpl) {
     push_token_buffer(vec_reverse(tokens));
-    Token *tok;
     Vector *r = make_vector();
-    while ((tok = read_expand()) != NULL)
+    for (;;) {
+        Token *tok = read_expand();
+        if (tok->kind == TEOF)
+            break;
         vec_push(r, tok);
+    }
     propagate_space(r, tmpl);
     pop_token_buffer();
     return r;
@@ -333,7 +337,8 @@ static void unget_all(Vector *tokens) {
 // This is "expand" function in the Dave Prosser's document.
 static Token *read_expand_newline(void) {
     Token *tok = lex();
-    if (!tok) return NULL;
+    if (tok->kind == TEOF)
+        return tok;
     if (tok->kind != TIDENT)
         return tok;
     char *name = tok->sval;
@@ -372,7 +377,7 @@ static Token *read_expand_newline(void) {
 static Token *read_expand(void) {
     for (;;) {
         Token *tok = read_expand_newline();
-        if (!tok || tok->kind != TNEWLINE)
+        if (tok->kind != TNEWLINE)
             return tok;
     }
 }
@@ -456,7 +461,7 @@ static void read_obj_macro(char *name) {
 static void read_define(void) {
     Token *name = read_ident();
     Token *tok = lex();
-    if (tok && is_keyword(tok, '(') && !tok->space) {
+    if (is_keyword(tok, '(') && !tok->space) {
         read_funclike_macro(name->sval);
         return;
     }
@@ -493,7 +498,8 @@ static Vector *read_intexpr_line(void) {
     Vector *r = make_vector();
     for (;;) {
         Token *tok = do_read_token(true);
-        if (!tok) return r;
+        if (tok->kind == TEOF)
+            return r;
         if (is_ident(tok, "defined")) {
             vec_push(r, read_defined_op());
         } else if (tok->kind == TIDENT) {
@@ -510,7 +516,7 @@ static bool read_constexpr(void) {
     push_token_buffer(vec_reverse(read_intexpr_line()));
     Node *expr = read_expr();
     Token *tok = lex();
-    if (tok)
+    if (tok->kind != TEOF)
         error("Stray token: %s", tok2s(tok));
     pop_token_buffer();
     return eval_intexpr(expr);
@@ -632,7 +638,7 @@ static char *read_cpp_header_name(bool *std) {
     // try to read the token as a regular token. Macro-expanded
     // form may be a valid header file path.
     Token *tok = read_expand_newline();
-    if (!tok || tok->kind == TNEWLINE)
+    if (tok->kind == TNEWLINE)
         error("expected file name, but got %s", tok2s(tok));
     if (tok->kind == TSTRING) {
         *std = false;
@@ -643,7 +649,7 @@ static char *read_cpp_header_name(bool *std) {
     Vector *tokens = make_vector();
     for (;;) {
         Token *tok = read_expand_newline();
-        if (!tok || tok->kind == TNEWLINE)
+        if (tok->kind == TNEWLINE)
             error("premature end of header name");
         if (is_keyword(tok, '>'))
             break;
@@ -759,12 +765,12 @@ static bool is_digit_sequence(char *p) {
 
 static void read_line(void) {
     Token *tok = read_expand_newline();
-    if (!tok || tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
+    if (tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
         error("number expected after #line, but got %s", tok2s(tok));
     int line = atoi(tok->sval);
     tok = read_expand_newline();
     char *filename = NULL;
-    if (tok && tok->kind == TSTRING) {
+    if (tok->kind == TSTRING) {
         filename = tok->sval;
         expect_newline();
     } else if (tok->kind != TNEWLINE) {
@@ -783,12 +789,12 @@ static void read_linemarker(Token *tok) {
         error("line number expected, but got %s", tok2s(tok));
     int line = atoi(tok->sval);
     tok = lex();
-    if (!tok || tok->kind != TSTRING)
+    if (tok->kind != TSTRING)
         error("file name expected, but got %s", tok2s(tok));
     char *filename = tok->sval;
     do {
         tok = lex();
-    } while (tok && tok->kind != TNEWLINE);
+    } while (tok->kind != TNEWLINE);
     File *file = current_file();
     file->line = line;
     file->name = filename;
@@ -800,8 +806,6 @@ static void read_linemarker(Token *tok) {
 
 static void read_directive(void) {
     Token *tok = lex();
-    if (!tok)
-        goto err;
     if (tok->kind == TNEWLINE)
         return;
     if (tok->kind == TNUMBER) {
@@ -876,7 +880,7 @@ static void handle_line_macro(Token *tmpl) {
 static void handle_pragma_macro(Token *tmpl) {
     expect('(');
     Token *operand = read_token();
-    if (!operand || operand->kind != TSTRING)
+    if (operand->kind != TSTRING)
         error("_Pragma takes a string literal, but got %s", tok2s(operand));
     expect(')');
     parse_pragma_operand(operand->sval);
@@ -958,8 +962,6 @@ void cpp_init(void) {
  */
 
 static Token *maybe_convert_keyword(Token *tok) {
-    if (!tok)
-        return NULL;
     if (tok->kind != TIDENT)
         return tok;
     int id = (intptr_t)map_get(keywords, tok->sval);
@@ -980,11 +982,11 @@ Token *peek_token(void) {
 static Token *do_read_token(bool return_at_eol) {
     for (;;) {
         Token *tok = lex();
-        if (!tok)
-            return NULL;
-        if (tok && tok->kind == TNEWLINE) {
+        if (tok->kind == TEOF)
+            return tok;
+        if (tok->kind == TNEWLINE) {
             if (return_at_eol)
-                return NULL;
+                return eof_token;
             continue;
         }
         if (tok->bol && is_keyword(tok, '#')) {
@@ -993,7 +995,7 @@ static Token *do_read_token(bool return_at_eol) {
         }
         unget_token(tok);
         Token *r = read_expand();
-        if (r && r->bol && is_keyword(r, '#') && r->hideset == NULL) {
+        if (r->bol && is_keyword(r, '#') && r->hideset == NULL) {
             read_directive();
             continue;
         }
@@ -1003,7 +1005,8 @@ static Token *do_read_token(bool return_at_eol) {
 
 Token *read_token(void) {
     Token *tok = do_read_token(false);
-    if (!tok) return NULL;
+    if (tok->kind == TEOF)
+        return tok;
     assert(tok->kind != TNEWLINE);
     assert(tok->kind != TSPACE);
     assert(tok->kind != TMACRO_PARAM);
