@@ -412,6 +412,15 @@ static bool read_funclike_macro_params(Map *param) {
     }
 }
 
+static void hashhash_check(Vector *v) {
+    if (vec_len(v) == 0)
+        return;
+    if (is_keyword(vec_head(v), KHASHHASH))
+        error("'##' cannot appear at start of macro expansion");
+    if (is_keyword(vec_tail(v), KHASHHASH))
+        error("'##' cannot appear at end of macro expansion");
+}
+
 static Vector *read_funclike_macro_body(Map *param) {
     Vector *r = make_vector();
     for (;;) {
@@ -429,6 +438,7 @@ static Vector *read_funclike_macro_body(Map *param) {
         }
         vec_push(r, tok);
     }
+    hashhash_check(r);
     return r;
 }
 
@@ -448,6 +458,7 @@ static void read_obj_macro(char *name) {
             break;
         vec_push(body, tok);
     }
+    hashhash_check(body);
     map_put(macros, name, make_obj_macro(body));
 }
 
