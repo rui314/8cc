@@ -124,10 +124,10 @@ static char *get_int_reg(Type *ty, char r) {
 
 static char *get_load_inst(Type *ty) {
     switch (ty->size) {
-    case 1: return "movsbq";
-    case 2: return "movswq";
-    case 4: return "movslq";
-    case 8: return "mov";
+    case 1: return ty->usig ? "movzbq" : "movsbq";
+    case 2: return ty->usig ? "movzwq" : "movswq";
+    case 4: return ty->usig ? "mov" : "movslq";
+    case 8: return "movq";
     default:
         error("Unknown data size: %s: %d", ty2s(ty), ty->size);
     }
