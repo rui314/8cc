@@ -106,6 +106,9 @@ static void do_node2s(Buffer *b, Node *node) {
         case KIND_LONG:
             buf_printf(b, "%ldL", node->ival);
             break;
+        case KIND_LLONG:
+            buf_printf(b, "%lldL", node->ival);
+            break;
         case KIND_FLOAT:
         case KIND_DOUBLE:
         case KIND_LDOUBLE:
