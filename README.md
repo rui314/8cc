@@ -10,7 +10,7 @@ You can see its code both as an implementation of the C language
 and as an example of what this compiler is able to compile.
 
 8cc's source code is carefully written to be as concise and easy-to-read
-as possible, so that the source code is eventually be a good study
+as possible, so that the source code is good study
 material to learn about various techniques used in compilers.
 You may find the lexer, the preprocessor and the parser are
 already useful to learn how C source code is processed at each stage.
