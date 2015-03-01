@@ -232,6 +232,24 @@ static void emit_gload(Type *ty, char *label, int off) {
     maybe_emit_bitshift_load(ty);
 }
 
+static void emit_intcast(Type *ty) {
+    switch(ty->kind) {
+    case KIND_BOOL:
+    case KIND_CHAR:
+        ty->usig ? emit("movzbq #al, #rax") : emit("movsbq #al, #rax");
+        return;
+    case KIND_SHORT:
+        ty->usig ? emit("movzwq #ax, #rax") : emit("movswq #ax, #rax");
+        return;
+    case KIND_INT:
+        ty->usig ? emit("mov #eax, #eax") : emit("cltq");
+        return;
+    case KIND_LONG:
+    case KIND_LLONG:
+        return;
+    }
+}
+
 static void emit_toint(Type *ty) {
     SAVE;
     if (ty->kind == KIND_FLOAT)
@@ -510,6 +528,8 @@ static void emit_load_convert(Type *to, Type *from) {
         emit("cvtpd2ps #xmm0, #xmm0");
     else if (to->kind == KIND_BOOL)
         emit_to_bool(from);
+    else if (is_inttype(from) && is_inttype(to))
+        emit_intcast(from);
     else if (is_inttype(to))
         emit_toint(from);
 }
