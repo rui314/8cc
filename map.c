@@ -3,10 +3,9 @@
 
 // This is an implementation of hash table.
 
-#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include "map.h"
+#include "8cc.h"
 
 #define INIT_SIZE 16
 #define TOMBSTONE ((void *)-1)

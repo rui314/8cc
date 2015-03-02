@@ -2,7 +2,7 @@
 // This program is free software licensed under the MIT license.
 
 #include <stdlib.h>
-#include "dict.h"
+#include "8cc.h"
 
 Dict *make_dict(void) {
     Dict *r = malloc(sizeof(Dict));

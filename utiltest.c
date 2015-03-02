@@ -2,7 +2,6 @@
 // This program is free software licensed under the MIT license.
 
 #include <string.h>
-#include <inttypes.h>
 #include "8cc.h"
 
 char *get_base_file(void) { return NULL; }

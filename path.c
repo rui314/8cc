@@ -1,7 +1,6 @@
 // Copyright 2014 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>

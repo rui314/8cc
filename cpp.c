@@ -6,9 +6,7 @@
  * in this document: https://github.com/rui314/8cc/wiki/cpp.algo.pdf
  */
 
-#include <assert.h>
 #include <ctype.h>
-#include <inttypes.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>

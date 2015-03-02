@@ -5,10 +5,9 @@
  * Vectors are containers of void pointers that can change in size.
  */
 
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include "vector.h"
+#include "8cc.h"
 
 #define MIN_SIZE 8
 

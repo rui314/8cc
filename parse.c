@@ -5,7 +5,6 @@
  * Recursive descendent parser for C.
  */
 
-#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
