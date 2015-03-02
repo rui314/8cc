@@ -140,7 +140,7 @@ enum {
     OP_LABEL_ADDR,
 #define op(name, _) name,
 #define keyword(name, x, y) name,
-#include "keyword.h"
+#include "keyword.inc"
 #undef keyword
 #undef op
 };

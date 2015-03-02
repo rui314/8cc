@@ -925,7 +925,7 @@ static void define_special_macro(char *name, SpecialMacroHandler *fn) {
 static void init_keywords(void) {
 #define op(id, str)         map_put(keywords, str, (void *)id);
 #define keyword(id, str, _) map_put(keywords, str, (void *)id);
-#include "keyword.h"
+#include "keyword.inc"
 #undef keyword
 #undef op
 }

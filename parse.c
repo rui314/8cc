@@ -448,7 +448,7 @@ static bool is_type_keyword(Token *tok) {
     switch (tok->id) {
 #define op(x, y)
 #define keyword(id, _, istype) case id: return istype;
-#include "keyword.h"
+#include "keyword.inc"
 #undef keyword
 #undef op
     default:

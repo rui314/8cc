@@ -286,7 +286,7 @@ char *tok2s(Token *tok) {
         switch (tok->id) {
 #define op(id, str)         case id: return str;
 #define keyword(id, str, _) case id: return str;
-#include "keyword.h"
+#include "keyword.inc"
 #undef keyword
 #undef op
         default: return format("%c", tok->c);
