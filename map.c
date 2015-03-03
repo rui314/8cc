@@ -23,8 +23,8 @@ static uint32_t hash(char *p) {
 static Map *do_make_map(Map *parent, int size) {
     Map *r = malloc(sizeof(Map));
     r->parent = parent;
-    r->key = calloc(size, sizeof(char **));
-    r->val = calloc(size, sizeof(void **));
+    r->key = calloc(size, sizeof(char *));
+    r->val = calloc(size, sizeof(void *));
     r->size = size;
     r->nelem = 0;
     r->nused = 0;
@@ -33,16 +33,16 @@ static Map *do_make_map(Map *parent, int size) {
 
 static void maybe_rehash(Map *m) {
     if (!m->key) {
-        m->key = calloc(INIT_SIZE, sizeof(char **));
-        m->val = calloc(INIT_SIZE, sizeof(void **));
+        m->key = calloc(INIT_SIZE, sizeof(char *));
+        m->val = calloc(INIT_SIZE, sizeof(void *));
         m->size = INIT_SIZE;
         return;
     }
     if (m->nused < m->size * 0.7)
         return;
     int newsize = (m->nelem < m->size * 0.35) ? m->size : m->size * 2;
-    char **k = calloc(newsize, sizeof(char **));
-    void **v = calloc(newsize, sizeof(void **));
+    char **k = calloc(newsize, sizeof(char *));
+    void **v = calloc(newsize, sizeof(void *));
     int mask = newsize - 1;
     for (int i = 0; i < m->size; i++) {
         if (m->key[i] == NULL || m->key[i] == TOMBSTONE)
