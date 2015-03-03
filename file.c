@@ -90,19 +90,6 @@ static int get(void) {
     return c;
 }
 
-static bool skip_whitespace(void) {
-    bool r = false;
-    for (;;) {
-        int c = get();
-        if (strchr(" \t\f\v", c)) {
-            r = true;
-            continue;
-        }
-        unreadc(c);
-        return r;
-    }
-}
-
 int readc(void) {
     for (;;) {
         int c = get();
@@ -116,16 +103,10 @@ int readc(void) {
         }
         if (c != '\\')
             return c;
-        bool space_exists = skip_whitespace();
         int c2 = get();
-        if (c2 == '\n') {
-            if (space_exists)
-                warn("backslash and newline separated by space");
+        if (c2 == '\n')
             continue;
-        }
         unreadc(c2);
-        if (space_exists)
-            unreadc(' ');
         return c;
     }
 }

@@ -31,17 +31,7 @@ static void escape(void) {
     int value = 10;
     expect(10, val\
 ue);
-
-#ifdef __8cc__
-#pragma disable_warning
-#endif
-
-    expect(10, val\    
-ue);
-
-#ifdef __8cc__
-#pragma enable_warning
-#endif
+    expect_string("a   bc", "a\   bc");
 }
 
 static void whitespace(void) {
