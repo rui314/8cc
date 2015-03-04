@@ -330,18 +330,14 @@ static Token *read_ident(char c) {
 }
 
 static void skip_block_comment(void) {
-    enum { in_comment, asterisk_read } state = in_comment;
+    bool maybe_end = false;
     for (;;) {
         int c = readc();
         if (c == EOF)
             error("premature end of block comment");
-        if (c == '*') {
-            state = asterisk_read;
-        } else if (c == '/' && state == asterisk_read) {
+        if (c == '/' && maybe_end)
             return;
-        } else {
-            state = in_comment;
-        }
+        maybe_end = (c == '*');
     }
 }
 
