@@ -19,7 +19,7 @@ static bool dontlink;
 static Buffer *cppdefs;
 static Vector *tmpfiles = &EMPTY_VECTOR;
 
-static void usage(void) {
+static void usage(int exitcode) {
     fprintf(stderr,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
             "\n"
@@ -44,7 +44,7 @@ static void usage(void) {
             "  -h                print this help\n"
             "\n"
             "One of -a, -c, -E or -S must be specified.\n\n");
-    exit(1);
+    exit(exitcode);
 }
 
 static void delete_temp_files(void) {
@@ -109,7 +109,7 @@ static void parse_f_arg(char *s) {
     else if (!strcmp(s, "no-dump-source"))
         dumpsource = false;
     else
-        usage();
+        usage(1);
 }
 
 static void parse_m_arg(char *s) {
@@ -148,12 +148,13 @@ static void parseopt(int argc, char **argv) {
         case 'o': outfile = optarg; break;
         case 'w': enable_warning = false; break;
         case 'h':
+            usage(0);
         default:
-            usage();
+            usage(1);
         }
     }
     if (optind != argc - 1)
-        usage();
+        usage(1);
 
     if (!dumpast && !cpponly && !dumpasm && !dontlink)
         error("One of -a, -c, -E or -S must be specified");
