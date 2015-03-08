@@ -20,7 +20,7 @@ static Buffer *cppdefs;
 static Vector *tmpfiles = &EMPTY_VECTOR;
 
 static void usage(int exitcode) {
-    fprintf(stderr,
+    fprintf(exitcode ? stderr : stdout,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
             "\n"
             "  -I<path>          add to include path\n"
