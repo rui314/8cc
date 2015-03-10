@@ -112,7 +112,7 @@ int readc(void) {
 }
 
 void unreadc(int c) {
-    if (c < 0)
+    if (c == EOF)
         return;
     File *f = vec_tail(files);
     assert(f->buflen < sizeof(f->buf) / sizeof(f->buf[0]));
