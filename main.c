@@ -139,7 +139,6 @@ static void parseopt(int argc, char **argv) {
             buf_printf(cppdefs, "#undef %s\n", optarg);
             break;
         case 'W': parse_warnings_arg(optarg); break;
-        case 'a': dumpast = true; break;
         case 'c': dontlink = true; break;
         case 'd': parse_debug_arg(optarg); break;
         case 'f': parse_f_arg(optarg); break;
