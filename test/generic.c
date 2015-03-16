@@ -14,20 +14,25 @@ static void test_basic(void) {
 static void test_arith(void) {
     typedef signed char schar;
     typedef unsigned char uchar;
+    typedef unsigned short ushort;
     typedef unsigned int uint;
     typedef unsigned long ulong;
     typedef long long llong;
     typedef unsigned long long ullong;
     typedef long double ldouble;
 
-    enum { B, SC, UC, I, U, L, UL, LL, ULL, F, D, LD };
+    enum { B, SC, UC, S, US, I, U, L, UL, LL, ULL, F, D, LD };
 
-#define T(x)                                                                 \
-    _Generic(x, bool:B, schar:SC, uchar:UC, int:I, uint:U, long:L, ulong:UL, \
-             llong:LL, ullong:ULL, float:F, double:D, ldouble:LD)
+#define T(x)                                                        \
+    _Generic(x, bool:B, schar:SC, uchar:UC, short:S, ushort:US,     \
+             int:I, uint:U, long:L, ulong:UL, llong:LL, ullong:ULL, \
+             float:F, double:D, ldouble:LD)
     expect(B, T((bool)0));
     expect(SC, T((schar)0));
     expect(UC, T((uchar)0));
+    expect(I, T('a'));
+    expect(US, T(u'a'));
+    expect(U, T(U'a'));
     expect(I, T(0));
     expect(U, T(0U));
     expect(L, T(0L));

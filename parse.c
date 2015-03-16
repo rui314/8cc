@@ -952,6 +952,19 @@ static Node *read_stmt_expr(void) {
     return r;
 }
 
+static Type *char_type(Token *tok) {
+    switch (tok->enc) {
+    case ENC_NONE:
+    case ENC_WCHAR:
+        return type_int;
+    case ENC_CHAR16:
+        return type_ushort;
+    case ENC_CHAR32:
+        return type_uint;
+    }
+    error("cannot reach here");
+}
+
 static Node *read_primary_expr(void) {
     Token *tok = get();
     if (!tok) return NULL;
@@ -971,7 +984,7 @@ static Node *read_primary_expr(void) {
     case TNUMBER:
         return read_number(tok->sval);
     case TCHAR:
-        return ast_inttype(type_int, tok->c);
+        return ast_inttype(char_type(tok), tok->c);
     case TSTRING:
         return ast_string(tok->sval);
     case TKEYWORD:
