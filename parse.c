@@ -2422,6 +2422,20 @@ static Node *make_switch_jump(Node *var, Case *c) {
     return ast_if(cond, ast_jump(c->label), NULL);
 }
 
+// C11 6.8.4.2p3: No two case constant expressions have the same value.
+static void check_case_duplicates(Vector *cases) {
+    int len = vec_len(cases);
+    Case *x = vec_get(cases, len - 1);
+    for (int i = 0; i < len - 1; i++) {
+        Case *y = vec_get(cases, i);
+        if (x->end < y->beg || y->end < x->beg)
+            continue;
+        if (x->beg == x->end)
+            error("duplciate case value: %d", x->beg);
+        error("duplciate case value: %d ... %d", x->beg, x->end);
+    }
+}
+
 #define SET_SWITCH_CONTEXT(brk)                 \
     Vector *ocases = cases;                     \
     char *odefaultcase = defaultcase;           \
@@ -2481,6 +2495,7 @@ static Node *read_case_label(void) {
         expect(':');
         vec_push(cases, make_case(beg, beg, label));
     }
+    check_case_duplicates(cases);
     return read_label_tail(ast_dest(label));
 }
 
