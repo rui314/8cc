@@ -235,7 +235,7 @@ typedef struct Node {
             // Function call
             Vector *args;
             struct Type *ftype;
-            // Functoin pointer or function designator
+            // Function pointer or function designator
             struct Node *fptr;
             // Function declaration
             Vector *params;

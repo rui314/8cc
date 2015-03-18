@@ -22,7 +22,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 // The last source location we want to point to when we find an error in the
-// soruce code.
+// source code.
 SourceLoc *source_loc;
 
 // Objects representing various scopes. Did you know C has so many different
@@ -45,7 +45,7 @@ static char *lcontinue;
 
 // Objects representing basic types. All variables will be of one of these types
 // or a derived type from one of them. Note that (typename){initializer} is C99
-// feature to write a literal struct.
+// feature to write struct literals.
 Type *type_void = &(Type){ KIND_VOID, 0, 0, false };
 Type *type_bool = &(Type){ KIND_BOOL, 1, 1, true };
 Type *type_char = &(Type){ KIND_CHAR, 1, 1, false };
@@ -2444,8 +2444,8 @@ static void check_case_duplicates(Vector *cases) {
         if (x->end < y->beg || y->end < x->beg)
             continue;
         if (x->beg == x->end)
-            error("duplciate case value: %d", x->beg);
-        error("duplciate case value: %d ... %d", x->beg, x->end);
+            error("duplicate case value: %d", x->beg);
+        error("duplicate case value: %d ... %d", x->beg, x->end);
     }
 }
 
