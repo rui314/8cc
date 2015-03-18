@@ -868,7 +868,7 @@ static void handle_timestamp_macro(Token *tmpl) {
     asctime_r(&now, buf);
     // Remove the trailing '\n'.
     buf[strlen(buf) - 1] = '\0';
-    make_token_pushback(tmpl, TSTRING, format("%s", buf));
+    make_token_pushback(tmpl, TSTRING, strdup(buf));
 }
 
 static void handle_file_macro(Token *tmpl) {

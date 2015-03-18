@@ -53,8 +53,7 @@ static void delete_temp_files(void) {
 }
 
 static char *base(char *path) {
-    char *buf = format("%s", path);
-    return basename(buf);
+    return basename(strdup(path));
 }
 
 static char *replace_suffix(char *filename, char suffix) {

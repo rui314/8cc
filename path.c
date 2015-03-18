@@ -36,7 +36,7 @@ static char *clean(char *p) {
             continue;
         }
         *q = '\0';
-        return format("%s", buf);
+        return strdup(buf);
     }
 }
 
