@@ -41,6 +41,11 @@ static File *make_file_string(char *s, bool autopop) {
     return r;
 }
 
+static void close_file(File *f) {
+    if (f->file)
+        fclose(f->file);
+}
+
 static int readc_file(File *f) {
     int c = getc(f->file);
     if (c == EOF) {
@@ -96,6 +101,7 @@ int readc(void) {
         if (c == EOF) {
             File *f = vec_tail(files);
             if (f->autopop) {
+                close_file(f);
                 vec_pop(files);
                 continue;
             }
@@ -142,6 +148,7 @@ void push_stream_string(char *s) {
 }
 
 void pop_stream(void) {
+    close_file(vec_tail(files));
     vec_pop(files);
 }
 
