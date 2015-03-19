@@ -11,7 +11,6 @@
 static char *clean(char *p) {
     assert(*p == '/');
     char buf[PATH_MAX];
-    int level = 0;
     char *q = buf;
     *q++ = '/';
     for (;;) {
@@ -25,17 +24,15 @@ static char *clean(char *p) {
         }
         if (!memcmp("../", p, 3)) {
             p += 3;
-            if (level == 0)
+            if (q == buf + 1)
                 continue;
             for (q--; q[-1] != '/'; q--);
-            level--;
             continue;
         }
         while (*p != '/' && *p != '\0')
             *q++ = *p++;
         if (*p == '/') {
             *q++ = *p++;
-            level++;
             continue;
         }
         *q = '\0';

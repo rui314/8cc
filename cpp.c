@@ -23,7 +23,6 @@ static Vector *std_include_path = &EMPTY_VECTOR;
 static struct tm now;
 static Token *cpp_token_zero = &(Token){ .kind = TNUMBER, .sval = "0" };
 static Token *cpp_token_one = &(Token){ .kind = TNUMBER, .sval = "1" };
-static Token *eof_token = &(Token){ TEOF };
 
 typedef void SpecialMacroHandler(Token *tok);
 typedef enum { IN_THEN, IN_ELIF, IN_ELSE } CondInclCtx;
@@ -49,7 +48,6 @@ static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
 static void define_obj_macro(char *name, Token *value);
 static void read_directive(void);
-static Token *do_read_token(bool return_at_eol);
 static Token *read_expand(void);
 
 /*
@@ -503,8 +501,8 @@ static Token *read_defined_op(void) {
 static Vector *read_intexpr_line(void) {
     Vector *r = make_vector();
     for (;;) {
-        Token *tok = do_read_token(true);
-        if (tok->kind == TEOF)
+        Token *tok = read_expand_newline();
+        if (tok->kind == TNEWLINE)
             return r;
         if (is_ident(tok, "defined")) {
             vec_push(r, read_defined_op());
@@ -985,34 +983,16 @@ Token *peek_token(void) {
     return r;
 }
 
-static Token *do_read_token(bool return_at_eol) {
-    for (;;) {
-        Token *tok = lex();
-        if (tok->kind == TEOF)
-            return tok;
-        if (tok->kind == TNEWLINE) {
-            if (return_at_eol)
-                return eof_token;
-            continue;
-        }
-        if (tok->bol && is_keyword(tok, '#')) {
-            read_directive();
-            continue;
-        }
-        unget_token(tok);
-        Token *r = read_expand();
-        if (r->bol && is_keyword(r, '#') && r->hideset == NULL) {
-            read_directive();
-            continue;
-        }
-        return r;
-    }
-}
-
 Token *read_token(void) {
-    Token *tok = do_read_token(false);
-    if (tok->kind == TEOF)
-        return tok;
+    Token *tok;
+    for (;;) {
+        tok = read_expand();
+        if (tok->bol && is_keyword(tok, '#') && tok->hideset == NULL) {
+            read_directive();
+            continue;
+        }
+        break;
+    }
     assert(tok->kind != TNEWLINE);
     assert(tok->kind != TSPACE);
     assert(tok->kind != TMACRO_PARAM);
