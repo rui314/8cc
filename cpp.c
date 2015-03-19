@@ -434,14 +434,13 @@ static Vector *read_funclike_macro_body(Map *param) {
         }
         vec_push(r, tok);
     }
-    hashhash_check(r);
-    return r;
 }
 
 static void read_funclike_macro(char *name) {
     Map *param = make_map();
     bool is_varg = read_funclike_macro_params(param);
     Vector *body = read_funclike_macro_body(param);
+    hashhash_check(body);
     Macro *macro = make_func_macro(body, map_len(param), is_varg);
     map_put(macros, name, macro);
 }
