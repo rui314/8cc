@@ -13,7 +13,6 @@
 #include <time.h>
 #include "8cc.h"
 
-bool debug_cpp;
 static Map *macros = &EMPTY_MAP;
 static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
@@ -990,13 +989,7 @@ Token *read_token(void) {
             read_directive();
             continue;
         }
-        break;
+        assert(tok->kind < MIN_CPP_TOKEN);
+        return maybe_convert_keyword(tok);
     }
-    assert(tok->kind != TNEWLINE);
-    assert(tok->kind != TSPACE);
-    assert(tok->kind != TMACRO_PARAM);
-    tok = maybe_convert_keyword(tok);
-    if (debug_cpp)
-        fprintf(stderr, "  token=%s\n", tok2s(tok));
-    return tok;
 }

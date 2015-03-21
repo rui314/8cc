@@ -33,7 +33,6 @@ static void usage(int exitcode) {
             "  -fdump-ast        print AST\n"
             "  -fdump-stack      Print stacktrace\n"
             "  -fno-dump-source  Do not emit source code as assembly comment\n"
-            "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
             "  -g                Do nothing at this moment\n"
             "  -Wall             Enable all warnings\n"
@@ -89,17 +88,6 @@ static void parse_warnings_arg(char *s) {
         error("unknown -W option: %s", s);
 }
 
-static void parse_debug_arg(char *s) {
-    char *tok, *save;
-    while ((tok = strtok_r(s, ",", &save)) != NULL) {
-        s = NULL;
-        if (!strcmp(tok, "cpp"))
-            debug_cpp = true;
-        else
-            error("Unknown debug parameter: %s", tok);
-    }
-}
-
 static void parse_f_arg(char *s) {
     if (!strcmp(s, "dump-ast"))
         dumpast = true;
@@ -139,7 +127,6 @@ static void parseopt(int argc, char **argv) {
             break;
         case 'W': parse_warnings_arg(optarg); break;
         case 'c': dontlink = true; break;
-        case 'd': parse_debug_arg(optarg); break;
         case 'f': parse_f_arg(optarg); break;
         case 'm': parse_m_arg(optarg); break;
         case 'g': break;

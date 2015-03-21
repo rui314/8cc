@@ -18,6 +18,7 @@ enum {
     TEOF,
     TINVALID,
     // Only in CPP
+    MIN_CPP_TOKEN,
     TNEWLINE,
     TSPACE,
     TMACRO_PARAM,
@@ -318,8 +319,6 @@ Token *peek_token(void);
 Token *read_token(void);
 
 // debug.c
-extern bool debug_cpp;
-
 char *ty2s(Type *ty);
 char *node2s(Node *node);
 char *tok2s(Token *tok);
