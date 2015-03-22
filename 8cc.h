@@ -298,8 +298,6 @@ extern Type *type_ldouble;
 // encoding.c
 Buffer *to_utf16(char *p, int len);
 Buffer *to_utf32(char *p, int len);
-void write16(Buffer *b, uint32_t rune);
-void write32(Buffer *b, uint32_t rune);
 void write_utf8(Buffer *b, uint32_t rune);
 
 // buffer.c

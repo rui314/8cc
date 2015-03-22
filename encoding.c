@@ -43,16 +43,14 @@ static int read_rune(uint32_t *r, char *s, char *end) {
     error("invalid UTF-8 sequence");
 }
 
-void write16(Buffer *b, uint32_t rune) {
-    buf_write(b, rune & 0xFF);
-    buf_write(b, (rune >> 8) & 0xFF);
+static void write16(Buffer *b, uint16_t x) {
+    buf_write(b, x & 0xFF);
+    buf_write(b, x >> 8);
 }
 
-void write32(Buffer *b, uint32_t rune) {
-    buf_write(b, rune & 0xFF);
-    buf_write(b, (rune >> 8) & 0xFF);
-    buf_write(b, (rune >> 16) & 0xFF);
-    buf_write(b, (rune >> 24) & 0xFF);
+static void write32(Buffer *b, uint32_t x) {
+    write16(b, x & 0xFFFF);
+    write16(b, x >> 16);
 }
 
 Buffer *to_utf16(char *p, int len) {
