@@ -40,6 +40,9 @@ static void test_string(void) {
     char expected[] = { 65, 97, 7, 8, 12, 10, 13, 9, 11, 27, 7, 15, -99, -1, 18, 0 };
     expect_string(expected, "Aa\a\b\f\n\r\t\v\e\7\17\235\xff\x012");
     expect('c', L'c');
+    expect(0x3042, L'\u3042');
+    expect(0x3042, u'\u3042');
+    expect(0x3042, U'\u3042');
 
     // make sure we can handle an identifier starting with "L"
     int L = 7;

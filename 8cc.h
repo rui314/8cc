@@ -92,7 +92,7 @@ typedef struct {
         struct {
             char *sval;
             int slen;
-            char c;
+            int c;
             int enc;
         };
         // TMACRO_PARAM

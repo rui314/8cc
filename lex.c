@@ -79,7 +79,7 @@ static Token *make_invalid(char c) {
     return make_token(&(Token){ TINVALID, .c = c });
 }
 
-static Token *make_char(char c, int enc) {
+static Token *make_char(int c, int enc) {
     return make_token(&(Token){ TCHAR, .c = c, .enc = enc });
 }
 
@@ -289,12 +289,14 @@ static int read_escaped_char(void) {
 
 static Token *read_char(int enc) {
     int c = readc();
-    char r = (c == '\\') ? read_escaped_char() : c;
+    int r = (c == '\\') ? read_escaped_char() : c;
     c = readc();
     if (c == EOF)
         error("premature end of input");
     if (c != '\'')
         error("unterminated string: %c", c);
+    if (enc == ENC_NONE)
+        return make_char((char)r, enc);
     return make_char(r, enc);
 }
 
