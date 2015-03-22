@@ -72,6 +72,12 @@ static void test_mbstring(void) {
     expect(0, memcmp("\xE3\x81\x82\0", "\u3042", 4));
     expect(12, sizeof("\u3042" L"x"));
     expect(0, memcmp("\x42\x30\0\0\x78\0\0\0\0\0\0\0", "\u3042" L"x", 12));
+
+    // GCC 5 allows UTF-8 strings as identifiers.
+#ifdef __8cc__
+    int 日本語 = 3;
+    expect(3, 日本語);
+#endif
 }
 
 static void test_float(void) {

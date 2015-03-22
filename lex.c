@@ -327,7 +327,7 @@ static Token *read_ident(char c) {
     buf_write(b, c);
     for (;;) {
         c = readc();
-        if (isalnum(c) || c == '_' || c == '$') {
+        if (isalnum(c) || (c & 0x80) || c == '_' || c == '$') {
             buf_write(b, c);
             continue;
         }
@@ -394,6 +394,7 @@ static Token *do_read_token(void) {
     case '/': return make_keyword(next('=') ? OP_A_DIV : '/');
     case 'a' ... 't': case 'v' ... 'z': case 'A' ... 'K':
     case 'M' ... 'T': case 'V' ... 'Z': case '_': case '$':
+    case 0x80 ... 0xFD:
         return read_ident(c);
     case '0' ... '9':
         return read_number(c);
