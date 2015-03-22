@@ -8,6 +8,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdnoreturn.h>
 
 enum {
     TIDENT,
@@ -342,13 +343,7 @@ extern bool warning_is_error;
 #define error(...) errorf(__FILE__, __LINE__, __VA_ARGS__)
 #define warn(...)  warnf(__FILE__, __LINE__, __VA_ARGS__)
 
-#ifndef __8cc__
-#define NORETURN __attribute__((noreturn))
-#else
-#define NORETURN
-#endif
-
-void errorf(char *file, int line, char *fmt, ...) NORETURN;
+noreturn void errorf(char *file, int line, char *fmt, ...);
 void warnf(char *file, int line, char *fmt, ...);
 
 // file.c
