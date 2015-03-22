@@ -51,12 +51,19 @@ static void test_string(void) {
 static void test_mbstring(void) {
     expect(2, sizeof(u""));
     expect(8, sizeof(u"abc"));
+    expect(8, sizeof("ab" u"c"));
+    expect(8, sizeof(u"ab" u"c"));
     expect(1, sizeof(u8""));
     expect(4, sizeof(u8"abc"));
+    expect(4, sizeof("ab" u8"c"));
+    expect(4, sizeof(u8"ab" u8"c"));
     expect(4, sizeof(L""));
     expect(16, sizeof(L"abc"));
+    expect(16, sizeof(L"ab" L"c"));
     expect(4, sizeof(U""));
     expect(16, sizeof(U"abc"));
+    expect(16, sizeof("ab" U"c"));
+    expect(16, sizeof(U"ab" U"c"));
     expect(0, memcmp("x\0\0\0y\0\0\0z\0\0\0\0\0\0", L"xyz", 16));
     expect(0, memcmp("x\0\0\0y\0\0\0z\0\0\0\0\0\0", U"xyz", 16));
     expect(0, memcmp("\x78\0\x79\0\x7A\0\0\0", u"xyz", 8));

@@ -2673,15 +2673,22 @@ Vector *read_toplevels(void) {
 
 // C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
 static void concatenate_string(Token *tok) {
+    int enc = tok->enc;
     Buffer *b = make_buffer();
     buf_append(b, tok->sval, tok->slen - 1);
     while (peek_token()->kind == TSTRING) {
         Token *tok2 = read_token();
         buf_append(b, tok2->sval, tok2->slen - 1);
+        int enc2 = tok2->enc;
+        if (enc != ENC_NONE && enc2 != ENC_NONE && enc != enc2)
+            error("unsupported non-standard concatenation of string literals: %s", tok2s(tok2));
+        if (enc == ENC_NONE)
+            enc = enc2;
     }
     buf_write(b, '\0');
     tok->sval = buf_body(b);
     tok->slen = buf_len(b);
+    tok->enc = enc;
 }
 
 static Token *get(void) {
