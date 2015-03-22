@@ -103,5 +103,5 @@ void write_utf8(Buffer *b, uint32_t rune) {
         buf_write(b, 0x80 | (rune & 0x3F));
         return;
     }
-    error("invalid UCS character: \\U%08d", rune);
+    error("invalid UCS character: \\U%08x", rune);
 }
