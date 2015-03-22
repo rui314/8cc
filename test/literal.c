@@ -67,6 +67,11 @@ static void test_mbstring(void) {
     expect(0, memcmp("x\0\0\0y\0\0\0z\0\0\0\0\0\0", L"xyz", 16));
     expect(0, memcmp("x\0\0\0y\0\0\0z\0\0\0\0\0\0", U"xyz", 16));
     expect(0, memcmp("\x78\0\x79\0\x7A\0\0\0", u"xyz", 8));
+
+    expect(4, sizeof("\u3042"));
+    expect(0, memcmp("\xE3\x81\x82\0", "\u3042", 4));
+    expect(12, sizeof("\u3042" L"x"));
+    expect(0, memcmp("\x42\x30\0\0\x78\0\0\0\0\0\0\0", "\u3042" L"x", 12));
 }
 
 static void test_float(void) {
@@ -81,11 +86,9 @@ static void test_ucn(void) {
     expect('$', L'\U00000024');
     expect_string("$", "\u0024");
     expect_string("$", "\U00000024");
-#ifdef __8cc__
     expect('X', L'X');
     expect('X', U'X');
     expect('X', u'X');
-#endif
 }
 
 int g1 = 80;

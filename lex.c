@@ -306,8 +306,16 @@ static Token *read_string(int enc) {
             error("Unterminated string");
         if (c == '"')
             break;
-        if (c == '\\')
-            c = read_escaped_char();
+        if (c != '\\') {
+            buf_write(b, c);
+            continue;
+        }
+        bool isucs = (peek() == 'u' || peek() == 'U');
+        c = read_escaped_char();
+        if (isucs) {
+            write_utf8(b, c);
+            continue;
+        }
         buf_write(b, c);
     }
     buf_write(b, '\0');

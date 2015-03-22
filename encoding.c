@@ -19,37 +19,36 @@ static int count_leading_ones(char c) {
 }
 
 static int read_rune(uint32_t *r, char *s, char *end) {
-    int len = count_leading_ones(s[0]) + 1;
-    if (len > 4 || s + len > end)
-        error("invalid UTF-8 sequence");
-    switch (len) {
-    case 1:
+    int len = count_leading_ones(s[0]);
+    if (len == 0) {
         *r = s[0];
         return 1;
-    case 2:
-        *r = s[0] & 0b11111;
-        break;
-    case 3:
-        *r = s[0] & 0b1111;
-        break;
-    case 4:
-        *r = s[0] & 0b111;
-        break;
     }
-    for (int i = 1; i < len; i++) {
-        if ((s[i] & 0b11000000) != 0b10000000)
+    if (s + len > end)
+        error("invalid UTF-8 sequence");
+    for (int i = 1; i < len; i++)
+        if ((s[i] & 0xC0) != 0x80)
             error("invalid UTF-8 continuation byte");
-        *r = (*r << 6) | (s[i] & 0b111111);
+    switch (len) {
+    case 2:
+        *r = ((s[0] & 0x1F) << 6) | (s[1] & 0x3F);
+        return 2;
+    case 3:
+        *r = ((s[0] & 0xF) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F);
+        return 3;
+    case 4:
+        *r = ((s[0] & 0x7) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F);
+        return 4;
     }
-    return len;
+    error("invalid UTF-8 sequence");
 }
 
-static void write16(Buffer *b, uint32_t rune) {
+void write16(Buffer *b, uint32_t rune) {
     buf_write(b, rune & 0xFF);
     buf_write(b, (rune >> 8) & 0xFF);
 }
 
-static void write32(Buffer *b, uint32_t rune) {
+void write32(Buffer *b, uint32_t rune) {
     buf_write(b, rune & 0xFF);
     buf_write(b, (rune >> 8) & 0xFF);
     buf_write(b, (rune >> 16) & 0xFF);
@@ -81,4 +80,30 @@ Buffer *to_utf32(char *p, int len) {
         write32(b, rune);
     }
     return b;
+}
+
+void write_utf8(Buffer *b, uint32_t rune) {
+    if (rune < 0x80) {
+        buf_write(b, rune);
+        return;
+    }
+    if (rune < 0x800) {
+        buf_write(b, 0xC0 | (rune >> 6));
+        buf_write(b, 0x80 | (rune & 0x3F));
+        return;
+    }
+    if (rune < 0x10000) {
+        buf_write(b, 0xE0 | (rune >> 12));
+        buf_write(b, 0x80 | ((rune >> 6) & 0x3F));
+        buf_write(b, 0x80 | (rune & 0x3F));
+        return;
+    }
+    if (rune < 0x200000) {
+        buf_write(b, 0xF0 | (rune >> 18));
+        buf_write(b, 0x80 | ((rune >> 12) & 0x3F));
+        buf_write(b, 0x80 | ((rune >> 6) & 0x3F));
+        buf_write(b, 0x80 | (rune & 0x3F));
+        return;
+    }
+    error("invalid UCS character: \\U%08d", rune);
 }
