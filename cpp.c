@@ -595,8 +595,7 @@ static void skip_newlines(void) {
 static void read_endif(void) {
     if (vec_len(cond_incl_stack) == 0)
         error("stray #endif");
-    CondIncl *ci = vec_tail(cond_incl_stack);
-    vec_pop(cond_incl_stack);
+    CondIncl *ci = vec_pop(cond_incl_stack);
     expect_newline();
 
     // Detect an #ifndef and #endif pair that guards the entire
