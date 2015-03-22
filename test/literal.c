@@ -28,10 +28,8 @@ static void test_char(void) {
 }
 
 static void test_string(void) {
-    int u8 = 7;
     expect_string("abc", "abc");
     expect_string("abc", u8"abc");
-    expect(7, u8);
     expect('a', "abc"[0]);
     expect(0, "abc"[3]);
     expect_string("abcd", "ab" "cd");
@@ -44,11 +42,11 @@ static void test_string(void) {
     expect(0x3042, u'\u3042');
     expect(0x3042, U'\u3042');
 
-    // make sure we can handle an identifier starting with "L"
-    int L = 7;
-    expect(7, L);
-    int L123 = 123;
-    expect(123, L123);
+    // Make sure we can handle an identifier starting with "L", "u", "U" or "u8".
+    int L = 1, u = 2, U = 3, u8 = 4;
+    expect(10, L + u + U + u8);
+    int Lx = 1, ux = 2, Ux = 3, u8x = 4;
+    expect(10, Lx + ux + Ux + u8x);
 }
 
 static void test_mbstring(void) {
