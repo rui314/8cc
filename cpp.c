@@ -248,6 +248,7 @@ static Token *stringize(Token *tmpl, Vector *args) {
     r->kind = TSTRING;
     r->sval = buf_body(b);
     r->slen = buf_len(b);
+    r->enc = ENC_NONE;
     return r;
 }
 
@@ -853,6 +854,7 @@ static void make_token_pushback(Token *tmpl, int kind, char *sval) {
     tok->kind = kind;
     tok->sval = sval;
     tok->slen = strlen(sval) + 1;
+    tok->enc = ENC_NONE;
     unget_token(tok);
 }
 

@@ -755,6 +755,17 @@ static void emit_literal(Node *node) {
         emit("movsd %s(#rip), #xmm0", node->flabel);
         break;
     }
+    case KIND_ARRAY: {
+        if (!node->slabel) {
+            node->slabel = make_label();
+            emit_noindent(".data");
+            emit_label(node->slabel);
+            emit(".string \"%s\"", quote_cstring_len(node->sval, node->ty->size));
+            emit_noindent(".text");
+        }
+        emit("lea %s(#rip), #rax", node->slabel);
+        break;
+    }
     default:
         error("internal error");
     }
@@ -839,18 +850,6 @@ static void maybe_print_source_loc(Node *node) {
         maybe_print_source_line(file, node->sourceLoc->line);
     }
     last_loc = loc;
-}
-
-static void emit_literal_string(Node *node) {
-    SAVE;
-    if (!node->slabel) {
-        node->slabel = make_label();
-        emit_noindent(".data");
-        emit_label(node->slabel);
-        emit(".string \"%s\"", quote_cstring(node->sval));
-        emit_noindent(".text");
-    }
-    emit("lea %s(#rip), #rax", node->slabel);
 }
 
 static void emit_lvar(Node *node) {
@@ -1208,7 +1207,6 @@ static void emit_expr(Node *node) {
     maybe_print_source_loc(node);
     switch (node->kind) {
     case AST_LITERAL: emit_literal(node); return;
-    case AST_STRING:  emit_literal_string(node); return;
     case AST_LVAR:    emit_lvar(node); return;
     case AST_GVAR:    emit_gvar(node); return;
     case AST_FUNCDESG: return;

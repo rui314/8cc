@@ -1,6 +1,7 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,17 +85,41 @@ char *format(char *fmt, ...) {
     return r;
 }
 
+static char *quote(char c) {
+    switch (c) {
+    case '"': return "\\\"";
+    case '\\': return "\\\\";
+    case '\b': return "\\b";
+    case '\f': return "\\f";
+    case '\n': return "\\n";
+    case '\r': return "\\r";
+    case '\t': return "\\t";
+    }
+    return NULL;
+}
+
+static void print(Buffer *b, char c) {
+    char *q = quote(c);
+    if (q) {
+        buf_printf(b, "%s", q);
+    } else if (isprint(c)) {
+        buf_printf(b, "%c", c);
+    } else {
+        buf_printf(b, "\\x%02x", c);
+    }
+}
+
 char *quote_cstring(char *p) {
     Buffer *b = make_buffer();
-    while (*p) {
-        if (*p == '\"' || *p == '\\')
-            buf_printf(b, "\\%c", *p);
-        else if (*p == '\n')
-            buf_printf(b, "\\n");
-        else
-            buf_printf(b, "%c", *p);
-        p++;
-    }
+    while (*p)
+        print(b, *p++);
+    return buf_body(b);
+}
+
+char *quote_cstring_len(char *p, int len) {
+    Buffer *b = make_buffer();
+    for (int i = 0; i < len; i++)
+        print(b, p[i]);
     return buf_body(b);
 }
 

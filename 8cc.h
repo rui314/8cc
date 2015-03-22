@@ -105,7 +105,6 @@ typedef struct {
 
 enum {
     AST_LITERAL = 256,
-    AST_STRING,
     AST_LVAR,
     AST_GVAR,
     AST_TYPEDEF,
@@ -296,6 +295,10 @@ extern Type *type_ldouble;
 #define EMPTY_MAP ((Map){})
 #define EMPTY_VECTOR ((Vector){})
 
+// encoding.c
+Buffer *to_utf16(char *p, int len);
+Buffer *to_utf32(char *p, int len);
+
 // buffer.c
 Buffer *make_buffer(void);
 char *buf_body(Buffer *b);
@@ -306,6 +309,7 @@ void buf_printf(Buffer *b, char *fmt, ...);
 char *vformat(char *fmt, va_list ap);
 char *format(char *fmt, ...);
 char *quote_cstring(char *p);
+char *quote_cstring_len(char *p, int len);
 char *quote_char(char c);
 
 // cpp.c

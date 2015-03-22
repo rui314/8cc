@@ -208,11 +208,31 @@ static Node *ast_typedef(Type *ty, char *name) {
     return r;
 }
 
-static Node *ast_string(char *str, int len) {
-    return make_ast(&(Node){
-        .kind = AST_STRING,
-        .ty = make_array_type(type_char, len),
-        .sval = str });
+static Node *ast_string(int enc, char *str, int len) {
+    Type *ty;
+    char *body;
+
+    switch (enc) {
+    case ENC_NONE:
+    case ENC_UTF8:
+        ty = make_array_type(type_char, len);
+        body = str;
+        break;
+    case ENC_CHAR16: {
+        Buffer *b = to_utf16(str, len);
+        ty = make_array_type(type_ushort, buf_len(b) / type_ushort->size);
+        body = buf_body(b);
+        break;
+    }
+    case ENC_CHAR32:
+    case ENC_WCHAR: {
+        Buffer *b = to_utf32(str, len);
+        ty = make_array_type(type_uint, buf_len(b) / type_uint->size);
+        body = buf_body(b);
+        break;
+    }
+    }
+    return make_ast(&(Node){ AST_LITERAL, .ty = ty, .sval = body });
 }
 
 static Node *ast_funcall(Type *ftype, char *fname, Vector *args) {
@@ -952,8 +972,8 @@ static Node *read_stmt_expr(void) {
     return r;
 }
 
-static Type *char_type(Token *tok) {
-    switch (tok->enc) {
+static Type *char_type(int enc) {
+    switch (enc) {
     case ENC_NONE:
     case ENC_WCHAR:
         return type_int;
@@ -984,9 +1004,9 @@ static Node *read_primary_expr(void) {
     case TNUMBER:
         return read_number(tok->sval);
     case TCHAR:
-        return ast_inttype(char_type(tok), tok->c);
+        return ast_inttype(char_type(tok->enc), tok->c);
     case TSTRING:
-        return ast_string(tok->sval, tok->slen);
+        return ast_string(tok->enc, tok->sval, tok->slen);
     case TKEYWORD:
         unget_token(tok);
         return NULL;
@@ -2211,7 +2231,7 @@ static Node *read_func_body(Type *functype, char *fname, Vector *params) {
     localenv = make_map_parent(localenv);
     localvars = make_vector();
     current_func_type = functype;
-    Node *funcname = ast_string(fname, strlen(fname) + 1);
+    Node *funcname = ast_string(ENC_NONE, fname, strlen(fname) + 1);
     map_put(localenv, "__func__", funcname);
     map_put(localenv, "__FUNCTION__", funcname);
     Node *body = read_compound_stmt();

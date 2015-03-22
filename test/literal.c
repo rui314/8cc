@@ -2,6 +2,7 @@
 // This program is free software licensed under the MIT license.
 
 #include "test.h"
+#include "string.h"
 
 static void test_char(void) {
     expect(65, 'A');
@@ -35,25 +36,30 @@ static void test_string(void) {
     expect(0, "abc"[3]);
     expect_string("abcd", "ab" "cd");
     expect_string("abcdef", "ab" "cd" "ef");
-    expect(4, sizeof("abc"));
-    expect(4, sizeof("a\0\0"));
-    expect(4, sizeof("ab" "\0"));
 
     char expected[] = { 65, 97, 7, 8, 12, 10, 13, 9, 11, 27, 7, 15, -99, -1, 18, 0 };
     expect_string(expected, "Aa\a\b\f\n\r\t\v\e\7\17\235\xff\x012");
-
     expect('c', L'c');
-#ifdef __8cc__
-    expect_string("asdf", L"asdf");
-    expect_string("abc", U"abc");
-    expect_string("abc", u"abc");
-#endif
 
     // make sure we can handle an identifier starting with "L"
     int L = 7;
     expect(7, L);
     int L123 = 123;
     expect(123, L123);
+}
+
+static void test_mbstring(void) {
+    expect(2, sizeof(u""));
+    expect(8, sizeof(u"abc"));
+    expect(1, sizeof(u8""));
+    expect(4, sizeof(u8"abc"));
+    expect(4, sizeof(L""));
+    expect(16, sizeof(L"abc"));
+    expect(4, sizeof(U""));
+    expect(16, sizeof(U"abc"));
+    expect(0, memcmp("x\0\0\0y\0\0\0z\0\0\0\0\0\0", L"xyz", 16));
+    expect(0, memcmp("x\0\0\0y\0\0\0z\0\0\0\0\0\0", U"xyz", 16));
+    expect(0, memcmp("\x78\0\x79\0\x7A\0\0\0", u"xyz", 8));
 }
 
 static void test_float(void) {
@@ -98,6 +104,7 @@ void testmain(void) {
     print("literal");
     test_char();
     test_string();
+    test_mbstring();
     test_float();
     test_ucn();
     test_compound();
