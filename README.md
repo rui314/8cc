@@ -60,6 +60,8 @@ Links for C compiler development
 Besides popular books about compiler, such as the Dragon Book,
 I found the following books/documents are very useful
 to develop a C compiler.
+Note that the standard draft versions are very close to the ratified versions.
+You can practically use them as the standard documents.
 
 -   LCC: A Retargetable C Compiler: Design and Implementation
     http://www.amazon.com/dp/0805316701,
