@@ -23,20 +23,19 @@
 #include "8cc.h"
 
 static Vector *files = &EMPTY_VECTOR;
+static Vector *stashed = &EMPTY_VECTOR;
 
-static File *make_file(FILE *file, char *name, bool autopop) {
+File *make_file(FILE *file, char *name) {
     File *r = calloc(1, sizeof(File));
     r->file = file;
     r->name = name;
     r->line = 1;
-    r->autopop = autopop;
     return r;
 }
 
-static File *make_file_string(char *s, bool autopop) {
+File *make_file_string(char *s) {
     File *r = calloc(1, sizeof(File));
     r->line = 1;
-    r->autopop = autopop;
     r->p = s;
     return r;
 }
@@ -99,13 +98,10 @@ int readc(void) {
     for (;;) {
         int c = get();
         if (c == EOF) {
-            File *f = vec_tail(files);
-            if (f->autopop) {
-                close_file(f);
-                vec_pop(files);
-                continue;
-            }
-            return c;
+            if (vec_len(files) == 1)
+                return c;
+            close_file(vec_pop(files));
+            continue;
         }
         if (c != '\\')
             return c;
@@ -135,21 +131,8 @@ File *current_file(void) {
     return vec_tail(files);
 }
 
-void insert_stream(FILE *file, char *name) {
-    vec_push(files, make_file(file, name, true));
-}
-
-void push_stream(FILE *file, char *name) {
-    vec_push(files, make_file(file, name, false));
-}
-
-void push_stream_string(char *s) {
-    vec_push(files, make_file_string(s, false));
-}
-
-void pop_stream(void) {
-    close_file(vec_tail(files));
-    vec_pop(files);
+void stream_push(File *f) {
+    vec_push(files, f);
 }
 
 int stream_depth(void) {
@@ -161,4 +144,13 @@ char *input_position(void) {
         return "(unknown)";
     File *f = vec_tail(files);
     return format("%s:%d:%d", f->name, f->line, f->column);
+}
+
+void stream_stash(File *f) {
+    vec_push(stashed, files);
+    files = make_vector1(f);
+}
+
+void stream_unstash(void) {
+    files = vec_pop(stashed);
 }

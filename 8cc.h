@@ -70,7 +70,6 @@ typedef struct {
     int line;
     int column;
     int ntok;  // number of tokens in the file (except space and newline)
-    bool autopop;
     int last;
     int buf[3];
     int buflen;
@@ -353,15 +352,16 @@ void errorf(char *file, int line, char *fmt, ...) NORETURN;
 void warnf(char *file, int line, char *fmt, ...);
 
 // file.c
+File *make_file(FILE *file, char *name);
+File *make_file_string(char *s);
 int readc(void);
 void unreadc(int c);
 File *current_file(void);
-void insert_stream(FILE *file, char *name);
-void push_stream(FILE *file, char *name);
-void push_stream_string(char *s);
-void pop_stream(void);
+void stream_push(File *file);
 int stream_depth(void);
 char *input_position(void);
+void stream_stash(File *f);
+void stream_unstash(void);
 
 // gen.c
 void set_output_file(FILE *fp);

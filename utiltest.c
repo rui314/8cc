@@ -159,7 +159,7 @@ static void test_path(void) {
 }
 
 static void test_file(void) {
-    push_stream_string("abc");
+    stream_push(make_file_string("abc"));
     assert_int('a', readc());
     assert_int('b', readc());
     unreadc('b');

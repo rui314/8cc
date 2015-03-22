@@ -38,13 +38,13 @@ static void skip_block_comment(void);
 void lex_init(char *filename) {
     vec_push(buffers, make_vector());
     if (!strcmp(filename, "-")) {
-        push_stream(stdin, NULL);
+        stream_push(make_file(stdin, "-"));
         return;
     }
     FILE *fp = fopen(filename, "r");
     if (!fp)
         error("Cannot open %s: %s", filename, strerror(errno));
-    push_stream(fp, filename);
+    stream_push(make_file(fp, filename));
 }
 
 static Token *make_token(Token *tmpl) {
@@ -516,12 +516,12 @@ void unget_token(Token *tok) {
 }
 
 Token *lex_string(char *s) {
-    push_stream_string(s);
+    stream_stash(make_file_string(s));
     Token *r = do_read_token();
     next('\n');
     if (peek() != EOF)
         error("unconsumed input: %s", s);
-    pop_stream();
+    stream_unstash();
     return r;
 }
 

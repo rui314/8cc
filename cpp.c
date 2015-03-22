@@ -54,11 +54,11 @@ static Token *read_expand(void);
  */
 
 void cpp_eval(char *buf) {
-    push_stream_string(buf);
+    stream_stash(make_file_string(buf));
     Vector *toplevels = read_toplevels();
     for (int i = 0; i < vec_len(toplevels); i++)
         emit_toplevel(vec_get(toplevels, i));
-    pop_stream();
+    stream_unstash();
 }
 
 /*
@@ -685,7 +685,7 @@ static bool try_include(char *dir, char *filename, bool isimport) {
         return false;
     if (isimport)
         map_put(once, path, (void *)1);
-    insert_stream(fp, path);
+    stream_push(make_file(fp, path));
     return true;
 }
 
