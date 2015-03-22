@@ -1,6 +1,14 @@
 // Copyright 2015 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+// This file defines functions to convert UTF-8 strings to UTF-16 or UTF-32.
+//
+// 8cc uses UTF-16 for string literals prefixed with u (char16_t strings).
+// UTF-32 is used for string literals prefixed with L or U
+// (wchar_t or char32_t strings).
+// Unprefixed or u8 strings are supposed to be in UTF-8 endcoding.
+// Source files are supposed to be written in UTF-8.
+
 #include "8cc.h"
 
 static int count_leading_ones(char c) {
