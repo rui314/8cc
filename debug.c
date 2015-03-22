@@ -292,7 +292,7 @@ char *tok2s(Token *tok) {
 #include "keyword.inc"
 #undef keyword
 #undef op
-        default: return format("%c", tok->c);
+        default: return format("%c", tok->id);
         }
     case TCHAR:
         return format("%s'%s'",

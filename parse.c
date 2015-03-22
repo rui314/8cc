@@ -208,10 +208,10 @@ static Node *ast_typedef(Type *ty, char *name) {
     return r;
 }
 
-static Node *ast_string(char *str) {
+static Node *ast_string(char *str, int len) {
     return make_ast(&(Node){
         .kind = AST_STRING,
-        .ty = make_array_type(type_char, strlen(str) + 1),
+        .ty = make_array_type(type_char, len),
         .sval = str });
 }
 
@@ -986,7 +986,7 @@ static Node *read_primary_expr(void) {
     case TCHAR:
         return ast_inttype(char_type(tok), tok->c);
     case TSTRING:
-        return ast_string(tok->sval);
+        return ast_string(tok->sval, tok->slen);
     case TKEYWORD:
         unget_token(tok);
         return NULL;
@@ -2211,7 +2211,7 @@ static Node *read_func_body(Type *functype, char *fname, Vector *params) {
     localenv = make_map_parent(localenv);
     localvars = make_vector();
     current_func_type = functype;
-    Node *funcname = ast_string(fname);
+    Node *funcname = ast_string(fname, strlen(fname) + 1);
     map_put(localenv, "__func__", funcname);
     map_put(localenv, "__FUNCTION__", funcname);
     Node *body = read_compound_stmt();
@@ -2654,10 +2654,14 @@ Vector *read_toplevels(void) {
 // C11 5.1.1.2p6 Adjacent string literal tokens are concatenated.
 static void concatenate_string(Token *tok) {
     Buffer *b = make_buffer();
-    buf_printf(b, "%s", tok->sval);
-    while (peek_token()->kind == TSTRING)
-        buf_printf(b, "%s", read_token()->sval);
+    buf_append(b, tok->sval, tok->slen - 1);
+    while (peek_token()->kind == TSTRING) {
+        Token *tok2 = read_token();
+        buf_append(b, tok2->sval, tok2->slen - 1);
+    }
+    buf_write(b, '\0');
     tok->sval = buf_body(b);
+    tok->slen = buf_len(b);
 }
 
 static Token *get(void) {

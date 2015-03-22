@@ -63,8 +63,8 @@ static Token *make_ident(char *p) {
     return make_token(&(Token){ TIDENT, .sval = p });
 }
 
-static Token *make_strtok(char *s, int enc) {
-    return make_token(&(Token){ TSTRING, .sval = s, .enc = enc });
+static Token *make_strtok(char *s, int len, int enc) {
+    return make_token(&(Token){ TSTRING, .sval = s, .slen = len, .enc = enc });
 }
 
 static Token *make_keyword(int id) {
@@ -311,7 +311,7 @@ static Token *read_string(int enc) {
         buf_write(b, c);
     }
     buf_write(b, '\0');
-    return make_strtok(buf_body(b), enc);
+    return make_strtok(buf_body(b), buf_len(b), enc);
 }
 
 static Token *read_ident(char c) {

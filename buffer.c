@@ -38,6 +38,11 @@ void buf_write(Buffer *b, char c) {
     b->body[b->len++] = c;
 }
 
+void buf_append(Buffer *b, char *s, int len) {
+    for (int i = 0; i < len; i++)
+        buf_write(b, s[i]);
+}
+
 void buf_printf(Buffer *b, char *fmt, ...) {
     va_list args;
     for (;;) {

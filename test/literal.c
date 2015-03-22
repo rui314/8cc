@@ -35,6 +35,9 @@ static void test_string(void) {
     expect(0, "abc"[3]);
     expect_string("abcd", "ab" "cd");
     expect_string("abcdef", "ab" "cd" "ef");
+    expect(4, sizeof("abc"));
+    expect(4, sizeof("a\0\0"));
+    expect(4, sizeof("ab" "\0"));
 
     char expected[] = { 65, 97, 7, 8, 12, 10, 13, 9, 11, 27, 7, 15, -99, -1, 18, 0 };
     expect_string(expected, "Aa\a\b\f\n\r\t\v\e\7\17\235\xff\x012");

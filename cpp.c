@@ -235,21 +235,19 @@ static void glue_push(Vector *tokens, Token *tok) {
     vec_push(tokens, glue_tokens(last, tok));
 }
 
-static char *join_tokens(Vector *args, bool sep) {
+static Token *stringize(Token *tmpl, Vector *args) {
     Buffer *b = make_buffer();
     for (int i = 0; i < vec_len(args); i++) {
         Token *tok = vec_get(args, i);
-        if (sep && buf_len(b) && tok->space)
+        if (buf_len(b) && tok->space)
             buf_printf(b, " ");
         buf_printf(b, "%s", tok2s(tok));
     }
-    return buf_body(b);
-}
-
-static Token *stringize(Token *tmpl, Vector *args) {
+    buf_write(b, '\0');
     Token *r = copy_token(tmpl);
     r->kind = TSTRING;
-    r->sval = join_tokens(args, true);
+    r->sval = buf_body(b);
+    r->slen = buf_len(b);
     return r;
 }
 
@@ -626,6 +624,13 @@ static void read_warning(void) {
  * #include
  */
 
+static char *join_paths(Vector *args) {
+    Buffer *b = make_buffer();
+    for (int i = 0; i < vec_len(args); i++)
+        buf_printf(b, "%s", tok2s(vec_get(args, i)));
+    return buf_body(b);
+}
+
 static char *read_cpp_header_name(bool *std) {
     // Filename after #include needs a special tokenization treatment.
     // It may be quoted by < and > instead of "". Even if it's quoted
@@ -658,7 +663,7 @@ static char *read_cpp_header_name(bool *std) {
         vec_push(tokens, tok);
     }
     *std = true;
-    return join_tokens(tokens, false);
+    return join_paths(tokens);
 }
 
 static bool guarded(char *path) {
@@ -847,6 +852,7 @@ static void make_token_pushback(Token *tmpl, int kind, char *sval) {
     Token *tok = copy_token(tmpl);
     tok->kind = kind;
     tok->sval = sval;
+    tok->slen = strlen(sval) + 1;
     unget_token(tok);
 }
 
