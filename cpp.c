@@ -7,10 +7,15 @@
  */
 
 #include <ctype.h>
+#include <errno.h>
 #include <libgen.h>
+#include <locale.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 #include "8cc.h"
 
 static Map *macros = &EMPTY_MAP;
@@ -858,21 +863,33 @@ static void make_token_pushback(Token *tmpl, int kind, char *sval) {
 }
 
 static void handle_date_macro(Token *tmpl) {
-    char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-    char *sval = format("%s %2d %04d", month[now.tm_mon], now.tm_mday, 1900 + now.tm_year);
-    make_token_pushback(tmpl, TSTRING, sval);
+    char buf[20];
+    strftime(buf, sizeof(buf), "%b %e %Y", &now);
+    make_token_pushback(tmpl, TSTRING, strdup(buf));
 }
 
 static void handle_time_macro(Token *tmpl) {
-    char *sval = format("%02d:%02d:%02d", now.tm_hour, now.tm_min, now.tm_sec);
-    make_token_pushback(tmpl, TSTRING, sval);
+    char buf[10];
+    strftime(buf, sizeof(buf), "%T", &now);
+    make_token_pushback(tmpl, TSTRING, strdup(buf));
+}
+
+static time_t get_timestamp(void) {
+    File *f = current_file();
+    if (!f->file)
+        return time(NULL);
+    struct stat st;
+    if (fstat(fileno(f->file), &st) == -1)
+        error("fstat failed: %s", strerror(errno));
+    return st.st_mtime;
 }
 
 static void handle_timestamp_macro(Token *tmpl) {
+    // [GNU] __TIMESTAMP__ is expanded to a string that describes the date
+    // and time of the last modification time of the current source file.
     char buf[30];
-    asctime_r(&now, buf);
-    // Remove the trailing '\n'.
-    buf[strlen(buf) - 1] = '\0';
+    time_t tt = get_timestamp();
+    strftime(buf, sizeof(buf), "%a %b %e %T %Y", localtime(&tt));
     make_token_pushback(tmpl, TSTRING, strdup(buf));
 }
 
@@ -961,6 +978,7 @@ void init_now(void) {
 }
 
 void cpp_init(void) {
+    setlocale(LC_ALL, "C");
     init_keywords();
     init_now();
     init_predefined_macros();

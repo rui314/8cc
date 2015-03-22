@@ -1,23 +1,33 @@
 // Copyright 2012 Rui Ueyama <rui314@gmail.com>
 // This program is free software licensed under the MIT license.
 
+#include <locale.h>
 #include <stddef.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
 #include "test.h"
+
+static char *get_timestamp() {
+    static char buf[30];
+    struct stat s;
+    stat(__FILE__, &s);
+    setlocale(LC_ALL, "C");
+    strftime(buf, 30, "%a %b %d %T %Y", localtime(&s.st_mtime));
+    return buf;
+}
 
 static void special(void) {
     expect_string("test/macro.c", __FILE__);
-    expect(10, __LINE__);
+    expect(23, __LINE__);
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));
     expect(24, strlen(__TIMESTAMP__));
     expect(0, __INCLUDE_LEVEL__);
     expect_string("test/macro.c", __BASE_FILE__);
-#ifdef __8cc__
-    expect(1, !!strstr(__TIMESTAMP__, __TIME__));
-    char date[] = __DATE__;
-    date[7] = '\0';
-    expect(1, !!strstr(__TIMESTAMP__, date));
+#ifdef __TIMESTAMP__
+    expect_string(get_timestamp(), __TIMESTAMP__);
 #endif
 }
 
