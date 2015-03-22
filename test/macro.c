@@ -62,6 +62,8 @@ static void predefined(void) {
     expect(1, __ELF__);
     expect(1, __STDC__);
     expect(1, __STDC_HOSTED__);
+    expect(1, __STDC_UTF_16__);
+    expect(1, __STDC_UTF_32__);
     expect(201112, __STDC_VERSION__);
 
     expect(2, __SIZEOF_SHORT__);
