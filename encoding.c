@@ -20,15 +20,22 @@ static int count_leading_ones(char c) {
 
 static int read_rune(uint32_t *r, char *s, char *end) {
     int len = count_leading_ones(s[0]) + 1;
-    if (len > 5 || s + len > end)
+    if (len > 4 || s + len > end)
         error("invalid UTF-8 sequence");
-    if (len == 1) {
+    switch (len) {
+    case 1:
         *r = s[0];
         return 1;
+    case 2:
+        *r = s[0] & 0b11111;
+        break;
+    case 3:
+        *r = s[0] & 0b1111;
+        break;
+    case 4:
+        *r = s[0] & 0b111;
+        break;
     }
-    *r = (len == 2) ? (s[0] & 0b11111) :
-        (len == 3) ? (s[0] & 0b1111) :
-        (len == 4) ? (s[0] & 0b111) : (s[0] & 0b11);
     for (int i = 1; i < len; i++) {
         if ((s[i] & 0b11000000) != 0b10000000)
             error("invalid UTF-8 continuation byte");
