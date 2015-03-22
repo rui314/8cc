@@ -8,6 +8,7 @@
 static void test_alignas(void) {
     expect(1, offsetof(struct { char x; char y; }, y));
     expect(4, offsetof(struct { char x; _Alignas(4) char y; }, y));
+    expect(4, offsetof(struct { char x; _Alignas(int) char y; }, y));
     expect(1, offsetof(struct { char x; alignas(0) char y; }, y));
 }
 
@@ -19,7 +20,6 @@ static void test_alignof(void) {
     expect(2, alignof(short));
     expect(4, alignof(int));
     expect(8, alignof(double));
-
     expect(1, alignof(char[10]));
     expect(8, alignof(double[10]));
     expect(1, _Alignof(struct {}));
