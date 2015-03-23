@@ -70,21 +70,21 @@ typedef struct {
     char *name;
     int line;
     int column;
-    int ntok;  // number of tokens in the file (except space and newline)
-    int last;
-    int buf[3];
-    int buflen;
+    int ntok;    // token counter
+    int last;    // the last character read from file
+    int buf[3];  // push-back buffer for unread operations
+    int buflen;  // push-back buffer size
 } File;
 
 typedef struct {
     int kind;
-    int space; // true if the token has a leading space
-    bool bol;  // true if the token is at the beginning of a line
     File *file;
     int line;
     int column;
-    int count;
-    Set *hideset;
+    bool space;   // true if the token has a leading space
+    bool bol;     // true if the token is at the beginning of a line
+    int count;    // token number in a file, counting from 0.
+    Set *hideset; // used by the preprocessor for macro expansion
     union {
         // TKEYWORD
         int id;
