@@ -622,35 +622,42 @@ static void ensure_assignable(Type *totype, Type *fromtype) {
 static int eval_struct_ref(Node *node, int offset) {
     if (node->kind == AST_STRUCT_REF)
         return eval_struct_ref(node->struc, node->ty->offset + offset);
-    return eval_intexpr(node) + offset;
+    return eval_intexpr(node, NULL) + offset;
 }
 
-int eval_intexpr(Node *node) {
+int eval_intexpr(Node *node, Node **addr) {
     switch (node->kind) {
     case AST_LITERAL:
         if (is_inttype(node->ty))
             return node->ival;
         error("Integer expression expected, but got %s", node2s(node));
-    case '!': return !eval_intexpr(node->operand);
-    case '~': return ~eval_intexpr(node->operand);
-    case OP_CAST: return eval_intexpr(node->operand);
-    case AST_CONV: return eval_intexpr(node->operand);
+    case '!': return !eval_intexpr(node->operand, addr);
+    case '~': return ~eval_intexpr(node->operand, addr);
+    case OP_CAST: return eval_intexpr(node->operand, addr);
+    case AST_CONV: return eval_intexpr(node->operand, addr);
     case AST_ADDR:
         if (node->operand->kind == AST_STRUCT_REF)
             return eval_struct_ref(node->operand, 0);
+        // fallthrough
+    case AST_GVAR:
+        if (addr) {
+            *addr = conv(node);
+            return 0;
+        }
+        goto error;
         goto error;
     case AST_DEREF:
         if (node->operand->ty->kind == KIND_PTR)
-            return eval_intexpr(node->operand);
+            return eval_intexpr(node->operand, addr);
         goto error;
     case AST_TERNARY: {
-        long cond = eval_intexpr(node->cond);
+        long cond = eval_intexpr(node->cond, addr);
         if (cond)
-            return node->then ? eval_intexpr(node->then) : cond;
-        return eval_intexpr(node->els);
+            return node->then ? eval_intexpr(node->then, addr) : cond;
+        return eval_intexpr(node->els, addr);
     }
-#define L (eval_intexpr(node->left))
-#define R (eval_intexpr(node->right))
+#define L (eval_intexpr(node->left, addr))
+#define R (eval_intexpr(node->right, addr))
     case '+': return L + R;
     case '-': return L - R;
     case '*': return L * R;
@@ -677,7 +684,7 @@ int eval_intexpr(Node *node) {
 }
 
 static int read_intexpr() {
-    return eval_intexpr(read_conditional_expr());
+    return eval_intexpr(read_conditional_expr(), NULL);
 }
 
 /*

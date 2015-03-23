@@ -1308,16 +1308,16 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
         emit(".quad %ld", *(uint64_t *)&val->fval);
         break;
     case KIND_BOOL:
-        emit(".byte %d", !!eval_intexpr(val));
+        emit(".byte %d", !!eval_intexpr(val, NULL));
         break;
     case KIND_CHAR:
-        emit(".byte %d", eval_intexpr(val));
+        emit(".byte %d", eval_intexpr(val, NULL));
         break;
     case KIND_SHORT:
-        emit(".short %d", eval_intexpr(val));
+        emit(".short %d", eval_intexpr(val, NULL));
         break;
     case KIND_INT:
-        emit(".long %d", eval_intexpr(val));
+        emit(".long %d", eval_intexpr(val, NULL));
         break;
     case KIND_LONG:
     case KIND_LLONG:
@@ -1332,7 +1332,19 @@ static void emit_data_primtype(Type *ty, Node *val, int depth) {
         } else if (val->kind == AST_GVAR) {
             emit(".quad %s", val->glabel);
         } else {
-            emit(".quad %u", eval_intexpr(val));
+            Node *base = NULL;
+            int v = eval_intexpr(val, &base);
+            if (base == NULL) {
+                emit(".quad %u", v);
+                break;
+            }
+            Type *ty = base->ty;
+            if (base->kind == AST_CONV || base->kind == AST_ADDR)
+                base = base->operand;
+            if (base->kind != AST_GVAR)
+                error("global variable expected, but got %s", node2s(base));
+            assert(ty->ptr);
+            emit(".quad %s+%u", base->glabel, v * ty->ptr->size);
         }
         break;
     default:
@@ -1348,7 +1360,7 @@ static void do_emit_data(Vector *inits, int size, int off, int depth) {
         emit_padding(node, off);
         if (node->totype->bitsize > 0) {
             assert(node->totype->bitoff == 0);
-            long data = eval_intexpr(v);
+            long data = eval_intexpr(v, NULL);
             Type *totype = node->totype;
             for (i++ ; i < vec_len(inits); i++) {
                 node = vec_get(inits, i);
@@ -1357,7 +1369,7 @@ static void do_emit_data(Vector *inits, int size, int off, int depth) {
                 }
                 v = node->initval;
                 totype = node->totype;
-                data |= ((((long)1 << totype->bitsize) - 1) & eval_intexpr(v)) << totype->bitoff;
+                data |= ((((long)1 << totype->bitsize) - 1) & eval_intexpr(v, NULL)) << totype->bitoff;
             }
             emit_data_primtype(totype, &(Node){ AST_LITERAL, totype, .ival = data }, depth);
             off += totype->size;

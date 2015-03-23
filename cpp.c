@@ -525,7 +525,7 @@ static bool read_constexpr(void) {
     if (tok->kind != TEOF)
         error("Stray token: %s", tok2s(tok));
     pop_token_buffer();
-    return eval_intexpr(expr);
+    return eval_intexpr(expr, NULL);
 }
 
 static void do_read_if(bool istrue) {
