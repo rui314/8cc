@@ -164,6 +164,10 @@ static void test_funcdesg(void) {
     test_funcdesg;
 }
 
+// _Alignas is a declaration specifier containing parentheses.
+// Make sure the compiler doesn't interpret it as a function definition.
+static _Alignas(32) char char32;
+
 void testmain(void) {
     print("function");
 

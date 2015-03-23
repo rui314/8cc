@@ -2249,31 +2249,48 @@ static Node *read_func_body(Type *functype, char *fname, Vector *params) {
     return r;
 }
 
+static void skip_parentheses(Vector *buf) {
+    for (;;) {
+        Token *tok = get();
+        if (tok->kind == TEOF)
+            error("premature end of input");
+        vec_push(buf, tok);
+        if (is_keyword(tok, ')'))
+            return;
+        if (is_keyword(tok, '('))
+            skip_parentheses(buf);
+    }
+}
+
+// is_funcdef returns true if we are at beginning of a function definition.
+// The basic idea is that if we see '{' or a type keyword after a closing
+// parenthesis of a function parameter list, we were reading a function
+// definition. (Usually '{' comes after a closing parenthesis.
+// A type keyword is allowed for K&R-style function definitions.)
 static bool is_funcdef(void) {
     Vector *buf = make_vector();
-    int nest = 0;
-    bool paren = false;
-    bool r = true;
+    bool r = false;
     for (;;) {
         Token *tok = get();
         vec_push(buf, tok);
-        if (!tok)
+        if (tok->kind == TEOF)
             error("premature end of input");
-        if (nest == 0 && paren && (is_keyword(tok, '{') || tok->kind == TIDENT))
+        if (is_keyword(tok, ';'))
             break;
-        if (nest == 0 && (is_keyword(tok, ';') || is_keyword(tok, ',') || is_keyword(tok, '='))) {
-            r = false;
-            break;
-        }
+        if (is_type_keyword(tok))
+            continue;
         if (is_keyword(tok, '(')) {
-            nest++;
+            skip_parentheses(buf);
+            continue;
         }
-        if (is_keyword(tok, ')')) {
-            if (nest == 0)
-                error("extra close parenthesis");
-            paren = true;
-            nest--;
-        }
+        if (tok->kind != TIDENT)
+            continue;
+        if (!is_keyword(peek_token(), '('))
+            continue;
+        vec_push(buf, get());
+        skip_parentheses(buf);
+        r = (is_keyword(peek_token(), '{') || is_type_keyword(peek_token()));
+        break;
     }
     while (vec_len(buf) > 0)
         unget_token(vec_pop(buf));
