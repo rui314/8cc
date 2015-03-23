@@ -1865,8 +1865,15 @@ static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
             oldstyle = false;
         Type *ptype = read_func_param(&name, typeonly);
         ensure_not_void(ptype);
+
+        // C11 6.7.6.3p7: array of T is adjusted to pointer to T.
         if (ptype->kind == KIND_ARRAY)
             ptype = make_ptr_type(ptype->ptr);
+
+        // C11 6.7.6.3p8: function is adjusted to pointer to function.
+        if (ptype->kind == KIND_FUNC)
+            ptype = make_ptr_type(ptype);
+
         vec_push(paramtypes, ptype);
         if (!typeonly) {
             Node *node = ast_lvar(ptype, name);

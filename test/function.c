@@ -86,6 +86,10 @@ float ptrtest3(float a) {
     return a * 2;
 }
 
+int ptrtest4(int (f)(int), int x) {
+    return f(x);
+}
+
 static void func_ptr_call(void) {
     expectf(4, ptrtest3(2));
     int (*p1)(void) = ptrtest1;
@@ -96,6 +100,7 @@ static void func_ptr_call(void) {
     expectf(4, p3(2));
     int (*p4)(void) = &ptrtest1;
     expect(55, (**p4)());
+    expect(10, ptrtest4(ptrtest2, 5));
 }
 
 static void func_name(void) {
