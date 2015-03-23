@@ -69,7 +69,7 @@ static Node *read_compound_stmt(void);
 static void read_decl_or_stmt(Vector *list);
 static Node *conv(Node *node);
 static Node *read_stmt(void);
-static bool is_type_keyword(Token *tok);
+static bool is_type(Token *tok);
 static Node *read_unary_expr(void);
 static Type *read_func_param(char **name, bool optional);
 static void read_decl(Vector *toplevel, bool isglobal);
@@ -460,7 +460,7 @@ static Type *get_typedef(char *name) {
     return (node && node->kind == AST_TYPEDEF) ? node->ty : NULL;
 }
 
-static bool is_type_keyword(Token *tok) {
+static bool is_type(Token *tok) {
     if (tok->kind == TIDENT)
         return get_typedef(tok->sval);
     if (tok->kind != TKEYWORD)
@@ -781,7 +781,7 @@ static Node *read_number(char *s) {
 
 static Type *read_sizeof_operand_sub(void) {
     Token *tok = get();
-    if (is_keyword(tok, '(') && is_type_keyword(peek_token())) {
+    if (is_keyword(tok, '(') && is_type(peek_token())) {
         Type *r = read_func_param(NULL, true);
         expect(')');
         return r;
@@ -1159,7 +1159,7 @@ static Type *read_cast_type(void) {
 
 static Node *read_cast_expr(void) {
     Token *tok = get();
-    if (is_keyword(tok, '(') && is_type_keyword(peek_token())) {
+    if (is_keyword(tok, '(') && is_type(peek_token())) {
         Type *ty = read_cast_type();
         expect(')');
         if (is_keyword(peek_token(), '{')) {
@@ -1391,7 +1391,7 @@ static Vector *read_rectype_fields_sub(void) {
             read_static_assert();
             continue;
         }
-        if (!is_type_keyword(peek_token()))
+        if (!is_type(peek_token()))
             break;
         Type *basetype = read_decl_spec(NULL);
         if (basetype->kind == KIND_STRUCT && next_token(';')) {
@@ -1836,7 +1836,7 @@ static Vector *read_decl_init(Type *ty) {
 static Type *read_func_param(char **name, bool optional) {
     int sclass = 0;
     Type *basetype = type_int;
-    if (is_type_keyword(peek_token()))
+    if (is_type(peek_token()))
         basetype = read_decl_spec(&sclass);
     else if (optional)
         error("type expected, but got %s", tok2s(peek_token()));
@@ -1861,7 +1861,7 @@ static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
             return make_func_type(rettype, paramtypes, true, oldstyle);
         }
         char *name;
-        if (is_type_keyword(peek_token()))
+        if (is_type(peek_token()))
             oldstyle = false;
         Type *ptype = read_func_param(&name, typeonly);
         ensure_not_void(ptype);
@@ -1922,7 +1922,7 @@ static void skip_type_qualifiers(void) {
 static Type *read_direct_declarator1(char **rname, Type *basetype, Vector *params, int ctx) {
     Token *tok = get();
     Token *next = peek_token();
-    if (is_keyword(tok, '(') && !is_type_keyword(next) && !is_keyword(next, ')')) {
+    if (is_keyword(tok, '(') && !is_type(next) && !is_keyword(next, ')')) {
         Type *stub = make_stub_type();
         Type *t = read_direct_declarator1(rname, stub, params, ctx);
         expect(')');
@@ -1969,7 +1969,7 @@ static Type *read_declarator(char **rname, Type *basetype, Vector *params, int c
 
 static Type *read_typeof(void) {
     expect('(');
-    Type *r = is_type_keyword(peek_token())
+    Type *r = is_type(peek_token())
         ? read_cast_type()
         : read_comma_expr()->ty;
     expect(')');
@@ -1989,7 +1989,7 @@ static int read_alignas(void) {
     // C11 6.7.5. Valid form of _Alignof is either _Alignas(type-name) or
     // _Alignas(constant-expression).
     expect('(');
-    int r = is_type_keyword(peek_token())
+    int r = is_type(peek_token())
         ? read_cast_type()->align
         : read_intexpr();
     expect(')');
@@ -1999,7 +1999,7 @@ static int read_alignas(void) {
 static Type *read_decl_spec(int *rsclass) {
     int sclass = 0;
     Token *tok = peek_token();
-    if (!is_type_keyword(tok))
+    if (!is_type(tok))
         error("type keyword expected, but got %s", tok2s(tok));
 
     Type *usertype = NULL;
@@ -2142,7 +2142,7 @@ static void read_static_local_var(Type *ty, char *name) {
 }
 
 static Type *read_decl_spec_opt(int *sclass) {
-    if (is_type_keyword(peek_token()))
+    if (is_type(peek_token()))
         return read_decl_spec(sclass);
     warn("type specifier missing, assuming int");
     return type_int;
@@ -2189,7 +2189,7 @@ static Vector *read_oldstyle_param_args(void) {
     for (;;) {
         if (is_keyword(peek_token(), '{'))
             break;
-        if (!is_type_keyword(peek_token()))
+        if (!is_type(peek_token()))
             error("K&R-style declarator expected, but got %s", tok2s(peek_token()));
         read_decl(r, false);
     }
@@ -2277,7 +2277,7 @@ static bool is_funcdef(void) {
             error("premature end of input");
         if (is_keyword(tok, ';'))
             break;
-        if (is_type_keyword(tok))
+        if (is_type(tok))
             continue;
         if (is_keyword(tok, '(')) {
             skip_parentheses(buf);
@@ -2289,7 +2289,7 @@ static bool is_funcdef(void) {
             continue;
         vec_push(buf, get());
         skip_parentheses(buf);
-        r = (is_keyword(peek_token(), '{') || is_type_keyword(peek_token()));
+        r = (is_keyword(peek_token(), '{') || is_type(peek_token()));
         break;
     }
     while (vec_len(buf) > 0)
@@ -2664,7 +2664,7 @@ static void read_decl_or_stmt(Vector *list) {
     if (tok->kind == TEOF)
         error("premature end of input");
     mark_location();
-    if (is_type_keyword(tok)) {
+    if (is_type(tok)) {
         read_decl(list, false);
     } else if (next_token(KSTATIC_ASSERT)) {
         read_static_assert();
