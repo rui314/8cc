@@ -1982,35 +1982,15 @@ static Type *read_decl_spec(int *rsclass) {
     int align = -1;
 
     for (;;) {
-#define SETSCLASS(val)                          \
-        do {                                    \
-            if (sclass != 0) goto err;          \
-            sclass = val;                       \
-        } while (0)
-#define SET(var, val)                                                   \
-        do {                                                            \
-            if (var != 0) goto err;                                     \
-            var = val;                                                  \
-            if (kind == kbool && (size != 0 && sig != 0))               \
-                goto err;                                               \
-            if (size == kshort && (kind != 0 && kind != kint))          \
-                goto err;                                               \
-            if (size == klong && (kind != 0 && kind != kint && kind != kdouble)) \
-                goto err;                                               \
-            if (sig != 0 && (kind == kvoid || kind == kfloat || kind == kdouble)) \
-                goto err;                                               \
-            if (usertype && (kind != 0 || size != 0 || sig != 0))       \
-                goto err;                                               \
-        } while (0)
-
         tok = get();
-        if (!tok)
+        if (tok->kind == EOF)
             error("premature end of input");
         if (kind == 0 && tok->kind == TIDENT && !usertype) {
             Type *def = get_typedef(tok->sval);
             if (def) {
-                SET(usertype, def);
-                continue;
+                if (usertype) goto err;
+                usertype = def;
+                goto errcheck;
             }
         }
         if (tok->kind != TKEYWORD) {
@@ -2018,54 +1998,64 @@ static Type *read_decl_spec(int *rsclass) {
             break;
         }
         switch (tok->id) {
-        case KTYPEDEF:    SETSCLASS(S_TYPEDEF); continue;
-        case KEXTERN:     SETSCLASS(S_EXTERN); continue;
-        case KSTATIC:     SETSCLASS(S_STATIC); continue;
-        case KAUTO:       SETSCLASS(S_AUTO); continue;
-        case KREGISTER:   SETSCLASS(S_REGISTER); continue;
-        case KCONST:      continue;
-        case KVOLATILE:   continue;
-        case KINLINE:     continue;
-        case KNORETURN:   continue;
-        case KVOID:       SET(kind, kvoid); continue;
-        case KBOOL:       SET(kind, kbool); continue;
-        case KCHAR:       SET(kind, kchar); continue;
-        case KINT:        SET(kind, kint); continue;
-        case KFLOAT:      SET(kind, kfloat); continue;
-        case KDOUBLE:     SET(kind, kdouble); continue;
-        case KSIGNED:     SET(sig, ksigned); continue;
-        case KUNSIGNED:   SET(sig, kunsigned); continue;
-        case KSHORT:      SET(size, kshort); continue;
-        case KSTRUCT:     SET(usertype, read_struct_def()); continue;
-        case KUNION:      SET(usertype, read_union_def()); continue;
-        case KENUM:       SET(usertype, read_enum_def()); continue;
+        case KTYPEDEF:  if (sclass) goto err; sclass = S_TYPEDEF; break;
+        case KEXTERN:   if (sclass) goto err; sclass = S_EXTERN; break;
+        case KSTATIC:   if (sclass) goto err; sclass = S_STATIC; break;
+        case KAUTO:     if (sclass) goto err; sclass = S_AUTO; break;
+        case KREGISTER: if (sclass) goto err; sclass = S_REGISTER; break;
+        case KCONST:    break;
+        case KVOLATILE: break;
+        case KINLINE:   break;
+        case KNORETURN: break;
+        case KVOID:     if (kind) goto err; kind = kvoid; break;
+        case KBOOL:     if (kind) goto err; kind = kbool; break;
+        case KCHAR:     if (kind) goto err; kind = kchar; break;
+        case KINT:      if (kind) goto err; kind = kint; break;
+        case KFLOAT:    if (kind) goto err; kind = kfloat; break;
+        case KDOUBLE:   if (kind) goto err; kind = kdouble; break;
+        case KSIGNED:   if (sig) goto err; sig = ksigned; break;
+        case KUNSIGNED: if (sig) goto err; sig = kunsigned; break;
+        case KSHORT:    if (size) goto err; size = kshort; break;
+        case KSTRUCT:   if (usertype) goto err; usertype = read_struct_def(); break;
+        case KUNION:    if (usertype) goto err; usertype = read_union_def(); break;
+        case KENUM:     if (usertype) goto err; usertype = read_enum_def(); break;
         case KALIGNAS: {
             int val = read_alignas();
             if (val < 0)
                 error("negative alignment: %d", val);
             // C11 6.7.5p6: alignas(0) should have no effect.
             if (val == 0)
-                continue;
+                break;
             if (align == -1 || val < align)
                 align = val;
-            continue;
+            break;
         }
         case KLONG: {
-            if (size == 0) SET(size, klong);
+            if (size == 0) size = klong;
             else if (size == klong) size = kllong;
             else goto err;
-            continue;
+            break;
         }
         case KTYPEOF: {
-            SET(usertype, read_typeof());
-            continue;
+            if (usertype) goto err;
+            usertype = read_typeof();
+            break;
         }
         default:
             unget_token(tok);
             goto done;
         }
-#undef SET
-#undef SETSCLASS
+      errcheck:
+        if (kind == kbool && (size != 0 && sig != 0))
+            goto err;
+        if (size == kshort && (kind != 0 && kind != kint))
+            goto err;
+        if (size == klong && (kind != 0 && kind != kint && kind != kdouble))
+            goto err;
+        if (sig != 0 && (kind == kvoid || kind == kfloat || kind == kdouble))
+            goto err;
+        if (usertype && (kind != 0 || size != 0 || sig != 0))
+            goto err;
     }
  done:
     if (rsclass)
