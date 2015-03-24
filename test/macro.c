@@ -18,7 +18,7 @@ static char *get_timestamp() {
     return buf;
 }
 
-static void special(void) {
+static void special() {
     expect_string("test/macro.c", __FILE__);
     expect(23, __LINE__);
     expect(11, strlen(__DATE__));
@@ -31,7 +31,7 @@ static void special(void) {
 #endif
 }
 
-static void include(void) {
+static void include() {
 #include "macro1.h"
     expect_string("macro1", MACRO_1);
 
@@ -49,7 +49,7 @@ static void include(void) {
 #endif
 }
 
-static void predefined(void) {
+static void predefined() {
 #ifdef __8cc__
     expect(1, __8cc__);
     expect(1, __STDC_NO_ATOMICS__);
@@ -106,7 +106,7 @@ static void predefined(void) {
 #define TWO ONE + ONE
 #define LOOP LOOP
 
-static void simple(void) {
+static void simple() {
     expect(1, ONE);
     expect(2, TWO);
 }
@@ -114,14 +114,14 @@ static void simple(void) {
 #define VAR1 VAR2
 #define VAR2 VAR1
 
-static void loop(void) {
+static void loop() {
     int VAR1 = 1;
     int VAR2 = 2;
     expect(1, VAR1);
     expect(2, VAR2);
 }
 
-static void undef(void) {
+static void undef() {
     int a = 3;
 #define a 10
     expect(10, a);
@@ -132,7 +132,7 @@ static void undef(void) {
 #undef a
 }
 
-static void cond_incl(void) {
+static void cond_incl() {
     int a = 1;
 #if 0
     a = 2;
@@ -197,7 +197,7 @@ xyz "\"/*" '\'/*'
     expect(150, a);
 }
 
-static void const_expr(void) {
+static void const_expr() {
     int a = 1;
 #if 0 + 1
     a = 2;
@@ -285,7 +285,7 @@ static void const_expr(void) {
     expect(12, a);
 }
 
-static void defined(void) {
+static void defined() {
     int a = 0;
 #if defined ZERO
     a = 1;
@@ -303,7 +303,7 @@ static void defined(void) {
     expect(4, a);
 }
 
-static void ifdef(void) {
+static void ifdef() {
     int a = 0;
 #ifdef ONE
     a = 1;
@@ -344,7 +344,7 @@ int minus(int a, int b) {
     return a - b;
 }
 
-static void funclike(void) {
+static void funclike() {
 #define stringify(x) #x
     expect_string("5", stringify(5));
     expect_string("x", stringify(x));
@@ -453,7 +453,7 @@ static void funclike(void) {
     expect_string(".3 . 3", m17(3));
 }
 
-static void empty(void) {
+static void empty() {
 #define EMPTY
     expect(1, 1 EMPTY);
 #define EMPTY2(x)
@@ -462,22 +462,22 @@ static void empty(void) {
     expect(2, 2 EMPTY2(((()))));
 }
 
-static void noarg(void) {
+static void noarg() {
 #define NOARG() 55
     expect(55, NOARG());
 }
 
-static void null(void) {
+static void null() {
     #
 }
 
-static void counter(void) {
+static void counter() {
     expect(0, __COUNTER__);
     expect(1, __COUNTER__);
     expect(2, __COUNTER__);
 }
 
-static void gnuext(void) {
+static void gnuext() {
 #define m11(x, y...) stringify(x + y)
     expect_string("2 + 18", m11(2, 18));
     expect_string("2 +", m11(2));
@@ -494,7 +494,7 @@ static void gnuext(void) {
                                m14));
 }
 
-void testmain(void) {
+void testmain() {
     print("macros");
     special();
     include();

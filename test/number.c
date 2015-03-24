@@ -3,7 +3,7 @@
 
 #include "test.h"
 
-void testmain(void) {
+void testmain() {
     print("numeric constants");
 
     expect(1, 0x1);

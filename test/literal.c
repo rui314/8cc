@@ -4,7 +4,7 @@
 #include "test.h"
 #include "string.h"
 
-static void test_char(void) {
+static void test_char() {
     expect(65, 'A');
     expect(97, 'a');
     expect(7, '\a');
@@ -27,7 +27,7 @@ static void test_char(void) {
     expect(18, '\x012');
 }
 
-static void test_string(void) {
+static void test_string() {
     expect_string("abc", "abc");
     expect_string("abc", u8"abc");
     expect('a', "abc"[0]);
@@ -49,7 +49,7 @@ static void test_string(void) {
     expect(10, Lx + ux + Ux + u8x);
 }
 
-static void test_mbstring(void) {
+static void test_mbstring() {
     expect(2, sizeof(u""));
     expect(8, sizeof(u"abc"));
     expect(8, sizeof("ab" u"c"));
@@ -81,14 +81,14 @@ static void test_mbstring(void) {
 #endif
 }
 
-static void test_float(void) {
+static void test_float() {
     expectf(1.0, 1.0);
     expectd(1.0, 1.0L);
     expectf(1.0, 0x1p+0);
     expectf(1.0, 0x1p-0);
 }
 
-static void test_ucn(void) {
+static void test_ucn() {
     expect('$', L'\u0024');
     expect('$', L'\U00000024');
     expect_string("$", "\u0024");
@@ -103,7 +103,7 @@ int *g2 = &(int){ 81 };
 struct g3 { int x; } *g3 = &(struct g3){ 82 };
 struct g4 { char x; struct g4a { int y[2]; } *z; } *g4 = &(struct g4){ 83, &(struct g4a){ 84, 85 } };
 
-static void test_compound(void) {
+static void test_compound() {
     expect(1, (int){ 1 });
     expect(3, ((int[]){ 1, 2, 3 }[2]));
     expect(12, sizeof((int[]){ 1, 2, 3 }));
@@ -117,7 +117,7 @@ static void test_compound(void) {
     expect(85, g4->z->y[1]);
 }
 
-void testmain(void) {
+void testmain() {
     print("literal");
     test_char();
     test_string();

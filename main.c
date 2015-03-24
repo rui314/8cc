@@ -46,7 +46,7 @@ static void usage(int exitcode) {
     exit(exitcode);
 }
 
-static void delete_temp_files(void) {
+static void delete_temp_files() {
     for (int i = 0; i < vec_len(tmpfiles); i++)
         unlink(vec_get(tmpfiles, i));
 }
@@ -64,7 +64,7 @@ static char *replace_suffix(char *filename, char suffix) {
     return r;
 }
 
-static FILE *open_asmfile(void) {
+static FILE *open_asmfile() {
     if (dumpasm) {
         asmfile = outfile ? outfile : replace_suffix(base(infile), 's');
     } else {
@@ -146,11 +146,11 @@ static void parseopt(int argc, char **argv) {
     infile = argv[optind];
 }
 
-char *get_base_file(void) {
+char *get_base_file() {
     return infile;
 }
 
-static void preprocess(void) {
+static void preprocess() {
     for (;;) {
         Token *tok = read_token();
         if (tok->kind == TEOF)

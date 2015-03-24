@@ -3,7 +3,7 @@
 
 #include "test.h"
 
-void testmain(void) {
+void testmain() {
     print("statement expression");
 
     expect(3, ({ 1; 2; 3; }));

@@ -24,7 +24,7 @@ double b;
     return a + b;
 }
 
-void testmain(void) {
+void testmain() {
     print("K&R");
     expect(3, no_declaration());
     expect(7, oldstyle1(3, 4));

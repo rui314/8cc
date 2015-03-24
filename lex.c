@@ -87,7 +87,7 @@ static bool iswhitespace(int c) {
     return c == ' ' || c == '\t' || c == '\f' || c == '\v';
 }
 
-static int peek(void) {
+static int peek() {
     int r = readc();
     unreadc(r);
     return r;
@@ -101,7 +101,7 @@ static bool next(int expect) {
     return false;
 }
 
-static void skip_line(void) {
+static void skip_line() {
     for (;;) {
         int c = readc();
         if (c == EOF)
@@ -113,7 +113,7 @@ static void skip_line(void) {
     }
 }
 
-static bool do_skip_space(void) {
+static bool do_skip_space() {
     int c = readc();
     if (c == EOF)
         return false;
@@ -133,14 +133,14 @@ static bool do_skip_space(void) {
     return false;
 }
 
-static bool skip_space(void) {
+static bool skip_space() {
     if (!do_skip_space())
         return false;
     while (do_skip_space());
     return true;
 }
 
-static void skip_char(void) {
+static void skip_char() {
     if (readc() == '\\')
         readc();
     int c = readc();
@@ -148,7 +148,7 @@ static void skip_char(void) {
         c = readc();
 }
 
-static void skip_string(void) {
+static void skip_string() {
     for (int c = readc(); c != EOF && c != '"'; c = readc())
         if (c == '\\')
             readc();
@@ -159,7 +159,7 @@ static void skip_string(void) {
 // a sequence of valid tokens. However, in reality, most compilers
 // don't tokenize nor validate contents. We don't tokenize too and
 // just skip the contents as fast as we can.
-void skip_cond_incl(void) {
+void skip_cond_incl() {
     int nest = 0;
     for (;;) {
         bool bol = (current_file()->column == 0);
@@ -212,7 +212,7 @@ static Token *read_number(char c) {
     }
 }
 
-static bool nextoct(void) {
+static bool nextoct() {
     int c = peek();
     return '0' <= c && c <= '7';
 }
@@ -227,7 +227,7 @@ static int read_octal_char(int c) {
     return (r << 3) | (readc() - '0');
 }
 
-static int read_hex_char(void) {
+static int read_hex_char() {
     int c = readc();
     int r = 0;
     if (!isxdigit(c))
@@ -264,7 +264,7 @@ static int read_universal_char(int len) {
     return r;
 }
 
-static int read_escaped_char(void) {
+static int read_escaped_char() {
     int c = readc();
     switch (c) {
     case '\'': case '"': case '?': case '\\':
@@ -339,7 +339,7 @@ static Token *read_ident(char c) {
     }
 }
 
-static void skip_block_comment(void) {
+static void skip_block_comment() {
     bool maybe_end = false;
     for (;;) {
         int c = readc();
@@ -351,7 +351,7 @@ static void skip_block_comment(void) {
     }
 }
 
-static Token *read_digraph(void) {
+static Token *read_digraph() {
     if (next('>'))
         return make_keyword('}');
     if (next(':')) {
@@ -375,7 +375,7 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
     return make_keyword(next(expect2) ? t2 : els);
 }
 
-static Token *do_read_token(void) {
+static Token *do_read_token() {
     if (skip_space())
         return space_token;
     int c = readc();
@@ -449,7 +449,7 @@ static Token *do_read_token(void) {
     }
 }
 
-static bool buffer_empty(void) {
+static bool buffer_empty() {
     return vec_len(buffers) == 1 && vec_len(vec_head(buffers)) == 0;
 }
 
@@ -491,7 +491,7 @@ void pop_token_buffer() {
     vec_pop(buffers);
 }
 
-char *read_error_directive(void) {
+char *read_error_directive() {
     Buffer *b = make_buffer();
     bool bol = true;
     for (;;) {
@@ -528,7 +528,7 @@ Token *lex_string(char *s) {
     return r;
 }
 
-Token *lex(void) {
+Token *lex() {
     Vector *buf = vec_tail(buffers);
     if (vec_len(buf) > 0)
         return vec_pop(buf);

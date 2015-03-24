@@ -76,7 +76,7 @@ void std() {
 #endif
 }
 
-void testmain(void) {
+void testmain() {
     print("float");
     std();
 

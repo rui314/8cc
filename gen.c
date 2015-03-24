@@ -50,7 +50,7 @@ static void pop_function(void *ignore) {
 #define SAVE
 #endif
 
-static char *get_caller_list(void) {
+static char *get_caller_list() {
     Buffer *b = make_buffer();
     for (int i = 0; i < vec_len(functions); i++) {
         if (i > 0)
@@ -65,7 +65,7 @@ void set_output_file(FILE *fp) {
     outputfp = fp;
 }
 
-void close_output_file(void) {
+void close_output_file() {
     fclose(outputfp);
 }
 
@@ -534,7 +534,7 @@ static void emit_load_convert(Type *to, Type *from) {
         emit_toint(from);
 }
 
-static void emit_ret(void) {
+static void emit_ret() {
     SAVE;
     emit("leave");
     emit("ret");
@@ -1418,7 +1418,7 @@ static void emit_global_var(Node *v) {
         emit_bss(v);
 }
 
-static int emit_regsave_area(void) {
+static int emit_regsave_area() {
     emit("sub $%d, #rsp", REGAREA_SIZE);
     emit("mov #rdi, (#rsp)");
     emit("mov #rsi, 8(#rsp)");

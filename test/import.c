@@ -15,6 +15,6 @@
 #import "once.h"
 #include "../test/once.h"
 
-void testmain(void) {
+void testmain() {
     print("import");
 }

@@ -34,7 +34,7 @@ static void mixed(float v01, int v02, float v03, int v04, float v05, int v06, fl
     expectf(37.0, v37); expect(38, v38); expectf(39.0, v39); expect(40, v40);
 }
 
-void testmain(void) {
+void testmain() {
     print("function argument");
 
     many_ints(1, 2, 3, 4, 5, 6, 7, 8, 9);

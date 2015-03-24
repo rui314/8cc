@@ -19,7 +19,7 @@ char *s2 = "ABCD";
 long l1 = 8;
 int *intp = &(int){ 9 };
 
-void testmain(void) {
+void testmain() {
     print("global variable");
 
     defaultint = 3;

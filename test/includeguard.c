@@ -61,6 +61,6 @@
 
 #endif
 
-void testmain(void) {
+void testmain() {
     print("include guard");
 }

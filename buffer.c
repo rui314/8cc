@@ -9,7 +9,7 @@
 
 #define INIT_SIZE 8
 
-Buffer *make_buffer(void) {
+Buffer *make_buffer() {
     Buffer *r = malloc(sizeof(Buffer));
     r->body = malloc(INIT_SIZE);
     r->nalloc = INIT_SIZE;

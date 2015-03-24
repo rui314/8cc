@@ -6,12 +6,12 @@
 
 #ifdef __8cc__
 
-static void test_basic(void) {
+static void test_basic() {
     expect(1, _Generic(5, int: 1, float: 2));
     expectd(3.0, _Generic(5.0, int: 1, float: 2.0, double: 3.0));
 }
 
-static void test_arith(void) {
+static void test_arith() {
     typedef signed char schar;
     typedef unsigned char uchar;
     typedef unsigned short ushort;
@@ -87,7 +87,7 @@ static void test_arith(void) {
 #undef T
 }
 
-static void test_default(void) {
+static void test_default() {
     expect(1, _Generic(5, default: 1, float: 2));
     expectd(3.0, _Generic(5.0, int: 1, float: 2.0, default: 3.0));
 }
@@ -106,7 +106,7 @@ static void test_array() {
     expect(23, _Generic((int*)NULL, int[1]: 22, default: 23));
 }
 
-void testmain(void) {
+void testmain() {
     print("_Generic");
     test_basic();
     test_arith();
@@ -117,7 +117,7 @@ void testmain(void) {
 
 #else
 
-void testmain(void) {
+void testmain() {
     print("_Generic");
 }
 

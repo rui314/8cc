@@ -114,7 +114,7 @@ enum {
  * Source location
  */
 
-static void mark_location(void) {
+static void mark_location() {
     Token *tok = peek_token();
     source_loc = malloc(sizeof(SourceLoc));
     source_loc->file = tok->file->name;
@@ -125,12 +125,12 @@ static void mark_location(void) {
  * Constructors
  */
 
-char *make_tempname(void) {
+char *make_tempname() {
     static int c = 0;
     return format(".T%d", c++);
 }
 
-char *make_label(void) {
+char *make_label() {
     static int c = 0;
     return format(".L%d", c++);
 }
@@ -148,7 +148,7 @@ static Case *make_case(int beg, int end, char *label) {
     return r;
 }
 
-static Map *env(void) {
+static Map *env() {
     return localenv ? localenv : globalenv;
 }
 
@@ -387,7 +387,7 @@ static Type* make_func_type(Type *rettype, Vector *paramtypes, bool has_varargs,
         .oldstyle = oldstyle });
 }
 
-static Type *make_stub_type(void) {
+static Type *make_stub_type() {
     return make_type(&(Type){ KIND_STUB });
 }
 
@@ -754,7 +754,7 @@ static Node *read_number(char *s) {
  * Sizeof operator
  */
 
-static Type *read_sizeof_operand_sub(void) {
+static Type *read_sizeof_operand_sub() {
     Token *tok = get();
     if (is_keyword(tok, '(') && is_type(peek_token())) {
         Type *r = read_func_param(NULL, true);
@@ -765,7 +765,7 @@ static Type *read_sizeof_operand_sub(void) {
     return read_unary_expr()->ty;
 }
 
-static Node *read_sizeof_operand(void) {
+static Node *read_sizeof_operand() {
     Type *ty = read_sizeof_operand_sub();
     // Sizeof on void or function type is GNU extension
     int size = (ty->kind == KIND_VOID || ty->kind == KIND_FUNC) ? 1 : ty->size;
@@ -777,7 +777,7 @@ static Node *read_sizeof_operand(void) {
  * Alignof operator
  */
 
-static Node *read_alignof_operand(void) {
+static Node *read_alignof_operand() {
     expect('(');
     Type *ty = read_func_param(NULL, true);
     expect(')');
@@ -862,7 +862,7 @@ static Vector *read_generic_list(Node **defaultexpr) {
     }
 }
 
-static Node *read_generic(void) {
+static Node *read_generic() {
     expect('(');
     Node *contexpr = read_assignment_expr();
     expect(',');
@@ -884,7 +884,7 @@ static Node *read_generic(void) {
  * _Static_assert
  */
 
-static void read_static_assert(void) {
+static void read_static_assert() {
     expect('(');
     int val = read_intexpr();
     expect(',');
@@ -934,7 +934,7 @@ static int get_compound_assign_op(Token *tok) {
     }
 }
 
-static Node *read_stmt_expr(void) {
+static Node *read_stmt_expr() {
     Node *r = read_compound_stmt();
     expect(')');
     Type *rtype = type_void;
@@ -960,7 +960,7 @@ static Type *char_type(int enc) {
     error("cannot reach here");
 }
 
-static Node *read_primary_expr(void) {
+static Node *read_primary_expr() {
     Token *tok = get();
     if (!tok) return NULL;
     if (is_keyword(tok, '(')) {
@@ -1036,7 +1036,7 @@ static Node *read_postfix_expr_tail(Node *node) {
     }
 }
 
-static Node *read_postfix_expr(void) {
+static Node *read_postfix_expr() {
     Node *node = read_primary_expr();
     return read_postfix_expr_tail(node);
 }
@@ -1048,7 +1048,7 @@ static Node *read_unary_incdec(int op) {
     return ast_uop(op, operand->ty, operand);
 }
 
-static Node *read_label_addr(void) {
+static Node *read_label_addr() {
     // [GNU] Labels as values. You can get the address of the a label
     // with unary "&&" operator followed by a label name.
     Token *tok = get();
@@ -1059,7 +1059,7 @@ static Node *read_label_addr(void) {
     return r;
 }
 
-static Node *read_unary_addr(void) {
+static Node *read_unary_addr() {
     Node *operand = read_cast_expr();
     if (operand->kind == AST_FUNCDESG)
         return conv(operand);
@@ -1067,7 +1067,7 @@ static Node *read_unary_addr(void) {
     return ast_uop(AST_ADDR, make_ptr_type(operand->ty), operand);
 }
 
-static Node *read_unary_deref(void) {
+static Node *read_unary_deref() {
     Node *operand = conv(read_cast_expr());
     if (operand->ty->kind != KIND_PTR)
         error("pointer type expected, but got %s", node2s(operand));
@@ -1076,7 +1076,7 @@ static Node *read_unary_deref(void) {
     return ast_uop(AST_DEREF, operand->ty->ptr, operand);
 }
 
-static Node *read_unary_minus(void) {
+static Node *read_unary_minus() {
     Node *expr = read_cast_expr();
     ensure_arithtype(expr);
     if (is_inttype(expr->ty))
@@ -1084,7 +1084,7 @@ static Node *read_unary_minus(void) {
     return binop('-', ast_floattype(expr->ty, 0), expr);
 }
 
-static Node *read_unary_bitnot(void) {
+static Node *read_unary_bitnot() {
     Node *expr = read_cast_expr();
     expr = conv(expr);
     if (!is_inttype(expr->ty))
@@ -1092,13 +1092,13 @@ static Node *read_unary_bitnot(void) {
     return ast_uop('~', expr->ty, expr);
 }
 
-static Node *read_unary_lognot(void) {
+static Node *read_unary_lognot() {
     Node *operand = read_cast_expr();
     operand = conv(operand);
     return ast_uop('!', type_int, operand);
 }
 
-static Node *read_unary_expr(void) {
+static Node *read_unary_expr() {
     Token *tok = get();
     if (tok->kind == TKEYWORD) {
         switch (tok->id) {
@@ -1127,11 +1127,11 @@ static Node *read_compound_literal(Type *ty) {
     return r;
 }
 
-static Type *read_cast_type(void) {
+static Type *read_cast_type() {
     return read_abstract_declarator(read_decl_spec(NULL));
 }
 
-static Node *read_cast_expr(void) {
+static Node *read_cast_expr() {
     Token *tok = get();
     if (is_keyword(tok, '(') && is_type(peek_token())) {
         Type *ty = read_cast_type();
@@ -1146,7 +1146,7 @@ static Node *read_cast_expr(void) {
     return read_unary_expr();
 }
 
-static Node *read_multiplicative_expr(void) {
+static Node *read_multiplicative_expr() {
     Node *node = read_cast_expr();
     for (;;) {
         if (next_token('*'))      node = binop('*', conv(node), conv(read_cast_expr()));
@@ -1156,7 +1156,7 @@ static Node *read_multiplicative_expr(void) {
     }
 }
 
-static Node *read_additive_expr(void) {
+static Node *read_additive_expr() {
     Node *node = read_multiplicative_expr();
     for (;;) {
         if      (next_token('+')) node = binop('+', conv(node), conv(read_multiplicative_expr()));
@@ -1165,7 +1165,7 @@ static Node *read_additive_expr(void) {
     }
 }
 
-static Node *read_shift_expr(void) {
+static Node *read_shift_expr() {
     Node *node = read_additive_expr();
     for (;;) {
         int op;
@@ -1183,7 +1183,7 @@ static Node *read_shift_expr(void) {
     return node;
 }
 
-static Node *read_relational_expr(void) {
+static Node *read_relational_expr() {
     Node *node = read_shift_expr();
     for (;;) {
         if      (next_token('<'))   node = binop('<',   conv(node), conv(read_shift_expr()));
@@ -1195,7 +1195,7 @@ static Node *read_relational_expr(void) {
     }
 }
 
-static Node *read_equality_expr(void) {
+static Node *read_equality_expr() {
     Node *node = read_relational_expr();
     Node *r;
     if (next_token(OP_EQ)) {
@@ -1209,35 +1209,35 @@ static Node *read_equality_expr(void) {
     return r;
 }
 
-static Node *read_bitand_expr(void) {
+static Node *read_bitand_expr() {
     Node *node = read_equality_expr();
     while (next_token('&'))
         node = binop('&', conv(node), conv(read_equality_expr()));
     return node;
 }
 
-static Node *read_bitxor_expr(void) {
+static Node *read_bitxor_expr() {
     Node *node = read_bitand_expr();
     while (next_token('^'))
         node = binop('^', conv(node), conv(read_bitand_expr()));
     return node;
 }
 
-static Node *read_bitor_expr(void) {
+static Node *read_bitor_expr() {
     Node *node = read_bitxor_expr();
     while (next_token('|'))
         node = binop('|', conv(node), conv(read_bitxor_expr()));
     return node;
 }
 
-static Node *read_logand_expr(void) {
+static Node *read_logand_expr() {
     Node *node = read_bitor_expr();
     while (next_token(OP_LOGAND))
         node = ast_binop(type_int, OP_LOGAND, node, read_bitor_expr());
     return node;
 }
 
-static Node *read_logor_expr(void) {
+static Node *read_logor_expr() {
     Node *node = read_logand_expr();
     while (next_token(OP_LOGOR))
         node = ast_binop(type_int, OP_LOGOR, node, read_logand_expr());
@@ -1260,14 +1260,14 @@ static Node *do_read_conditional_expr(Node *cond) {
     return ast_ternary(u, cond, then, els);
 }
 
-static Node *read_conditional_expr(void) {
+static Node *read_conditional_expr() {
     Node *cond = read_logor_expr();
     if (!next_token('?'))
         return cond;
     return do_read_conditional_expr(cond);
 }
 
-static Node *read_assignment_expr(void) {
+static Node *read_assignment_expr() {
     Node *node = read_logor_expr();
     Token *tok = get();
     if (!tok)
@@ -1288,7 +1288,7 @@ static Node *read_assignment_expr(void) {
     return node;
 }
 
-static Node *read_comma_expr(void) {
+static Node *read_comma_expr() {
     Node *node = read_assignment_expr();
     while (next_token(',')) {
         Node *expr = read_assignment_expr();
@@ -1297,14 +1297,14 @@ static Node *read_comma_expr(void) {
     return node;
 }
 
-Node *read_expr(void) {
+Node *read_expr() {
     Node *r = read_comma_expr();
     if (!r)
         error("expression expected");
     return r;
 }
 
-static Node *read_expr_opt(void) {
+static Node *read_expr_opt() {
     return read_comma_expr();
 }
 
@@ -1324,7 +1324,7 @@ static Node *read_struct_field(Node *struc) {
     return ast_struct_ref(field, struc, name->sval);
 }
 
-static char *read_rectype_tag(void) {
+static char *read_rectype_tag() {
     Token *tok = get();
     if (tok->kind == TIDENT)
         return tok->sval;
@@ -1358,7 +1358,7 @@ static int read_bitsize(char *name, Type *ty) {
     return r;
 }
 
-static Vector *read_rectype_fields_sub(void) {
+static Vector *read_rectype_fields_sub() {
     Vector *r = make_vector();
     for (;;) {
         if (next_token(KSTATIC_ASSERT)) {
@@ -1529,11 +1529,11 @@ static Type *read_rectype_def(bool is_struct) {
     return r;
 }
 
-static Type *read_struct_def(void) {
+static Type *read_struct_def() {
     return read_rectype_def(true);
 }
 
-static Type *read_union_def(void) {
+static Type *read_union_def() {
     return read_rectype_def(false);
 }
 
@@ -1541,7 +1541,7 @@ static Type *read_union_def(void) {
  * Enum
  */
 
-static Type *read_enum_def(void) {
+static Type *read_enum_def() {
     char *tag = NULL;
     Token *tok = get();
 
@@ -1601,15 +1601,15 @@ static void assign_string(Vector *inits, Type *ty, char *p, int off) {
         vec_push(inits, ast_init(ast_inttype(type_char, 0), type_char, off + i));
 }
 
-static bool maybe_read_brace(void) {
+static bool maybe_read_brace() {
     return next_token('{');
 }
 
-static void maybe_skip_comma(void) {
+static void maybe_skip_comma() {
     next_token(',');
 }
 
-static void skip_to_brace(void) {
+static void skip_to_brace() {
     for (;;) {
         if (next_token('}'))
             return;
@@ -1891,7 +1891,7 @@ static Type *read_declarator_tail(Type *basety, Vector *params) {
     return basety;
 }
 
-static void skip_type_qualifiers(void) {
+static void skip_type_qualifiers() {
     while (next_token(KCONST) || next_token(KVOLATILE) || next_token(KRESTRICT));
 }
 
@@ -1945,7 +1945,7 @@ static Type *read_abstract_declarator(Type *basety) {
  * typeof()
  */
 
-static Type *read_typeof(void) {
+static Type *read_typeof() {
     expect('(');
     Type *r = is_type(peek_token())
         ? read_cast_type()
@@ -1963,7 +1963,7 @@ static bool is_poweroftwo(int x) {
     return (x <= 0) ? false : !(x & (x - 1));
 }
 
-static int read_alignas(void) {
+static int read_alignas() {
     // C11 6.7.5. Valid form of _Alignof is either _Alignas(type-name) or
     // _Alignas(constant-expression).
     expect('(');
@@ -2150,7 +2150,7 @@ static void read_decl(Vector *block, bool isglobal) {
  * K&R-style parameter types
  */
 
-static Vector *read_oldstyle_param_args(void) {
+static Vector *read_oldstyle_param_args() {
     Map *orig = localenv;
     localenv = NULL;
     Vector *r = make_vector();
@@ -2235,7 +2235,7 @@ static void skip_parentheses(Vector *buf) {
 // parenthesis of a function parameter list, we were reading a function
 // definition. (Usually '{' comes after a closing parenthesis.
 // A type keyword is allowed for K&R-style function definitions.)
-static bool is_funcdef(void) {
+static bool is_funcdef() {
     Vector *buf = make_vector();
     bool r = false;
     for (;;) {
@@ -2265,7 +2265,7 @@ static bool is_funcdef(void) {
     return r;
 }
 
-static void backfill_labels(void) {
+static void backfill_labels() {
     for (int i = 0; i < vec_len(gotos); i++) {
         Node *src = vec_get(gotos, i);
         char *label = src->label;
@@ -2279,7 +2279,7 @@ static void backfill_labels(void) {
     }
 }
 
-static Node *read_funcdef(void) {
+static Node *read_funcdef() {
     int sclass = 0;
     Type *basetype = read_decl_spec_opt(&sclass);
     localenv = make_map_parent(globalenv);
@@ -2307,12 +2307,12 @@ static Node *read_funcdef(void) {
  * If
  */
 
-static Node *read_boolean_expr(void) {
+static Node *read_boolean_expr() {
     Node *cond = read_expr();
     return is_flotype(cond->ty) ? ast_conv(type_bool, cond) : cond;
 }
 
-static Node *read_if_stmt(void) {
+static Node *read_if_stmt() {
     expect('(');
     Node *cond = read_boolean_expr();
     expect(')');
@@ -2327,7 +2327,7 @@ static Node *read_if_stmt(void) {
  * For
  */
 
-static Node *read_opt_decl_or_stmt(void) {
+static Node *read_opt_decl_or_stmt() {
     if (next_token(';'))
         return NULL;
     Vector *list = make_vector();
@@ -2345,7 +2345,7 @@ static Node *read_opt_decl_or_stmt(void) {
     lcontinue = ocontinue;                      \
     lbreak = obreak
 
-static Node *read_for_stmt(void) {
+static Node *read_for_stmt() {
     expect('(');
     char *beg = make_label();
     char *mid = make_label();
@@ -2384,7 +2384,7 @@ static Node *read_for_stmt(void) {
  * While
  */
 
-static Node *read_while_stmt(void) {
+static Node *read_while_stmt() {
     expect('(');
     Node *cond = read_boolean_expr();
     expect(')');
@@ -2407,7 +2407,7 @@ static Node *read_while_stmt(void) {
  * Do
  */
 
-static Node *read_do_stmt(void) {
+static Node *read_do_stmt() {
     char *beg = make_label();
     char *end = make_label();
     SET_JUMP_LABELS(beg, end);
@@ -2474,7 +2474,7 @@ static void check_case_duplicates(Vector *cases) {
     defaultcase = odefaultcase;                 \
     lbreak = obreak
 
-static Node *read_switch_stmt(void) {
+static Node *read_switch_stmt() {
     expect('(');
     Node *expr = conv(read_expr());
     ensure_inttype(expr);
@@ -2505,7 +2505,7 @@ static Node *read_label_tail(Node *label) {
     return ast_compound_stmt(v);
 }
 
-static Node *read_case_label(void) {
+static Node *read_case_label() {
     if (!cases)
         error("stray case label");
     char *label = make_label();
@@ -2524,7 +2524,7 @@ static Node *read_case_label(void) {
     return read_label_tail(ast_dest(label));
 }
 
-static Node *read_default_label(void) {
+static Node *read_default_label() {
     expect(':');
     if (defaultcase)
         error("duplicate default");
@@ -2536,21 +2536,21 @@ static Node *read_default_label(void) {
  * Jump statements
  */
 
-static Node *read_break_stmt(void) {
+static Node *read_break_stmt() {
     expect(';');
     if (!lbreak)
         error("stray break statement");
     return ast_jump(lbreak);
 }
 
-static Node *read_continue_stmt(void) {
+static Node *read_continue_stmt() {
     expect(';');
     if (!lcontinue)
         error("stray continue statement");
     return ast_jump(lcontinue);
 }
 
-static Node *read_return_stmt(void) {
+static Node *read_return_stmt() {
     Node *retval = read_expr_opt();
     expect(';');
     if (retval)
@@ -2558,7 +2558,7 @@ static Node *read_return_stmt(void) {
     return ast_return(NULL);
 }
 
-static Node *read_goto_stmt(void) {
+static Node *read_goto_stmt() {
     if (next_token('*')) {
         // [GNU] computed goto. "goto *p" jumps to the address pointed by p.
         Node *expr = read_cast_expr();
@@ -2588,7 +2588,7 @@ static Node *read_label(Token *tok) {
  * Statement
  */
 
-static Node *read_stmt(void) {
+static Node *read_stmt() {
     Token *tok = get();
     if (tok->kind == TKEYWORD) {
         switch (tok->id) {
@@ -2614,7 +2614,7 @@ static Node *read_stmt(void) {
     return r;
 }
 
-static Node *read_compound_stmt(void) {
+static Node *read_compound_stmt() {
     Map *orig = localenv;
     localenv = make_map_parent(localenv);
     Vector *list = make_vector();
@@ -2647,7 +2647,7 @@ static void read_decl_or_stmt(Vector *list) {
  * Compilation unit
  */
 
-Vector *read_toplevels(void) {
+Vector *read_toplevels() {
     toplevels = make_vector();
     for (;;) {
         if (peek_token()->kind == TEOF)
@@ -2683,7 +2683,7 @@ static void concatenate_string(Token *tok) {
     tok->enc = enc;
 }
 
-static Token *get(void) {
+static Token *get() {
     Token *r = read_token();
     if (r->kind == TINVALID)
         error("stray character in program: '%c'", r->c);
@@ -2700,7 +2700,7 @@ static void define_builtin(char *name, Type *rettype, Vector *paramtypes) {
     ast_gvar(make_func_type(rettype, paramtypes, true, false), name);
 }
 
-void parse_init(void) {
+void parse_init() {
     Vector *voidptr = make_vector1(make_ptr_type(type_void));
     Vector *two_voidptrs = make_vector();
     vec_push(two_voidptrs, make_ptr_type(type_void));

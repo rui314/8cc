@@ -62,7 +62,7 @@ static void maybe_rehash(Map *m) {
     m->nused = m->nelem;
 }
 
-Map *make_map(void) {
+Map *make_map() {
     return do_make_map(NULL, INIT_SIZE);
 }
 

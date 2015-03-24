@@ -3,7 +3,7 @@
 
 #include "test.h"
 
-void testmain(void) {
+void testmain() {
     print("static assert");
     _Static_assert(1, "fail");
 

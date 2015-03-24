@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-static void test_type(void) {
+static void test_type() {
     char a;
     short b;
     int c;
@@ -22,7 +22,7 @@ static void test_type(void) {
     bool n;
 }
 
-static void test_signed(void) {
+static void test_signed() {
     signed char a;
     signed short b;
     signed int c;
@@ -33,7 +33,7 @@ static void test_signed(void) {
     signed long long int h;
 }
 
-static void test_unsigned(void) {
+static void test_unsigned() {
     unsigned char a;
     unsigned short b;
     unsigned int c;
@@ -44,7 +44,7 @@ static void test_unsigned(void) {
     unsigned long long int h;
 }
 
-static void test_storage_class(void) {
+static void test_storage_class() {
     static a;
     auto b;
     register c;
@@ -53,7 +53,7 @@ static void test_storage_class(void) {
     register int f;
 }
 
-static void test_pointer(void) {
+static void test_pointer() {
     int *a;
     expect(8, sizeof(a));
     int *b[5];
@@ -62,11 +62,11 @@ static void test_pointer(void) {
     expect(8, sizeof(c));
 }
 
-static void test_unusual_order(void) {
+static void test_unusual_order() {
     int unsigned auto * const * const a;
 }
 
-static void test_typedef(void) {
+static void test_typedef() {
     typedef int integer;
     integer a = 5;
     expect(5, a);
@@ -93,13 +93,13 @@ static void test_typedef(void) {
     }
 }
 
-static void test_align(void) {
+static void test_align() {
 #ifdef __8cc__
     expect(8, sizeof(max_align_t));
 #endif
 }
 
-void testmain(void) {
+void testmain() {
     print("type system");
     test_type();
     test_signed();

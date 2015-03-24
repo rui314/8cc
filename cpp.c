@@ -147,14 +147,14 @@ static void propagate_space(Vector *tokens, Token *tmpl) {
  * Macro expander
  */
 
-static Token *read_ident(void) {
+static Token *read_ident() {
     Token *r = lex();
     if (r->kind != TIDENT)
         error("identifier expected, but got %s", tok2s(r));
     return r;
 }
 
-void expect_newline(void) {
+void expect_newline() {
     Token *tok = lex();
     if (tok->kind != TNEWLINE)
         error("newline expected, but got %s", tok2s(tok));
@@ -334,7 +334,7 @@ static void unget_all(Vector *tokens) {
 }
 
 // This is "expand" function in the Dave Prosser's document.
-static Token *read_expand_newline(void) {
+static Token *read_expand_newline() {
     Token *tok = lex();
     if (tok->kind == TEOF)
         return tok;
@@ -373,7 +373,7 @@ static Token *read_expand_newline(void) {
     }
 }
 
-static Token *read_expand(void) {
+static Token *read_expand() {
     for (;;) {
         Token *tok = read_expand_newline();
         if (tok->kind != TNEWLINE)
@@ -464,7 +464,7 @@ static void read_obj_macro(char *name) {
  * #define
  */
 
-static void read_define(void) {
+static void read_define() {
     Token *name = read_ident();
     Token *tok = lex();
     if (is_keyword(tok, '(') && !tok->space) {
@@ -479,7 +479,7 @@ static void read_define(void) {
  * #undef
  */
 
-static void read_undef(void) {
+static void read_undef() {
     Token *name = read_ident();
     expect_newline();
     map_remove(macros, name->sval);
@@ -489,7 +489,7 @@ static void read_undef(void) {
  * #if and the like
  */
 
-static Token *read_defined_op(void) {
+static Token *read_defined_op() {
     Token *tok = lex();
     if (is_keyword(tok, '(')) {
         tok = lex();
@@ -500,7 +500,7 @@ static Token *read_defined_op(void) {
     return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
-static Vector *read_intexpr_line(void) {
+static Vector *read_intexpr_line() {
     Vector *r = make_vector();
     for (;;) {
         Token *tok = read_expand_newline();
@@ -518,7 +518,7 @@ static Vector *read_intexpr_line(void) {
     }
 }
 
-static bool read_constexpr(void) {
+static bool read_constexpr() {
     push_token_buffer(vec_reverse(read_intexpr_line()));
     Node *expr = read_expr();
     Token *tok = lex();
@@ -534,11 +534,11 @@ static void do_read_if(bool istrue) {
         skip_cond_incl();
 }
 
-static void read_if(void) {
+static void read_if() {
     do_read_if(read_constexpr());
 }
 
-static void read_ifdef(void) {
+static void read_ifdef() {
     Token *tok = lex();
     if (tok->kind != TIDENT)
         error("identifier expected, but got %s", tok2s(tok));
@@ -546,7 +546,7 @@ static void read_ifdef(void) {
     do_read_if(map_get(macros, tok->sval));
 }
 
-static void read_ifndef(void) {
+static void read_ifndef() {
     Token *tok = lex();
     if (tok->kind != TIDENT)
         error("identifier expected, but got %s", tok2s(tok));
@@ -561,7 +561,7 @@ static void read_ifndef(void) {
     }
 }
 
-static void read_else(void) {
+static void read_else() {
     if (vec_len(cond_incl_stack) == 0)
         error("stray #else");
     CondIncl *ci = vec_tail(cond_incl_stack);
@@ -574,7 +574,7 @@ static void read_else(void) {
         skip_cond_incl();
 }
 
-static void read_elif(void) {
+static void read_elif() {
     if (vec_len(cond_incl_stack) == 0)
         error("stray #elif");
     CondIncl *ci = vec_tail(cond_incl_stack);
@@ -589,7 +589,7 @@ static void read_elif(void) {
     ci->wastrue = true;
 }
 
-static void skip_newlines(void) {
+static void skip_newlines() {
     // Skip all but the last newline.
     Token *tok = lex();
     while (is_keyword(tok, TNEWLINE) && is_keyword(peek_token(), TNEWLINE))
@@ -597,7 +597,7 @@ static void skip_newlines(void) {
     unget_token(tok);
 }
 
-static void read_endif(void) {
+static void read_endif() {
     if (vec_len(cond_incl_stack) == 0)
         error("stray #endif");
     CondIncl *ci = vec_pop(cond_incl_stack);
@@ -617,11 +617,11 @@ static void read_endif(void) {
  * #error and #warning
  */
 
-static void read_error(void) {
+static void read_error() {
     error("#error: %s", read_error_directive());
 }
 
-static void read_warning(void) {
+static void read_warning() {
     warn("#warning: %s", read_error_directive());
 }
 
@@ -715,7 +715,7 @@ static void read_include(bool isimport) {
     error("cannot find header file: %s", filename);
 }
 
-static void read_include_next(void) {
+static void read_include_next() {
     // [GNU] #include_next is a directive to include the "next" file
     // from the search path. This feature is used to override a
     // header file without getting into infinite inclusion loop.
@@ -759,7 +759,7 @@ static void parse_pragma_operand(char *s) {
     }
 }
 
-static void read_pragma(void) {
+static void read_pragma() {
     Token *tok = read_ident();
     parse_pragma_operand(tok->sval);
 }
@@ -775,7 +775,7 @@ static bool is_digit_sequence(char *p) {
     return true;
 }
 
-static void read_line(void) {
+static void read_line() {
     Token *tok = read_expand_newline();
     if (tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
         error("number expected after #line, but got %s", tok2s(tok));
@@ -816,7 +816,7 @@ static void read_linemarker(Token *tok) {
  * #-directive
  */
 
-static void read_directive(void) {
+static void read_directive() {
     Token *tok = lex();
     if (tok->kind == TNEWLINE)
         return;
@@ -874,7 +874,7 @@ static void handle_time_macro(Token *tmpl) {
     make_token_pushback(tmpl, TSTRING, strdup(buf));
 }
 
-static time_t get_timestamp(void) {
+static time_t get_timestamp() {
     File *f = current_file();
     if (!f->file)
         return time(NULL);
@@ -942,7 +942,7 @@ static void define_special_macro(char *name, SpecialMacroHandler *fn) {
     map_put(macros, name, make_special_macro(fn));
 }
 
-static void init_keywords(void) {
+static void init_keywords() {
 #define op(id, str)         map_put(keywords, str, (void *)id);
 #define keyword(id, str, _) map_put(keywords, str, (void *)id);
 #include "keyword.inc"
@@ -950,7 +950,7 @@ static void init_keywords(void) {
 #undef op
 }
 
-static void init_predefined_macros(void) {
+static void init_predefined_macros() {
     vec_push(std_include_path, "/usr/include/x86_64-linux-gnu");
     vec_push(std_include_path, "/usr/include/linux");
     vec_push(std_include_path, "/usr/include");
@@ -972,12 +972,12 @@ static void init_predefined_macros(void) {
     cpp_eval("#include <" BUILD_DIR "/include/8cc.h>");
 }
 
-void init_now(void) {
+void init_now() {
     time_t timet = time(NULL);
     localtime_r(&timet, &now);
 }
 
-void cpp_init(void) {
+void cpp_init() {
     setlocale(LC_ALL, "C");
     init_keywords();
     init_now();
@@ -1000,13 +1000,13 @@ static Token *maybe_convert_keyword(Token *tok) {
     return r;
 }
 
-Token *peek_token(void) {
+Token *peek_token() {
     Token *r = read_token();
     unget_token(r);
     return r;
 }
 
-Token *read_token(void) {
+Token *read_token() {
     Token *tok;
     for (;;) {
         tok = read_expand();

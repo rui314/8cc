@@ -7,7 +7,7 @@
 #define SS(x) #x
 #define S(x) SS(x)
 
-void testmain(void) {
+void testmain() {
     print("iso646");
     expect_string("&&", S(and));
     expect_string("&=", S(and_eq));

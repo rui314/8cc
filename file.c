@@ -75,7 +75,7 @@ static int readc_string(File *f) {
     return c;
 }
 
-static int get(void) {
+static int get() {
     File *f = vec_tail(files);
     int c;
     if (f->buflen > 0) {
@@ -94,7 +94,7 @@ static int get(void) {
     return c;
 }
 
-int readc(void) {
+int readc() {
     for (;;) {
         int c = get();
         if (c == EOF) {
@@ -127,7 +127,7 @@ void unreadc(int c) {
     }
 }
 
-File *current_file(void) {
+File *current_file() {
     return vec_tail(files);
 }
 
@@ -135,11 +135,11 @@ void stream_push(File *f) {
     vec_push(files, f);
 }
 
-int stream_depth(void) {
+int stream_depth() {
     return vec_len(files);
 }
 
-char *input_position(void) {
+char *input_position() {
     if (vec_len(files) == 0)
         return "(unknown)";
     File *f = vec_tail(files);
@@ -151,6 +151,6 @@ void stream_stash(File *f) {
     files = make_vector1(f);
 }
 
-void stream_unstash(void) {
+void stream_unstash() {
     files = vec_pop(stashed);
 }

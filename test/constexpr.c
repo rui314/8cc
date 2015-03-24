@@ -10,7 +10,7 @@ int *q1 = x1 + 2;
 int x2 = 7;
 int *p2 = &x2 + 1;
 
-void testmain(void) {
+void testmain() {
     print("constexpr");
     expect(1, *p1);
     expect(3, *q1);

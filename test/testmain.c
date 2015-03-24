@@ -27,7 +27,7 @@ void print(char *s) {
     fflush(stdout);
 }
 
-void printfail(void) {
+void printfail() {
     printf(isatty(fileno(stdout)) ? "\e[1;31mFailed\e[0m\n" : "Failed\n");
 }
 

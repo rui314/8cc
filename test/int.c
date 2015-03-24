@@ -11,7 +11,7 @@ static void expects(short a, short b) {
     }
 }
 
-void testmain(void) {
+void testmain() {
     print("long");
 
     short a = 10;

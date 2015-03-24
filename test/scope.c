@@ -3,7 +3,7 @@
 
 #include "test.h"
 
-void testmain(void) {
+void testmain() {
     print("scope");
 
     int a = 31;

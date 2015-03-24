@@ -34,7 +34,7 @@ static Vector *do_make_vector(int size) {
     return r;
 }
 
-Vector *make_vector(void) {
+Vector *make_vector() {
     return do_make_vector(0);
 }
 

@@ -4,7 +4,7 @@
 #include <string.h>
 #include "test.h"
 
-void testmain(void) {
+void testmain() {
     print("#line");
 
 #line 99
