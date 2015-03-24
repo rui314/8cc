@@ -73,7 +73,9 @@ static bool is_type(Token *tok);
 static Node *read_unary_expr(void);
 static Type *read_func_param(char **name, bool optional);
 static void read_decl(Vector *toplevel, bool isglobal);
+static Type *read_declarator_tail(Type *basetype, Vector *params);
 static Type *read_declarator(char **name, Type *basetype, Vector *params, int ctx);
+static Type *read_abstract_declarator(Type *basetype);
 static Type *read_decl_spec(int *sclass);
 static Node *read_struct_field(Node *struc);
 static void read_initializer_list(Vector *inits, Type *ty, int off, bool designated);
@@ -1126,8 +1128,7 @@ static Node *read_compound_literal(Type *ty) {
 }
 
 static Type *read_cast_type(void) {
-    Type *basetype = read_decl_spec(NULL);
-    return read_declarator(NULL, basetype, NULL, DECL_CAST);
+    return read_abstract_declarator(read_decl_spec(NULL));
 }
 
 static Node *read_cast_expr(void) {
@@ -1800,20 +1801,20 @@ static Vector *read_decl_init(Type *ty) {
  * function returning a pointer to an integer. The meaning of the first half
  * of the declaration ("int *" part) is different between them.
  *
- * In 8cc, delcarations are parsed by two functions: read_direct_declarator1
- * and read_direct_declarator2. The former function parses the first half of a
+ * In 8cc, delcarations are parsed by two functions: read_declarator
+ * and read_declarator_tail. The former function parses the first half of a
  * declaration, and the latter parses the (possibly nonexistent) parentheses
  * of a function or an array.
  */
 
 static Type *read_func_param(char **name, bool optional) {
     int sclass = 0;
-    Type *basetype = type_int;
+    Type *basety = type_int;
     if (is_type(peek_token()))
-        basetype = read_decl_spec(&sclass);
+        basety = read_decl_spec(&sclass);
     else if (optional)
         error("type expected, but got %s", tok2s(peek_token()));
-    return read_declarator(name, basetype, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
+    return read_declarator(name, basety, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
 }
 
 static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
@@ -1860,80 +1861,84 @@ static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
     }
 }
 
-static Type *read_direct_declarator2(Type *basetype, Vector *params) {
-    if (next_token('[')) {
-        int len;
-        if (next_token(']')) {
-            len = -1;
-        } else {
-            len = read_intexpr();
-            expect(']');
-        }
-        Type *t = read_direct_declarator2(basetype, params);
-        if (t->kind == KIND_FUNC)
-            error("array of functions");
-        return make_array_type(t, len);
+static Type *read_declarator_array(Type *basety) {
+    int len;
+    if (next_token(']')) {
+        len = -1;
+    } else {
+        len = read_intexpr();
+        expect(']');
     }
-    if (next_token('(')) {
-        if (basetype->kind == KIND_FUNC)
-            error("function returning a function");
-        if (basetype->kind == KIND_ARRAY)
-            error("function returning an array");
-        return read_func_param_list(params, basetype);
-    }
-    return basetype;
+    Type *t = read_declarator_tail(basety, NULL);
+    if (t->kind == KIND_FUNC)
+        error("array of functions");
+    return make_array_type(t, len);
+}
+
+static Type *read_declarator_func(Type *basety, Vector *param) {
+    if (basety->kind == KIND_FUNC)
+        error("function returning a function");
+    if (basety->kind == KIND_ARRAY)
+        error("function returning an array");
+    return read_func_param_list(param, basety);
+}
+
+static Type *read_declarator_tail(Type *basety, Vector *params) {
+    if (next_token('['))
+        return read_declarator_array(basety);
+    if (next_token('('))
+        return read_declarator_func(basety, params);
+    return basety;
 }
 
 static void skip_type_qualifiers(void) {
-    for (;;) {
-        if (next_token(KCONST) || next_token(KVOLATILE) || next_token(KRESTRICT))
-            continue;
-        return;
-    }
+    while (next_token(KCONST) || next_token(KVOLATILE) || next_token(KRESTRICT));
 }
 
-static Type *read_direct_declarator1(char **rname, Type *basetype, Vector *params, int ctx) {
-    Token *tok = get();
-    Token *next = peek_token();
-    if (is_keyword(tok, '(') && !is_type(next) && !is_keyword(next, ')')) {
+// C11 6.7.6: Declarators
+static Type *read_declarator(char **rname, Type *basety, Vector *params, int ctx) {
+    if (next_token('(')) {
+        // '(' is either beginning of grouping parentheses or of a function parameter list.
+        // If the next token is a type name, a parameter list must follow.
+        if (is_type(peek_token()))
+            return read_declarator_func(basety, params);
+        // If not, it's grouping. In that case we have to read from outside.
+        // For example, consider int (*)(), which is "pointer to function returning int".
+        // We have only read "int" so far. We don't want to pass "int" to
+        // a recursive call, or otherwise we would get "pointer to int".
+        // Here, we pass a dummy object to get "pointer to <something>" first,
+        // continue reading to get "function returning int", and then combine them.
         Type *stub = make_stub_type();
-        Type *t = read_direct_declarator1(rname, stub, params, ctx);
+        Type *t = read_declarator(rname, stub, params, ctx);
         expect(')');
-        *stub = *read_direct_declarator2(basetype, params);
+        *stub = *read_declarator_tail(basety, params);
         return t;
     }
-    if (is_keyword(tok, '*')) {
+    if (next_token('*')) {
         skip_type_qualifiers();
-        return read_direct_declarator1(rname, make_ptr_type(basetype), params, ctx);
+        return read_declarator(rname, make_ptr_type(basety), params, ctx);
     }
+    Token *tok = get();
     if (tok->kind == TIDENT) {
         if (ctx == DECL_CAST)
-            error("identifier is NOT expected, but got %s", tok2s(tok));
+            error("identifier is not expected, but got %s", tok2s(tok));
         *rname = tok->sval;
-        return read_direct_declarator2(basetype, params);
+        return read_declarator_tail(basety, params);
     }
     if (ctx == DECL_BODY || ctx == DECL_PARAM)
         error("identifier, ( or * are expected, but got %s", tok2s(tok));
     unget_token(tok);
-    return read_direct_declarator2(basetype, params);
+    return read_declarator_tail(basety, params);
 }
 
-static void fix_array_size(Type *t) {
-    assert(t->kind != KIND_STUB);
-    if (t->kind == KIND_ARRAY) {
-        fix_array_size(t->ptr);
-        t->size = t->len * t->ptr->size;
-    } else if (t->kind == KIND_PTR) {
-        fix_array_size(t->ptr);
-    } else if (t->kind == KIND_FUNC) {
-        fix_array_size(t->rettype);
-    }
-}
-
-static Type *read_declarator(char **rname, Type *basetype, Vector *params, int ctx) {
-    Type *t = read_direct_declarator1(rname, basetype, params, ctx);
-    fix_array_size(t);
-    return t;
+// C11 6.7.7: Type names
+// read_abstract_declarator reads a type name.
+// A type name is a declaration that omits the identifier.
+// A few examples are int* (pointer to int), int() (function returning int),
+// int*() (function returning pointer to int),
+// or int(*)() (pointer to function returning int). Used for casting.
+static Type *read_abstract_declarator(Type *basety) {
+    return read_declarator(NULL, basety, NULL, DECL_CAST);
 }
 
 /*
