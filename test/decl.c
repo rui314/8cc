@@ -38,6 +38,10 @@ static void t6() {
     expect(20, *a);
 }
 
+static int ((t7))();
+static int ((*t8))();
+static int ((*(**t9))(int*(), int(*), int()));
+
 void testmain() {
     print("declaration");
     t1();
