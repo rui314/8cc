@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdnoreturn.h>
+#include <time.h>
 
 enum {
     TIDENT,
@@ -70,10 +71,11 @@ typedef struct {
     char *name;
     int line;
     int column;
-    int ntok;    // token counter
-    int last;    // the last character read from file
-    int buf[3];  // push-back buffer for unread operations
-    int buflen;  // push-back buffer size
+    int ntok;     // token counter
+    int last;     // the last character read from file
+    int buf[3];   // push-back buffer for unread operations
+    int buflen;   // push-back buffer size
+    time_t mtime; // last modified time. 0 if string-backed file
 } File;
 
 typedef struct {

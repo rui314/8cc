@@ -7,13 +7,10 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
 #include <libgen.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include "8cc.h"
@@ -874,22 +871,11 @@ static void handle_time_macro(Token *tmpl) {
     make_token_pushback(tmpl, TSTRING, strdup(buf));
 }
 
-static time_t get_timestamp() {
-    File *f = current_file();
-    if (!f->file)
-        return time(NULL);
-    struct stat st;
-    if (fstat(fileno(f->file), &st) == -1)
-        error("fstat failed: %s", strerror(errno));
-    return st.st_mtime;
-}
-
 static void handle_timestamp_macro(Token *tmpl) {
     // [GNU] __TIMESTAMP__ is expanded to a string that describes the date
     // and time of the last modification time of the current source file.
     char buf[30];
-    time_t tt = get_timestamp();
-    strftime(buf, sizeof(buf), "%a %b %e %T %Y", localtime(&tt));
+    strftime(buf, sizeof(buf), "%a %b %e %T %Y", localtime(&tmpl->file->mtime));
     make_token_pushback(tmpl, TSTRING, strdup(buf));
 }
 
