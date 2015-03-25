@@ -71,7 +71,6 @@ static Node *conv(Node *node);
 static Node *read_stmt(void);
 static bool is_type(Token *tok);
 static Node *read_unary_expr(void);
-static Type *read_func_param(char **name, bool optional);
 static void read_decl(Vector *toplevel, bool isglobal);
 static Type *read_declarator_tail(Type *basetype, Vector *params);
 static Type *read_declarator(char **name, Type *basetype, Vector *params, int ctx);
@@ -757,7 +756,7 @@ static Node *read_number(char *s) {
 static Type *read_sizeof_operand_sub() {
     Token *tok = get();
     if (is_keyword(tok, '(') && is_type(peek_token())) {
-        Type *r = read_func_param(NULL, true);
+        Type *r = read_cast_type();
         expect(')');
         return r;
     }
@@ -779,7 +778,7 @@ static Node *read_sizeof_operand() {
 
 static Node *read_alignof_operand() {
     expect('(');
-    Type *ty = read_func_param(NULL, true);
+    Type *ty = read_cast_type();
     expect(')');
     return ast_inttype(type_ulong, ty->align);
 }
@@ -1810,55 +1809,91 @@ static Vector *read_decl_init(Type *ty) {
 static Type *read_func_param(char **name, bool optional) {
     int sclass = 0;
     Type *basety = type_int;
-    if (is_type(peek_token()))
+    if (is_type(peek_token())) {
         basety = read_decl_spec(&sclass);
-    else if (optional)
+    } else if (optional) {
         error("type expected, but got %s", tok2s(peek_token()));
-    return read_declarator(name, basety, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
+    }
+    Type *ty = read_declarator(name, basety, NULL, optional ? DECL_PARAM_TYPEONLY : DECL_PARAM);
+    // C11 6.7.6.3p7: Array of T is adjusted to pointer to T
+    // in a function parameter list.
+    if (ty->kind == KIND_ARRAY)
+        return make_ptr_type(ty->ptr);
+    // C11 6.7.6.3p8: Function is adjusted to pointer to function
+    // in a function parameter list.
+    if (ty->kind == KIND_FUNC)
+        return make_ptr_type(ty);
+    return ty;
 }
 
-static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
-    bool typeonly = !paramvars;
-    Vector *paramtypes = make_vector();
-    Token *tok = get();
-    if (is_keyword(tok, KVOID) && next_token(')'))
-        return make_func_type(rettype, paramtypes, false, false);
-    if (is_keyword(tok, ')'))
-        return make_func_type(rettype, paramtypes, true, true);
-    unget_token(tok);
-    bool oldstyle = true;
+// Reads an ANSI-style prototyped function parameter list.
+static void read_declarator_params(Vector *types, Vector *vars, bool *ellipsis) {
+    bool typeonly = !vars;
+    *ellipsis = false;
     for (;;) {
         if (next_token(KELLIPSIS)) {
-            if (vec_len(paramtypes) == 0)
-                error("at least one parameter is required");
+            if (vec_len(types) == 0)
+                error("at least one parameter is required before \"...\"");
             expect(')');
-            return make_func_type(rettype, paramtypes, true, oldstyle);
+            *ellipsis = true;
+            return;
         }
         char *name;
-        if (is_type(peek_token()))
-            oldstyle = false;
-        Type *ptype = read_func_param(&name, typeonly);
-        ensure_not_void(ptype);
-
-        // C11 6.7.6.3p7: array of T is adjusted to pointer to T.
-        if (ptype->kind == KIND_ARRAY)
-            ptype = make_ptr_type(ptype->ptr);
-
-        // C11 6.7.6.3p8: function is adjusted to pointer to function.
-        if (ptype->kind == KIND_FUNC)
-            ptype = make_ptr_type(ptype);
-
-        vec_push(paramtypes, ptype);
-        if (!typeonly) {
-            Node *node = ast_lvar(ptype, name);
-            vec_push(paramvars, node);
-        }
+        Type *ty = read_func_param(&name, typeonly);
+        ensure_not_void(ty);
+        vec_push(types, ty);
+        if (!typeonly)
+            vec_push(vars, ast_lvar(ty, name));
         Token *tok = get();
         if (is_keyword(tok, ')'))
-            return make_func_type(rettype, paramtypes, false, oldstyle);
+            return;
         if (!is_keyword(tok, ','))
             error("comma expected, but got %s", tok2s(tok));
     }
+}
+
+// Reads a K&R-style un-prototyped function parameter list.
+static void read_declarator_params_oldstyle(Vector *vars) {
+    for (;;) {
+        Token *tok = get();
+        if (tok->kind != TIDENT)
+            error("identifier expected, but got %s", tok2s(tok));
+        vec_push(vars, ast_lvar(type_int, tok->sval));
+        if (next_token(')'))
+            return;
+        if (!next_token(','))
+            error("comma expected, but got %s", tok2s(tok));
+    }
+}
+
+static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
+    // C11 6.7.6.3p10: A parameter list with just "void" specifies that
+    // the function has no parameters.
+    Token *tok = get();
+    if (is_keyword(tok, KVOID) && next_token(')'))
+        return make_func_type(rettype, make_vector(), false, false);
+
+    // C11 6.7.6.3p14: K&R-style un-prototyped declaration or
+    // function definition having no parameters.
+    // We return a type representing K&R-style declaration here.
+    // If this is actually part of a declartion, the type will be fixed later.
+    if (is_keyword(tok, ')'))
+        return make_func_type(rettype, make_vector(), true, true);
+    unget_token(tok);
+
+    if (next_token(KELLIPSIS))
+        error("at least one parameter is required before \"...\"");
+    if (is_type(peek_token())) {
+        bool ellipsis;
+        Vector *paramtypes = make_vector();
+        read_declarator_params(paramtypes, paramvars, &ellipsis);
+        return make_func_type(rettype, paramtypes, ellipsis, false);
+    }
+    read_declarator_params_oldstyle(paramvars);
+    Vector *paramtypes = make_vector();
+    for (int i = 0; i < vec_len(paramvars); i++)
+        vec_push(paramtypes, type_int);
+    return make_func_type(rettype, paramtypes, false, true);
 }
 
 static Type *read_declarator_array(Type *basety) {
