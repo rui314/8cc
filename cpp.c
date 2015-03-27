@@ -52,18 +52,6 @@ static void read_directive(void);
 static Token *read_expand(void);
 
 /*
- * Eval
- */
-
-void cpp_eval(char *buf) {
-    stream_stash(make_file_string(buf));
-    Vector *toplevels = read_toplevels();
-    for (int i = 0; i < vec_len(toplevels); i++)
-        emit_toplevel(vec_get(toplevels, i));
-    stream_unstash();
-}
-
-/*
  * Constructors
  */
 
@@ -955,7 +943,7 @@ static void init_predefined_macros() {
     define_special_macro("__INCLUDE_LEVEL__", handle_include_level_macro);
     define_special_macro("__TIMESTAMP__", handle_timestamp_macro);
 
-    cpp_eval("#include <" BUILD_DIR "/include/8cc.h>");
+    read_from_string("#include <" BUILD_DIR "/include/8cc.h>");
 }
 
 void init_now() {
@@ -984,6 +972,16 @@ static Token *maybe_convert_keyword(Token *tok) {
     r->kind = TKEYWORD;
     r->id = id;
     return r;
+}
+
+// Reads from a string as if the string is a content of input file.
+// Convenient for evaluating small string snippet contaiing preprocessor macros.
+void read_from_string(char *buf) {
+    stream_stash(make_file_string(buf));
+    Vector *toplevels = read_toplevels();
+    for (int i = 0; i < vec_len(toplevels); i++)
+        emit_toplevel(vec_get(toplevels, i));
+    stream_unstash();
 }
 
 Token *peek_token() {

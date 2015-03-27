@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
     parse_init();
     set_output_file(open_asmfile());
     if (buf_len(cppdefs) > 0)
-        cpp_eval(buf_body(cppdefs));
+        read_from_string(buf_body(cppdefs));
 
     if (cpponly)
         preprocess();

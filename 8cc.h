@@ -316,7 +316,7 @@ char *quote_cstring_len(char *p, int len);
 char *quote_char(char c);
 
 // cpp.c
-void cpp_eval(char *buf);
+void read_from_string(char *buf);
 bool is_ident(Token *tok, char *s);
 void expect_newline(void);
 void add_include_path(char *path);
