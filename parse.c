@@ -793,8 +793,6 @@ static Vector *read_func_args(Vector *params) {
     for (;;) {
         if (next_token(')')) break;
         Node *arg = conv(read_assignment_expr());
-        if (!arg)
-            error("previous argument is invalid");
         Type *paramtype;
         if (i < vec_len(params)) {
             paramtype = vec_get(params, i++);
@@ -810,7 +808,7 @@ static Vector *read_func_args(Vector *params) {
         Token *tok = get();
         if (is_keyword(tok, ')')) break;
         if (!is_keyword(tok, ','))
-            error("Unexpected token: '%s'", tok2s(tok));
+            error("unexpected token: '%s'", tok2s(tok));
     }
     return args;
 }
@@ -1052,7 +1050,7 @@ static Node *read_label_addr() {
     // with unary "&&" operator followed by a label name.
     Token *tok = get();
     if (tok->kind != TIDENT)
-        error("Label name expected after &&, but got %s", tok2s(tok));
+        error("label name expected after &&, but got %s", tok2s(tok));
     Node *r = ast_label_addr(tok->sval);
     vec_push(gotos, r);
     return r;
@@ -1510,7 +1508,7 @@ static Type *read_rectype_def(bool is_struct) {
     if (tag) {
         r = map_get(tags, tag);
         if (r && (r->kind == KIND_ENUM || r->is_struct != is_struct))
-            error("the declarations of %s does not match", tag);
+            error("declarations of %s does not match", tag);
         if (!r) {
             r = make_rectype(is_struct);
             map_put(tags, tag, r);
@@ -1553,7 +1551,7 @@ static Type *read_enum_def() {
     if (tag) {
         Type *ty = map_get(tags, tag);
         if (ty && ty->kind != KIND_ENUM)
-            error("the declarations of %s does not match", tag);
+            error("declarations of %s does not match", tag);
     }
     if (!is_keyword(tok, '{')) {
         if (!tag || !map_get(tags, tag))
@@ -1570,7 +1568,7 @@ static Type *read_enum_def() {
         if (is_keyword(tok, '}'))
             break;
         if (tok->kind != TIDENT)
-            error("Identifier expected, but got %s", tok2s(tok));
+            error("identifier expected, but got %s", tok2s(tok));
         char *name = tok->sval;
 
         if (next_token('='))
@@ -1862,7 +1860,7 @@ static void read_declarator_params_oldstyle(Vector *vars) {
         if (next_token(')'))
             return;
         if (!next_token(','))
-            error("comma expected, but got %s", tok2s(tok));
+            error("comma expected, but got %s", tok2s(get()));
     }
 }
 
@@ -1889,6 +1887,8 @@ static Type *read_func_param_list(Vector *paramvars, Type *rettype) {
         read_declarator_params(paramtypes, paramvars, &ellipsis);
         return make_func_type(rettype, paramtypes, ellipsis, false);
     }
+    if (!paramvars)
+        error("invalid function definition");
     read_declarator_params_oldstyle(paramvars);
     Vector *paramtypes = make_vector();
     for (int i = 0; i < vec_len(paramvars); i++)
@@ -2013,7 +2013,7 @@ static Type *read_decl_spec(int *rsclass) {
     int sclass = 0;
     Token *tok = peek_token();
     if (!is_type(tok))
-        error("type keyword expected, but got %s", tok2s(tok));
+        error("type name expected, but got %s", tok2s(tok));
 
     Type *usertype = NULL;
     enum { kvoid = 1, kbool, kchar, kint, kfloat, kdouble } kind = 0;
@@ -2193,7 +2193,7 @@ static Vector *read_oldstyle_param_args() {
         if (is_keyword(peek_token(), '{'))
             break;
         if (!is_type(peek_token()))
-            error("K&R-style declarator expected, but got %s", tok2s(peek_token()));
+            error("K&R-style declarator expected, but got %s", tok2s(get()));
         read_decl(r, false);
     }
     localenv = orig;
@@ -2549,7 +2549,7 @@ static Node *read_case_label() {
         int end = read_intexpr();
         expect(':');
         if (beg > end)
-            error("case region is not in correct order: %d %d", beg, end);
+            error("case region is not in correct order: %d ... %d", beg, end);
         vec_push(cases, make_case(beg, end, label));
     } else {
         expect(':');
