@@ -25,7 +25,7 @@ self: 8cc cleanobj
 test: 8cc
 	$(MAKE) CC=$(ECC) CFLAGS= utiltest $(TESTS)
 	./utiltest
-	./test.sh
+	./test/ast.sh
 	./test/negative.py
 	$(MAKE) runtests
 
