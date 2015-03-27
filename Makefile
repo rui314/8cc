@@ -26,6 +26,7 @@ test: 8cc
 	$(MAKE) CC=$(ECC) CFLAGS= utiltest $(TESTS)
 	./utiltest
 	./test.sh
+	./test/negative.py
 	$(MAKE) runtests
 
 runtests:

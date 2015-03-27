@@ -493,7 +493,7 @@ static Token *read_defined_op() {
         expect(')');
     }
     if (tok->kind != TIDENT)
-        error("Identifier expected, but got %s", tok2s(tok));
+        error("identifier expected, but got %s", tok2s(tok));
     return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
@@ -520,7 +520,7 @@ static bool read_constexpr() {
     Node *expr = read_expr();
     Token *tok = lex();
     if (tok->kind != TEOF)
-        error("Stray token: %s", tok2s(tok));
+        error("stray token: %s", tok2s(tok));
     pop_token_buffer();
     return eval_intexpr(expr, NULL);
 }
@@ -752,7 +752,7 @@ static void parse_pragma_operand(char *s) {
     } else if (!strcmp(s, "disable_warning")) {
         enable_warning = false;
     } else {
-        error("Unknown #pragma: %s", s);
+        error("unknown #pragma: %s", s);
     }
 }
 
