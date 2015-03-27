@@ -281,7 +281,6 @@ static int read_escaped_char() {
     case 'u': return read_universal_char(4);
     case 'U': return read_universal_char(8);
     case '0' ... '7': return read_octal_char(c);
-    case EOF: error("premature end of input");
     }
     warn("unknown escape character: \\%c", c);
     return c;
@@ -291,10 +290,8 @@ static Token *read_char(int enc) {
     int c = readc();
     int r = (c == '\\') ? read_escaped_char() : c;
     c = readc();
-    if (c == EOF)
-        error("premature end of input");
     if (c != '\'')
-        error("unterminated string: %c", c);
+        error("unterminated char: %c", c);
     if (enc == ENC_NONE)
         return make_char((char)r, enc);
     return make_char(r, enc);
@@ -305,7 +302,7 @@ static Token *read_string(int enc) {
     for (;;) {
         int c = readc();
         if (c == EOF)
-            error("Unterminated string");
+            error("unterminated string");
         if (c == '"')
             break;
         if (c != '\\') {

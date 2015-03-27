@@ -10,8 +10,28 @@ from multiprocessing import Pool
 from subprocess import Popen, PIPE, STDOUT
 import re
 
-# This is a list of expected error messages and compiler inputs.
-tests = """
+# These are lists of expected error messages and compiler inputs.
+lex_tests = r"""
+! \x is not followed by a hexadecimal character: z
+int i = '\xz'
+
+! invalid universal character: @
+char *p = "\u123@";
+
+! invalid universal character: \u0097
+char *p = "\u0097";
+
+! unknown escape character: \y
+char *p = "\y";
+
+! unterminated string
+char *p = "
+
+! premature end of block comment
+/*
+"""
+
+cpp_tests = r"""
 ! unterminated macro argument list
 #define x()
 x(
@@ -119,6 +139,7 @@ def parseTests(s):
 
 if __name__ == '__main__':
     # Run tests in parallel using process pool
+    tests = lex_tests + cpp_tests
     p = Pool(None)
     for res in p.imap_unordered(run, parseTests(tests)):
         if res != None:
