@@ -111,8 +111,11 @@ x(1, 2)
 #define x <foo
 #include x
 
-! cannot find header file: /no-such-file
-#include </no-such-file>
+! cannot find header file: /no-such-file\or-directory
+#include </no-such-file\or-directory>
+
+! cannot find header file: /no-such-file\or-directory
+#include "/no-such-file\or-directory"
 
 ! unknown #pragma: foo
 #pragma foo
