@@ -169,7 +169,13 @@ static Vector *read_one_arg(bool *end, bool readall) {
             level++;
         if (is_keyword(tok, ')'))
             level--;
+        // C11 6.10.3p10: Within the macro argument list,
+        // newline is considered a normal whitespace character.
+        // I don't know why the standard specifies such a minor detail,
+        // but the difference of newline and space is observable
+        // if you stringize tokens using #.
         if (tok->bol) {
+            tok = copy_token(tok);
             tok->bol = false;
             tok->space = true;
         }
