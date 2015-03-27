@@ -24,6 +24,9 @@ char *p = "\u0097";
 ! unknown escape character: \y
 char *p = "\y";
 
+! unterminated char
+char x = '
+
 ! unterminated string
 char *p = "
 
@@ -48,6 +51,9 @@ x(1, 2)
 
 ! identifier expected, but got '123'
 #define x(123)
+
+! ) expected, but got ,
+#define x(x, ..., y)
 
 ! '##' cannot appear at start of macro expansion
 #define x ##
@@ -76,6 +82,9 @@ x(1, 2)
 #else
 #endif
 
+! stray #elif
+#elif
+
 ! #elif after #else
 #if 1
 #else
@@ -84,6 +93,9 @@ x(1, 2)
 
 ! stray #endif
 #endif
+
+! #warning: foobar
+#warning foobar
 
 ! #error: foobar
 #error foobar
