@@ -124,6 +124,20 @@ x(1, 2)
 _Pragma(1)
 """
 
+encoding_tests = r"""
+! unsupported non-standard concatenation of string literals: L"bar"
+u"foo" L"bar";
+
+! invalid UTF-8 sequence
+void *p = U"\xff";
+
+! invalid UTF-8 continuation byte
+void *p = U"\xE3\x94";
+
+! invalid UCS character: \U10000000
+void *p = "\U10000000";
+"""
+
 def run(args):
     expect, code = args
     p = Popen(["./8cc", "-c", "-o", "/dev/null", "-"], stdin=PIPE, stdout=PIPE, stderr=STDOUT)
@@ -139,7 +153,7 @@ def parseTests(s):
 
 if __name__ == '__main__':
     # Run tests in parallel using process pool
-    tests = lex_tests + cpp_tests
+    tests = lex_tests + cpp_tests + encoding_tests
     p = Pool(None)
     for res in p.imap_unordered(run, parseTests(tests)):
         if res != None:
