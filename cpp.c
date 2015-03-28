@@ -580,15 +580,16 @@ static void read_elif() {
     ci->wastrue = true;
 }
 
-static void skip_newlines() {
-    // Skip all but the last newline.
+// Skips all newlines and returns the first non-newline token.
+static Token *skip_newlines() {
     Token *tok = lex();
-    while (is_keyword(tok, TNEWLINE) && is_keyword(peek_token(), TNEWLINE))
+    while (tok->kind == TNEWLINE)
         tok = lex();
     unget_token(tok);
+    return tok;
 }
 
-static void read_endif() {
+static void read_endif(Token *tok) {
     if (vec_len(cond_incl_stack) == 0)
         error("stray #endif");
     CondIncl *ci = vec_pop(cond_incl_stack);
@@ -597,10 +598,10 @@ static void read_endif() {
     // Detect an #ifndef and #endif pair that guards the entire
     // header file. Remember the macro name guarding the file
     // so that we can skip the file next time.
-    if (!ci->include_guard || ci->file != current_file())
+    if (!ci->include_guard || ci->file != tok->file)
         return;
-    skip_newlines();
-    if (ci->file != current_file())
+    Token *last = skip_newlines();
+    if (ci->file != last->file)
         map_put(include_guard, ci->file->name, ci->include_guard);
 }
 
@@ -684,7 +685,7 @@ static bool try_include(char *dir, char *filename, bool isimport) {
     return true;
 }
 
-static void read_include(bool isimport) {
+static void read_include(Token *tok, bool isimport) {
     bool std;
     char *filename = read_cpp_header_name(&std);
     expect_newline();
@@ -694,7 +695,7 @@ static void read_include(bool isimport) {
         goto err;
     }
     if (!std) {
-        File *f = current_file();
+        File *f = tok->file;
         char *dir = f->name ? dirname(strdup(f->name)) : ".";
         if (try_include(dir, filename, isimport))
             return;
@@ -706,7 +707,7 @@ static void read_include(bool isimport) {
     error("cannot find header file: %s", filename);
 }
 
-static void read_include_next() {
+static void read_include_next(Token *tok) {
     // [GNU] #include_next is a directive to include the "next" file
     // from the search path. This feature is used to override a
     // header file without getting into infinite inclusion loop.
@@ -719,7 +720,7 @@ static void read_include_next() {
             return;
         goto err;
     }
-    char *cur = fullpath(current_file()->name);
+    char *cur = fullpath(tok->file->name);
     int i = vec_len(std_include_path) - 1;
     for (; i >= 0; i--) {
         char *dir = vec_get(std_include_path, i);
@@ -737,9 +738,10 @@ static void read_include_next() {
  * #pragma
  */
 
-static void parse_pragma_operand(char *s) {
+static void parse_pragma_operand(Token *tok) {
+    char *s = tok->sval;
     if (!strcmp(s, "once")) {
-        char *path = fullpath(current_file()->name);
+        char *path = fullpath(tok->file->name);
         map_put(once, path, (void *)1);
     } else if (!strcmp(s, "enable_warning")) {
         enable_warning = true;
@@ -752,7 +754,7 @@ static void parse_pragma_operand(char *s) {
 
 static void read_pragma() {
     Token *tok = read_ident();
-    parse_pragma_operand(tok->sval);
+    parse_pragma_operand(tok);
 }
 
 /*
@@ -821,14 +823,14 @@ static void read_directive() {
     if (!strcmp(s, "define"))            read_define();
     else if (!strcmp(s, "elif"))         read_elif();
     else if (!strcmp(s, "else"))         read_else();
-    else if (!strcmp(s, "endif"))        read_endif();
+    else if (!strcmp(s, "endif"))        read_endif(tok);
     else if (!strcmp(s, "error"))        read_error();
     else if (!strcmp(s, "if"))           read_if();
     else if (!strcmp(s, "ifdef"))        read_ifdef();
     else if (!strcmp(s, "ifndef"))       read_ifndef();
-    else if (!strcmp(s, "import"))       read_include(true);
-    else if (!strcmp(s, "include"))      read_include(false);
-    else if (!strcmp(s, "include_next")) read_include_next();
+    else if (!strcmp(s, "import"))       read_include(tok, true);
+    else if (!strcmp(s, "include"))      read_include(tok, false);
+    else if (!strcmp(s, "include_next")) read_include_next(tok);
     else if (!strcmp(s, "line"))         read_line();
     else if (!strcmp(s, "pragma"))       read_pragma();
     else if (!strcmp(s, "undef"))        read_undef();
@@ -874,13 +876,11 @@ static void handle_timestamp_macro(Token *tmpl) {
 }
 
 static void handle_file_macro(Token *tmpl) {
-    File *f = current_file();
-    make_token_pushback(tmpl, TSTRING, f->name);
+    make_token_pushback(tmpl, TSTRING, tmpl->file->name);
 }
 
 static void handle_line_macro(Token *tmpl) {
-    File *f = current_file();
-    make_token_pushback(tmpl, TNUMBER, format("%d", f->line));
+    make_token_pushback(tmpl, TNUMBER, format("%d", tmpl->file->line));
 }
 
 static void handle_pragma_macro(Token *tmpl) {
@@ -889,7 +889,7 @@ static void handle_pragma_macro(Token *tmpl) {
     if (operand->kind != TSTRING)
         error("_Pragma takes a string literal, but got %s", tok2s(operand));
     expect(')');
-    parse_pragma_operand(operand->sval);
+    parse_pragma_operand(operand);
     make_token_pushback(tmpl, TNUMBER, "1");
 }
 
