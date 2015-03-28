@@ -480,11 +480,11 @@ bool is_keyword(Token *tok, int c) {
     return (tok->kind == TKEYWORD) && (tok->id == c);
 }
 
-void push_token_buffer(Vector *buf) {
+void token_buffer_stash(Vector *buf) {
     vec_push(buffers, buf);
 }
 
-void pop_token_buffer() {
+void token_buffer_unstash() {
     vec_pop(buffers);
 }
 

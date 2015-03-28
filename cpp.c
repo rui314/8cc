@@ -249,7 +249,7 @@ static Token *stringize(Token *tmpl, Vector *args) {
 }
 
 static Vector *expand_all(Vector *tokens, Token *tmpl) {
-    push_token_buffer(vec_reverse(tokens));
+    token_buffer_stash(vec_reverse(tokens));
     Vector *r = make_vector();
     for (;;) {
         Token *tok = read_expand();
@@ -258,7 +258,7 @@ static Vector *expand_all(Vector *tokens, Token *tmpl) {
         vec_push(r, tok);
     }
     propagate_space(r, tmpl);
-    pop_token_buffer();
+    token_buffer_unstash();
     return r;
 }
 
@@ -510,12 +510,12 @@ static Vector *read_intexpr_line() {
 }
 
 static bool read_constexpr() {
-    push_token_buffer(vec_reverse(read_intexpr_line()));
+    token_buffer_stash(vec_reverse(read_intexpr_line()));
     Node *expr = read_expr();
     Token *tok = lex();
     if (tok->kind != TEOF)
         error("stray token: %s", tok2s(tok));
-    pop_token_buffer();
+    token_buffer_unstash();
     return eval_intexpr(expr, NULL);
 }
 
