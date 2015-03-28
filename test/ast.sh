@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 function fail {
     echo -n -e '\e[1;31m[ERROR]\e[0m '

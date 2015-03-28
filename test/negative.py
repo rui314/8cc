@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# Copyright 2015 Rui Ueyama. Released under the MIT license.
 
 # This file contains negative tests.
 # All tests in this file are not valid C code and thus cause

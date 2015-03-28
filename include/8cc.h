@@ -1,3 +1,5 @@
+// Copyright 2014 Rui Ueyama. Released under the MIT license.
+
 #define _LP64 1
 #define __8cc__ 1
 #define __ELF__ 1

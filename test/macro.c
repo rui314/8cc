@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include <locale.h>
 #include <stddef.h>
@@ -20,7 +19,7 @@ static char *get_timestamp() {
 
 static void special() {
     expect_string("test/macro.c", __FILE__);
-    expect(23, __LINE__);
+    expect(22, __LINE__);
     expect(11, strlen(__DATE__));
     expect(8, strlen(__TIME__));
     expect(24, strlen(__TIMESTAMP__));

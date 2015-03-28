@@ -1,3 +1,5 @@
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
+
 op(OP_ARROW, "->")
 op(OP_A_ADD, "+=")
 op(OP_A_AND, "&=")
