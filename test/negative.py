@@ -32,6 +32,12 @@ char *p = "
 
 ! premature end of block comment
 /*
+
+! header name should not be empty
+#include <>
+
+! header name should not be empty
+#include ""
 """
 
 cpp_tests = r"""
