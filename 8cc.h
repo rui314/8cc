@@ -373,7 +373,6 @@ char *read_header_file_name(bool *std);
 bool is_keyword(Token *tok, int c);
 void token_buffer_stash(Vector *buf);
 void token_buffer_unstash();
-char *read_error_directive(void);
 void unget_token(Token *tok);
 Token *lex_string(char *s);
 Token *lex(void);

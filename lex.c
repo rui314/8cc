@@ -501,26 +501,6 @@ void token_buffer_unstash() {
     vec_pop(buffers);
 }
 
-char *read_error_directive() {
-    Buffer *b = make_buffer();
-    bool bol = true;
-    for (;;) {
-        int c = readc();
-        if (c == EOF)
-            break;
-        if (c == '\n') {
-            unreadc(c);
-            break;
-        }
-        if (bol && iswhitespace(c))
-            continue;
-        bol = false;
-        buf_write(b, c);
-    }
-    buf_write(b, '\0');
-    return buf_body(b);
-}
-
 void unget_token(Token *tok) {
     if (tok->kind == TEOF)
         return;

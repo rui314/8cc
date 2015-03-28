@@ -609,12 +609,24 @@ static void read_endif(Token *tok) {
  * #error and #warning
  */
 
+static char *read_error_message() {
+    Buffer *b = make_buffer();
+    for (;;) {
+        Token *tok = lex();
+        if (tok->kind == TNEWLINE)
+            return buf_body(b);
+        if (buf_len(b) != 0 && tok->space)
+            buf_write(b, ' ');
+        buf_printf(b, "%s", tok2s(tok));
+    }
+}
+
 static void read_error() {
-    error("#error: %s", read_error_directive());
+    error("#error: %s", read_error_message());
 }
 
 static void read_warning() {
-    warn("#warning: %s", read_error_directive());
+    warn("#warning: %s", read_error_message());
 }
 
 /*
