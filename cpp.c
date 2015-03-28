@@ -641,11 +641,7 @@ static char *join_paths(Vector *args) {
 }
 
 static char *read_cpp_header_name(bool *std) {
-    // Filename after #include needs a special tokenization treatment.
-    // It may be quoted by < and > instead of "". Even if it's quoted
-    // by "", it's still different from a regular string token.
-    // For example, \ in a file name should not be interpreted as a
-    // quote. (Think of Windows path.)
+    // Try reading a file name using a special tokenizer for #include.
     char *path = read_header_file_name(std);
     if (path)
         return path;

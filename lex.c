@@ -463,8 +463,20 @@ static bool buffer_empty() {
     return vec_len(buffers) == 1 && vec_len(vec_head(buffers)) == 0;
 }
 
+// Reads a header file name for #include.
+//
+// Filenames after #include need a special tokenization treatment.
+// A filename string may be quoted by < and > instead of "".
+// Even if it's quoted by "", it's still different from a regular string token.
+// For example, \ in this context is not interpreted as a quote.
+// Thus, we cannot use lex() to read a filename.
+//
+// That the C preprocessor requires a special lexer behavior only for
+// #include is a violation of layering. Ideally, the lexer should be
+// agnostic about higher layers status. But we need this for the C grammar.
 char *read_header_file_name(bool *std) {
-    assert(buffer_empty());
+    if (!buffer_empty())
+        return NULL;
     skip_space();
     char close;
     if (next('"')) {
