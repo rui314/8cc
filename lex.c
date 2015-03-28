@@ -133,6 +133,8 @@ static bool do_skip_space() {
     return false;
 }
 
+// Skips spaces including comments.
+// Returns true if at least one space is skipped.
 static bool skip_space() {
     if (!do_skip_space())
         return false;
@@ -195,6 +197,8 @@ void skip_cond_incl() {
     }
 }
 
+// Reads a number literal. Lexer's grammar on numbers is not strict.
+// Integers and floating point numbers and different base numbers are not distinguished.
 static Token *read_number(char c) {
     Buffer *b = make_buffer();
     buf_write(b, c);
@@ -217,6 +221,7 @@ static bool nextoct() {
     return '0' <= c && c <= '7';
 }
 
+// Reads an octal escape sequence.
 static int read_octal_char(int c) {
     int r = c - '0';
     if (!nextoct())
@@ -227,6 +232,7 @@ static int read_octal_char(int c) {
     return (r << 3) | (readc() - '0');
 }
 
+// Reads a \x escape sequence.
 static int read_hex_char() {
     int c = readc();
     int r = 0;
@@ -243,11 +249,17 @@ static int read_hex_char() {
 }
 
 static bool is_valid_ucn(unsigned int c) {
+    // C11 6.4.3p2: U+D800 to U+DFFF are reserved for surrogate pairs.
+    // A codepoint within the range cannot be a valid character.
     if (0xD800 <= c && c <= 0xDFFF)
         return false;
+    // It's not allowed to encode ASCII characters using \U or \u.
+    // Some characters not in the basic character set (C11 5.2.1p3)
+    // are allowed as exceptions.
     return 0xA0 <= c || c == '$' || c == '@' || c == '`';
 }
 
+// Reads \u or \U escape sequences. len is 4 or 8, respecitvely.
 static int read_universal_char(int len) {
     unsigned int r = 0;
     for (int i = 0; i < len; i++) {
@@ -297,6 +309,7 @@ static Token *read_char(int enc) {
     return make_char(r, enc);
 }
 
+// Reads a string literal.
 static Token *read_string(int enc) {
     Buffer *b = make_buffer();
     for (;;) {
