@@ -156,11 +156,11 @@ static void skip_string() {
             readc();
 }
 
-// Skip the block excluded from the input by a #if-like directive.
-// According to C11 6.10, the code within #if and #endif needs to be
-// a sequence of valid tokens. However, in reality, most compilers
-// don't tokenize nor validate contents. We don't tokenize too and
-// just skip the contents as fast as we can.
+// Skips a block of code excluded from input by #if, #ifdef and the like.
+// C11 6.10 says that code within #if and #endif needs to be a sequence of
+// valid tokens even if skipped. However, in reality, most compilers don't
+// tokenize nor validate contents. We don't do that, too.
+// This function is to skip code until matching #endif as fast as we can.
 void skip_cond_incl() {
     int nest = 0;
     for (;;) {
@@ -361,6 +361,10 @@ static void skip_block_comment() {
     }
 }
 
+// Reads a digraph starting with '%'. Digraphs are alternative spellings
+// for some punctuation characters. They are useless in ASCII.
+// We implement this just for the standard compliance.
+// See C11 6.4.6p3 for the spec.
 static Token *read_digraph() {
     if (next('>'))
         return make_keyword('}');
@@ -505,6 +509,10 @@ bool is_keyword(Token *tok, int c) {
     return (tok->kind == TKEYWORD) && (tok->id == c);
 }
 
+// Temporarily switches the input token stream to given list of tokens,
+// so that you can get the tokens as return values of lex() again.
+// After the tokens are exhausted, EOF is returned from lex() until
+// "unstash" is called to restore the original state.
 void token_buffer_stash(Vector *buf) {
     vec_push(buffers, buf);
 }
@@ -520,6 +528,9 @@ void unget_token(Token *tok) {
     vec_push(buf, tok);
 }
 
+// Reads a token from a given string.
+// This function temporarily switches the main input stream to
+// a given string and reads one token.
 Token *lex_string(char *s) {
     stream_stash(make_file_string(s));
     Token *r = do_read_token();
