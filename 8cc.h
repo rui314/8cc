@@ -341,11 +341,13 @@ extern bool dumpstack;
 extern bool dumpsource;
 extern bool warning_is_error;
 
-#define error(...) errorf(__FILE__, __LINE__, __VA_ARGS__)
-#define warn(...)  warnf(__FILE__, __LINE__, __VA_ARGS__)
+#define STR2(x) #x
+#define STR(x) STR2(x)
+#define error(...)       errorf(__FILE__ ":" STR(__LINE__), NULL, __VA_ARGS__)
+#define warn(...)        warnf(__FILE__ ":" STR(__LINE__), NULL, __VA_ARGS__)
 
-noreturn void errorf(char *file, int line, char *fmt, ...);
-void warnf(char *file, int line, char *fmt, ...);
+noreturn void errorf(char *line, char *pos, char *fmt, ...);
+void warnf(char *line, char *pos, char *fmt, ...);
 
 // file.c
 File *make_file(FILE *file, char *name);
