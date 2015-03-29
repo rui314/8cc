@@ -32,6 +32,7 @@ File *make_file(FILE *file, char *name) {
     r->file = file;
     r->name = name;
     r->line = 1;
+    r->column = 1;
     struct stat st;
     if (fstat(fileno(file), &st) == -1)
         error("fstat failed: %s", strerror(errno));
@@ -42,6 +43,7 @@ File *make_file(FILE *file, char *name) {
 File *make_file_string(char *s) {
     File *r = calloc(1, sizeof(File));
     r->line = 1;
+    r->column = 1;
     r->p = s;
     return r;
 }
@@ -93,7 +95,7 @@ static int get() {
     }
     if (c == '\n') {
         f->line++;
-        f->column = 0;
+        f->column = 1;
     } else {
         f->column++;
     }
@@ -126,7 +128,7 @@ void unreadc(int c) {
     assert(f->buflen < sizeof(f->buf) / sizeof(f->buf[0]));
     f->buf[f->buflen++] = c;
     if (c == '\n') {
-        f->column = 0;
+        f->column = 1;
         f->line--;
     } else {
         f->column--;

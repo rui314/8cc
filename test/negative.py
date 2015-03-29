@@ -13,31 +13,31 @@ import re
 
 # These are lists of expected error messages and compiler inputs.
 lex_tests = r"""
-! \x is not followed by a hexadecimal character: z
+! 1:10: \x is not followed by a hexadecimal character: z
 int i = '\xz'
 
-! invalid universal character: @
+! 1:12: invalid universal character: @
 char *p = "\u123@";
 
-! invalid universal character: \u0097
+! 1:12: invalid universal character: \u0097
 char *p = "\u0097";
 
-! unknown escape character: \y
+! 1:12: unknown escape character: \y
 char *p = "\y";
 
-! unterminated char
+! 1:10: unterminated char
 char x = '
 
-! unterminated string
+! 1:11: unterminated string
 char *p = "
 
-! premature end of block comment
+! 1:1: premature end of block comment
 /*
 
-! header name should not be empty
+! 1:10: header name should not be empty
 #include <>
 
-! header name should not be empty
+! 1:10: header name should not be empty
 #include ""
 """
 
@@ -147,7 +147,7 @@ _Pragma(1)
 """
 
 encoding_tests = r"""
-! unsupported non-standard concatenation of string literals: L"bar"
+! 1:8: unsupported non-standard concatenation of string literals: L"bar"
 u"foo" L"bar";
 
 ! invalid UTF-8 sequence
@@ -207,10 +207,10 @@ int f() { _Static_assert(_Generic(x, default: x, default: x)) }
 int x;
 struct { _Static_assert(_Generic(x, float: x)) };
 
-! invalid character 'x': 0x1x
+! 1:9: invalid character 'x': 0x1x
 int x = 0x1x;
 
-! invalid character 'x': 0.2x
+! 1:9: invalid character 'x': 0.2x
 int x = 0.2x;
 
 ! undefined variable: x
@@ -222,13 +222,13 @@ int f() { 1(2); }
 ! pointer type expected, but got int 1
 int f() { 1->x; }
 
-! label name expected after &&, but got 1
+! 1:11: label name expected after &&, but got 1
 int f() { &&1; }
 
-! pointer type expected, but got 1
+! 1:11: pointer type expected, but got 1
 int f() { *1; }
 
-! invalid use of ~: 3.0
+! 1:11: invalid use of ~: 3.0
 int f() { ~3.0; }
 
 ! expression expected

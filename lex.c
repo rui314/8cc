@@ -32,6 +32,21 @@ static Token *space_token = &(Token){ TSPACE };
 static Token *newline_token = &(Token){ TNEWLINE };
 static Token *eof_token = &(Token){ TEOF };
 
+typedef struct {
+    int line;
+    int column;
+} Pos;
+
+static Pos pos;
+
+static char *pos_string(Pos *p) {
+    File *f = current_file();
+    return format("%s:%d:%d", f ? f->name : "(unknown)", p->line, p->column);
+}
+
+#define errorp(p, ...) errorf(__FILE__ ":" STR(__LINE__), pos_string(&p), __VA_ARGS__)
+#define warnp(p, ...)  warnf(__FILE__ ":" STR(__LINE__), pos_string(&p), __VA_ARGS__)
+
 static void skip_block_comment(void);
 
 void lex_init(char *filename) {
@@ -46,14 +61,23 @@ void lex_init(char *filename) {
     stream_push(make_file(fp, filename));
 }
 
+static Pos get_pos(int delta) {
+    File *f = current_file();
+    return (Pos){ f->line, f->column + delta };
+}
+
+static void mark() {
+    pos = get_pos(0);
+}
+
 static Token *make_token(Token *tmpl) {
     Token *r = malloc(sizeof(Token));
     *r = *tmpl;
     r->hideset = NULL;
     File *f = current_file();
     r->file = f;
-    r->line = f->line;
-    r->column = f->column;
+    r->line = pos.line;
+    r->column = pos.column;
     r->count = f->ntok++;
     return r;
 }
@@ -163,7 +187,7 @@ static void skip_string() {
 void skip_cond_incl() {
     int nest = 0;
     for (;;) {
-        bool bol = (current_file()->column == 0);
+        bool bol = (current_file()->column == 1);
         skip_space();
         int c = readc();
         if (c == EOF)
@@ -233,10 +257,11 @@ static int read_octal_char(int c) {
 
 // Reads a \x escape sequence.
 static int read_hex_char() {
+    Pos p = get_pos(-2);
     int c = readc();
-    int r = 0;
     if (!isxdigit(c))
-        error("\\x is not followed by a hexadecimal character: %c", c);
+        errorp(p, "\\x is not followed by a hexadecimal character: %c", c);
+    int r = 0;
     for (;; c = readc()) {
         switch (c) {
         case '0' ... '9': r = (r << 4) | (c - '0'); continue;
@@ -260,6 +285,7 @@ static bool is_valid_ucn(unsigned int c) {
 
 // Reads \u or \U escape sequences. len is 4 or 8, respecitvely.
 static int read_universal_char(int len) {
+    Pos p = get_pos(-2);
     unsigned int r = 0;
     for (int i = 0; i < len; i++) {
         char c = readc();
@@ -267,15 +293,16 @@ static int read_universal_char(int len) {
         case '0' ... '9': r = (r << 4) | (c - '0'); continue;
         case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
         case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
-        default: error("invalid universal character: %c", c);
+        default: errorp(p, "invalid universal character: %c", c);
         }
     }
     if (!is_valid_ucn(r))
-        error("invalid universal character: \\%c%0*x", (len == 4) ? 'u' : 'U', len, r);
+        errorp(p, "invalid universal character: \\%c%0*x", (len == 4) ? 'u' : 'U', len, r);
     return r;
 }
 
 static int read_escaped_char() {
+    Pos p = get_pos(-1);
     int c = readc();
     switch (c) {
     case '\'': case '"': case '?': case '\\':
@@ -293,7 +320,7 @@ static int read_escaped_char() {
     case 'U': return read_universal_char(8);
     case '0' ... '7': return read_octal_char(c);
     }
-    warn("unknown escape character: \\%c", c);
+    warnp(p, "unknown escape character: \\%c", c);
     return c;
 }
 
@@ -302,7 +329,7 @@ static Token *read_char(int enc) {
     int r = (c == '\\') ? read_escaped_char() : c;
     c = readc();
     if (c != '\'')
-        error("unterminated char: %c", c);
+        errorp(pos, "unterminated char");
     if (enc == ENC_NONE)
         return make_char((char)r, enc);
     return make_char(r, enc);
@@ -314,7 +341,7 @@ static Token *read_string(int enc) {
     for (;;) {
         int c = readc();
         if (c == EOF)
-            error("unterminated string");
+            errorp(pos, "unterminated string");
         if (c == '"')
             break;
         if (c != '\\') {
@@ -349,11 +376,12 @@ static Token *read_ident(char c) {
 }
 
 static void skip_block_comment() {
+    Pos p = get_pos(-2);
     bool maybe_end = false;
     for (;;) {
         int c = readc();
         if (c == EOF)
-            error("premature end of block comment");
+            errorp(p, "premature end of block comment");
         if (c == '/' && maybe_end)
             return;
         maybe_end = (c == '*');
@@ -391,6 +419,7 @@ static Token *read_rep2(char expect1, int t1, char expect2, int t2, char els) {
 static Token *do_read_token() {
     if (skip_space())
         return space_token;
+    mark();
     int c = readc();
     switch (c) {
     case '\n': return newline_token;
@@ -481,6 +510,7 @@ char *read_header_file_name(bool *std) {
     if (!buffer_empty())
         return NULL;
     skip_space();
+    Pos p = get_pos(0);
     char close;
     if (next('"')) {
         *std = false;
@@ -495,11 +525,11 @@ char *read_header_file_name(bool *std) {
     while (!next(close)) {
         int c = readc();
         if (c == EOF || c == '\n')
-            error("premature end of header name");
+            errorp(p, "premature end of header name");
         buf_write(b, c);
     }
     if (buf_len(b) == 0)
-        error("header name should not be empty");
+        errorp(p, "header name should not be empty");
     buf_write(b, '\0');
     return buf_body(b);
 }
@@ -534,8 +564,9 @@ Token *lex_string(char *s) {
     stream_stash(make_file_string(s));
     Token *r = do_read_token();
     next('\n');
+    Pos p = get_pos(0);
     if (peek() != EOF)
-        error("unconsumed input: %s", s);
+        errorp(p, "unconsumed input: %s", s);
     stream_unstash();
     return r;
 }
@@ -546,7 +577,7 @@ Token *lex() {
         return vec_pop(buf);
     if (vec_len(buffers) > 1)
         return eof_token;
-    bool bol = (current_file()->column == 0);
+    bool bol = (current_file()->column == 1);
     Token *tok = do_read_token();
     while (tok->kind == TSPACE) {
         tok = do_read_token();

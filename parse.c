@@ -1069,13 +1069,13 @@ static Node *read_unary_incdec(int op) {
     return ast_uop(op, operand->ty, operand);
 }
 
-static Node *read_label_addr() {
+static Node *read_label_addr(Token *tok) {
     // [GNU] Labels as values. You can get the address of the a label
     // with unary "&&" operator followed by a label name.
-    Token *tok = get();
-    if (tok->kind != TIDENT)
-        errort(tok, "label name expected after &&, but got %s", tok2s(tok));
-    Node *r = ast_label_addr(tok->sval);
+    Token *tok2 = get();
+    if (tok2->kind != TIDENT)
+        errort(tok, "label name expected after &&, but got %s", tok2s(tok2));
+    Node *r = ast_label_addr(tok2->sval);
     vec_push(gotos, r);
     return r;
 }
@@ -1088,8 +1088,7 @@ static Node *read_unary_addr() {
     return ast_uop(AST_ADDR, make_ptr_type(operand->ty), operand);
 }
 
-static Node *read_unary_deref() {
-    Token *tok = peek();
+static Node *read_unary_deref(Token *tok) {
     Node *operand = conv(read_cast_expr());
     if (operand->ty->kind != KIND_PTR)
         errort(tok, "pointer type expected, but got %s", node2s(operand));
@@ -1106,8 +1105,7 @@ static Node *read_unary_minus() {
     return binop('-', ast_floattype(expr->ty, 0), expr);
 }
 
-static Node *read_unary_bitnot() {
-    Token *tok = peek();
+static Node *read_unary_bitnot(Token *tok) {
     Node *expr = read_cast_expr();
     expr = conv(expr);
     if (!is_inttype(expr->ty))
@@ -1129,12 +1127,12 @@ static Node *read_unary_expr() {
         case KALIGNOF: return read_alignof_operand();
         case OP_INC: return read_unary_incdec(OP_PRE_INC);
         case OP_DEC: return read_unary_incdec(OP_PRE_DEC);
-        case OP_LOGAND: return read_label_addr();
+        case OP_LOGAND: return read_label_addr(tok);
         case '&': return read_unary_addr();
-        case '*': return read_unary_deref();
+        case '*': return read_unary_deref(tok);
         case '+': return read_cast_expr();
         case '-': return read_unary_minus();
-        case '~': return read_unary_bitnot();
+        case '~': return read_unary_bitnot(tok);
         case '!': return read_unary_lognot();
         }
     }
@@ -2742,7 +2740,7 @@ static void concatenate_string(Token *tok) {
         buf_append(b, tok2->sval, tok2->slen - 1);
         int enc2 = tok2->enc;
         if (enc != ENC_NONE && enc2 != ENC_NONE && enc != enc2)
-            errort(tok, "unsupported non-standard concatenation of string literals: %s", tok2s(tok2));
+            errort(tok2, "unsupported non-standard concatenation of string literals: %s", tok2s(tok2));
         if (enc == ENC_NONE)
             enc = enc2;
     }
