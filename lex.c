@@ -394,7 +394,7 @@ static void skip_block_comment() {
 // for some punctuation characters. They are useless in ASCII.
 // We implement this just for the standard compliance.
 // See C11 6.4.6p3 for the spec.
-static Token *read_digraph() {
+static Token *read_hash_digraph() {
     if (next('>'))
         return make_keyword('}');
     if (next(':')) {
@@ -429,7 +429,6 @@ static Token *do_read_token() {
     case '#': return make_keyword(next('#') ? KHASHHASH : '#');
     case '+': return read_rep2('+', OP_INC, '=', OP_A_ADD, '+');
     case '*': return read_rep('=', OP_A_MUL, '*');
-    case '%': return read_digraph() ?: read_rep('=', OP_A_MOD, '%');
     case '=': return read_rep('=', OP_EQ, '=');
     case '!': return read_rep('=', OP_NE, '!');
     case '&': return read_rep2('&', OP_LOGAND, '=', OP_A_AND, '&');
@@ -488,7 +487,14 @@ static Token *do_read_token() {
         if (next('=')) return make_keyword(OP_GE);
         if (next('>')) return read_rep('=', OP_A_SAR, OP_SAR);
         return make_keyword('>');
-    case EOF: return eof_token;
+    case '%': {
+        Token *tok = read_hash_digraph();
+        if (tok)
+            return tok;
+        return read_rep('=', OP_A_MOD, '%');
+    }
+    case EOF:
+        return eof_token;
     default: return make_invalid(c);
     }
 }
