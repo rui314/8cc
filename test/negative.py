@@ -42,107 +42,107 @@ char *p = "
 """
 
 cpp_tests = r"""
-! unterminated macro argument list
+! 2:1: unterminated macro argument list
 #define x()
 x(
 
-! macro argument number does not match
+! 2:1: macro argument number does not match
 #define x(_)
 x(1, 2)
 
-! ',' expected, but got 'b'
+! 1:13: , expected, but got b
 #define x(a b)
 
-! missing ')' in macro parameter list
+! 1:9: missing ')' in macro parameter list
 #define x(a,
 
-! identifier expected, but got '123'
+! 1:11: identifier expected, but got 123
 #define x(123)
 
-! ) expected, but got ,
+! 1:17: ) expected, but got ,
 #define x(x, ..., y)
 
-! '##' cannot appear at start of macro expansion
+! 1:11: '##' cannot appear at start of macro expansion
 #define x ##
 
-! '##' cannot appear at start of macro expansion
+! 1:14: '##' cannot appear at start of macro expansion
 #define x(y) ## x
 
-! '##' cannot appear at end of macro expansion
+! 1:16: '##' cannot appear at end of macro expansion
 #define x(y) x ##
 
-! identifier expected, but got "abc"
+! 1:13: identifier expected, but got "abc"
 #if defined("abc")
 
-! identifier expected, but got "abc"
+! 1:8: identifier expected, but got "abc"
 #ifdef "abc"
 
-! identifier expected, but got "abc"
+! 1:9: identifier expected, but got "abc"
 #ifndef "abc"
 
-! stray #else
+! 1:1: stray #else
 #else
 
-! #else appears in #else
+! 3:1: #else appears in #else
 #if 0
 #else
 #else
 #endif
 
-! stray #elif
+! 1:1: stray #elif
 #elif
 
-! #elif after #else
+! 3:1: #elif after #else
 #if 1
 #else
 #elif 1
 #end
 
-! stray #endif
+! 1:1: stray #endif
 #endif
 
-! #warning: foobar
+! 1:1: #warning: foobar
 #warning foobar
 
-! #error: foobar
+! 1:1: #error: foobar
 #error foobar
 
-! expected file name, but got (newline)
+! 1:1: expected filename, but got newline
 #include
 
-! '<' expected, but got *
+! < expected, but got *
 #define x *foo*
 #include x
 
-! premature end of header name
+! 2:1: premature end of header name
 #define x <foo
 #include x
 
-! cannot find header file: /no-such-file\or-directory
+! 1:1: cannot find header file: /no-such-file\or-directory
 #include </no-such-file\or-directory>
 
-! cannot find header file: /no-such-file\or-directory
+! 1:1: cannot find header file: /no-such-file\or-directory
 #include "/no-such-file\or-directory"
 
-! unknown #pragma: foo
+! 1:9: unknown #pragma: foo
 #pragma foo
 
-! number expected after #line, but got "abc"
+! 1:7: number expected after #line, but got "abc"
 #line "abc" "def"
 
-! newline or a source name are expected, but got 456
+! 1:11: newline or a source name are expected, but got 456
 #line 123 456
 
-! line number expected, but got 123.4
+! 1:3: line number expected, but got 123.4
 # 123.4
 
-! file name expected, but got 2
+! 1:5: filename expected, but got 2
 # 1 2
 
-! unsupported preprocessor directive: foo
+! 1:1: unsupported preprocessor directive: foo
 #foo
 
-! _Pragma takes a string literal, but got 1
+! 1:9: _Pragma takes a string literal, but got 1
 _Pragma(1)
 """
 

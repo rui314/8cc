@@ -47,7 +47,7 @@ static Macro *make_obj_macro(Vector *body);
 static Macro *make_func_macro(Vector *body, int nargs, bool is_varg);
 static Macro *make_special_macro(SpecialMacroHandler *fn);
 static void define_obj_macro(char *name, Token *value);
-static void read_directive(void);
+static void read_directive(Token *hash);
 static Token *read_expand(void);
 
 /*
@@ -100,7 +100,7 @@ static Token *copy_token(Token *tok) {
 static void expect(char id) {
     Token *tok = lex();
     if (!is_keyword(tok, id))
-        error("%c expected, but got %s", id, tok2s(tok));
+        errort(tok, "%c expected, but got %s", id, tok2s(tok));
 }
 
 /*
@@ -132,29 +132,29 @@ static void propagate_space(Vector *tokens, Token *tmpl) {
  */
 
 static Token *read_ident() {
-    Token *r = lex();
-    if (r->kind != TIDENT)
-        error("identifier expected, but got %s", tok2s(r));
-    return r;
+    Token *tok = lex();
+    if (tok->kind != TIDENT)
+        errort(tok, "identifier expected, but got %s", tok2s(tok));
+    return tok;
 }
 
 void expect_newline() {
     Token *tok = lex();
     if (tok->kind != TNEWLINE)
-        error("newline expected, but got %s", tok2s(tok));
+        errort(tok, "newline expected, but got %s", tok2s(tok));
 }
 
-static Vector *read_one_arg(bool *end, bool readall) {
+static Vector *read_one_arg(Token *ident, bool *end, bool readall) {
     Vector *r = make_vector();
     int level = 0;
     for (;;) {
         Token *tok = lex();
         if (tok->kind == TEOF)
-            error("unterminated macro argument list");
+            errort(ident, "unterminated macro argument list");
         if (tok->kind == TNEWLINE)
             continue;
         if (tok->bol && is_keyword(tok, '#')) {
-            read_directive();
+            read_directive(tok);
             continue;
         }
         if (level == 0 && is_keyword(tok, ')')) {
@@ -182,28 +182,28 @@ static Vector *read_one_arg(bool *end, bool readall) {
     }
 }
 
-static Vector *do_read_args(Macro *macro) {
+static Vector *do_read_args(Token *ident, Macro *macro) {
     Vector *r = make_vector();
     bool end = false;
     while (!end) {
         bool in_ellipsis = (macro->is_varg && vec_len(r) + 1 == macro->nargs);
-        vec_push(r, read_one_arg(&end, in_ellipsis));
+        vec_push(r, read_one_arg(ident, &end, in_ellipsis));
     }
     if (macro->is_varg && vec_len(r) == macro->nargs - 1)
         vec_push(r, make_vector());
     return r;
 }
 
-static Vector *read_args(Macro *macro) {
+static Vector *read_args(Token *tok, Macro *macro) {
     if (macro->nargs == 0 && is_keyword(peek_token(), ')')) {
         // If a macro M has no parameter, argument list of M()
         // is an empty list. If it has one parameter,
         // argument list of M() is a list containing an empty list.
         return make_vector();
     }
-    Vector *args = do_read_args(macro);
+    Vector *args = do_read_args(tok, macro);
     if (vec_len(args) != macro->nargs)
-        error("macro argument number does not match");
+        errort(tok, "macro argument number does not match");
     return args;
 }
 
@@ -346,7 +346,7 @@ static Token *read_expand_newline() {
     case MACRO_FUNC: {
         if (!next('('))
             return tok;
-        Vector *args = read_args(macro);
+        Vector *args = read_args(tok, macro);
         Token *rparen = peek_token();
         expect(')');
         Set *hideset = set_add(set_intersection(tok->hideset, rparen->hideset), name);
@@ -371,7 +371,7 @@ static Token *read_expand() {
     }
 }
 
-static bool read_funclike_macro_params(Map *param) {
+static bool read_funclike_macro_params(Token *name, Map *param) {
     int pos = 0;
     for (;;) {
         Token *tok = lex();
@@ -379,18 +379,18 @@ static bool read_funclike_macro_params(Map *param) {
             return false;
         if (pos) {
             if (!is_keyword(tok, ','))
-                error("',' expected, but got '%s'", tok2s(tok));
+                errort(tok, ", expected, but got %s", tok2s(tok));
             tok = lex();
         }
         if (tok->kind == TNEWLINE)
-            error("missing ')' in macro parameter list");
+            errort(name, "missing ')' in macro parameter list");
         if (is_keyword(tok, KELLIPSIS)) {
             map_put(param, "__VA_ARGS__", make_macro_token(pos++, true));
             expect(')');
             return true;
         }
         if (tok->kind != TIDENT)
-            error("identifier expected, but got '%s'", tok2s(tok));
+            errort(tok, "identifier expected, but got %s", tok2s(tok));
         char *arg = tok->sval;
         if (next(KELLIPSIS)) {
             expect(')');
@@ -405,9 +405,9 @@ static void hashhash_check(Vector *v) {
     if (vec_len(v) == 0)
         return;
     if (is_keyword(vec_head(v), KHASHHASH))
-        error("'##' cannot appear at start of macro expansion");
+        errort(vec_head(v), "'##' cannot appear at start of macro expansion");
     if (is_keyword(vec_tail(v), KHASHHASH))
-        error("'##' cannot appear at end of macro expansion");
+        errort(vec_tail(v), "'##' cannot appear at end of macro expansion");
 }
 
 static Vector *read_funclike_macro_body(Map *param) {
@@ -429,13 +429,13 @@ static Vector *read_funclike_macro_body(Map *param) {
     }
 }
 
-static void read_funclike_macro(char *name) {
+static void read_funclike_macro(Token *name) {
     Map *param = make_map();
-    bool is_varg = read_funclike_macro_params(param);
+    bool is_varg = read_funclike_macro_params(name, param);
     Vector *body = read_funclike_macro_body(param);
     hashhash_check(body);
     Macro *macro = make_func_macro(body, map_len(param), is_varg);
-    map_put(macros, name, macro);
+    map_put(macros, name->sval, macro);
 }
 
 static void read_obj_macro(char *name) {
@@ -458,7 +458,7 @@ static void read_define() {
     Token *name = read_ident();
     Token *tok = lex();
     if (is_keyword(tok, '(') && !tok->space) {
-        read_funclike_macro(name->sval);
+        read_funclike_macro(name);
         return;
     }
     unget_token(tok);
@@ -486,7 +486,7 @@ static Token *read_defined_op() {
         expect(')');
     }
     if (tok->kind != TIDENT)
-        error("identifier expected, but got %s", tok2s(tok));
+        errort(tok, "identifier expected, but got %s", tok2s(tok));
     return map_get(macros, tok->sval) ? cpp_token_one : cpp_token_zero;
 }
 
@@ -513,7 +513,7 @@ static bool read_constexpr() {
     Node *expr = read_expr();
     Token *tok = lex();
     if (tok->kind != TEOF)
-        error("stray token: %s", tok2s(tok));
+        errort(tok, "stray token: %s", tok2s(tok));
     token_buffer_unstash();
     return eval_intexpr(expr, NULL);
 }
@@ -531,7 +531,7 @@ static void read_if() {
 static void read_ifdef() {
     Token *tok = lex();
     if (tok->kind != TIDENT)
-        error("identifier expected, but got %s", tok2s(tok));
+        errort(tok, "identifier expected, but got %s", tok2s(tok));
     expect_newline();
     do_read_if(map_get(macros, tok->sval));
 }
@@ -539,7 +539,7 @@ static void read_ifdef() {
 static void read_ifndef() {
     Token *tok = lex();
     if (tok->kind != TIDENT)
-        error("identifier expected, but got %s", tok2s(tok));
+        errort(tok, "identifier expected, but got %s", tok2s(tok));
     expect_newline();
     do_read_if(!map_get(macros, tok->sval));
     if (tok->count == 2) {
@@ -551,12 +551,12 @@ static void read_ifndef() {
     }
 }
 
-static void read_else() {
+static void read_else(Token *hash) {
     if (vec_len(cond_incl_stack) == 0)
-        error("stray #else");
+        errort(hash, "stray #else");
     CondIncl *ci = vec_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
-        error("#else appears in #else");
+        errort(hash, "#else appears in #else");
     expect_newline();
     ci->ctx = IN_ELSE;
     ci->include_guard = NULL;
@@ -564,12 +564,12 @@ static void read_else() {
         skip_cond_incl();
 }
 
-static void read_elif() {
+static void read_elif(Token *hash) {
     if (vec_len(cond_incl_stack) == 0)
-        error("stray #elif");
+        errort(hash, "stray #elif");
     CondIncl *ci = vec_tail(cond_incl_stack);
     if (ci->ctx == IN_ELSE)
-        error("#elif after #else");
+        errort(hash, "#elif after #else");
     ci->ctx = IN_ELIF;
     ci->include_guard = NULL;
     if (ci->wastrue || !read_constexpr()) {
@@ -588,16 +588,16 @@ static Token *skip_newlines() {
     return tok;
 }
 
-static void read_endif(Token *tok) {
+static void read_endif(Token *hash) {
     if (vec_len(cond_incl_stack) == 0)
-        error("stray #endif");
+        errort(hash, "stray #endif");
     CondIncl *ci = vec_pop(cond_incl_stack);
     expect_newline();
 
     // Detect an #ifndef and #endif pair that guards the entire
     // header file. Remember the macro name guarding the file
     // so that we can skip the file next time.
-    if (!ci->include_guard || ci->file != tok->file)
+    if (!ci->include_guard || ci->file != hash->file)
         return;
     Token *last = skip_newlines();
     if (ci->file != last->file)
@@ -620,12 +620,12 @@ static char *read_error_message() {
     }
 }
 
-static void read_error() {
-    error("#error: %s", read_error_message());
+static void read_error(Token *hash) {
+    errort(hash, "#error: %s", read_error_message());
 }
 
-static void read_warning() {
-    warn("#warning: %s", read_error_message());
+static void read_warning(Token *hash) {
+    warnt(hash, "#warning: %s", read_error_message());
 }
 
 /*
@@ -639,8 +639,8 @@ static char *join_paths(Vector *args) {
     return buf_body(b);
 }
 
-static char *read_cpp_header_name(bool *std) {
-    // Try reading a file name using a special tokenizer for #include.
+static char *read_cpp_header_name(Token *hash, bool *std) {
+    // Try reading a filename using a special tokenizer for #include.
     char *path = read_header_file_name(std);
     if (path)
         return path;
@@ -650,18 +650,18 @@ static char *read_cpp_header_name(bool *std) {
     // form may be a valid header file path.
     Token *tok = read_expand_newline();
     if (tok->kind == TNEWLINE)
-        error("expected file name, but got %s", tok2s(tok));
+        errort(hash, "expected filename, but got newline");
     if (tok->kind == TSTRING) {
         *std = false;
         return tok->sval;
     }
     if (!is_keyword(tok, '<'))
-        error("'<' expected, but got %s", tok2s(tok));
+        errort(tok, "< expected, but got %s", tok2s(tok));
     Vector *tokens = make_vector();
     for (;;) {
         Token *tok = read_expand_newline();
         if (tok->kind == TNEWLINE)
-            error("premature end of header name");
+            errort(hash, "premature end of header name");
         if (is_keyword(tok, '>'))
             break;
         vec_push(tokens, tok);
@@ -692,9 +692,9 @@ static bool try_include(char *dir, char *filename, bool isimport) {
     return true;
 }
 
-static void read_include(Token *tok, bool isimport) {
+static void read_include(Token *hash, File *file, bool isimport) {
     bool std;
-    char *filename = read_cpp_header_name(&std);
+    char *filename = read_cpp_header_name(hash, &std);
     expect_newline();
     if (filename[0] == '/') {
         if (try_include("/", filename, isimport))
@@ -702,8 +702,7 @@ static void read_include(Token *tok, bool isimport) {
         goto err;
     }
     if (!std) {
-        File *f = tok->file;
-        char *dir = f->name ? dirname(strdup(f->name)) : ".";
+        char *dir = file->name ? dirname(strdup(file->name)) : ".";
         if (try_include(dir, filename, isimport))
             return;
     }
@@ -711,23 +710,23 @@ static void read_include(Token *tok, bool isimport) {
         if (try_include(vec_get(std_include_path, i), filename, isimport))
             return;
   err:
-    error("cannot find header file: %s", filename);
+    errort(hash, "cannot find header file: %s", filename);
 }
 
-static void read_include_next(Token *tok) {
+static void read_include_next(Token *hash, File *file) {
     // [GNU] #include_next is a directive to include the "next" file
     // from the search path. This feature is used to override a
     // header file without getting into infinite inclusion loop.
     // This directive doesn't distinguish <> and "".
     bool std;
-    char *filename = read_cpp_header_name(&std);
+    char *filename = read_cpp_header_name(hash, &std);
     expect_newline();
     if (filename[0] == '/') {
         if (try_include("/", filename, false))
             return;
         goto err;
     }
-    char *cur = fullpath(tok->file->name);
+    char *cur = fullpath(file->name);
     int i = vec_len(std_include_path) - 1;
     for (; i >= 0; i--) {
         char *dir = vec_get(std_include_path, i);
@@ -738,7 +737,7 @@ static void read_include_next(Token *tok) {
         if (try_include(vec_get(std_include_path, i), filename, false))
             return;
   err:
-    error("cannot find header file: %s", filename);
+    errort(hash, "cannot find header file: %s", filename);
 }
 
 /*
@@ -755,7 +754,7 @@ static void parse_pragma_operand(Token *tok) {
     } else if (!strcmp(s, "disable_warning")) {
         enable_warning = false;
     } else {
-        error("unknown #pragma: %s", s);
+        errort(tok, "unknown #pragma: %s", s);
     }
 }
 
@@ -778,7 +777,7 @@ static bool is_digit_sequence(char *p) {
 static void read_line() {
     Token *tok = read_expand_newline();
     if (tok->kind != TNUMBER || !is_digit_sequence(tok->sval))
-        error("number expected after #line, but got %s", tok2s(tok));
+        errort(tok, "number expected after #line, but got %s", tok2s(tok));
     int line = atoi(tok->sval);
     tok = read_expand_newline();
     char *filename = NULL;
@@ -786,7 +785,7 @@ static void read_line() {
         filename = tok->sval;
         expect_newline();
     } else if (tok->kind != TNEWLINE) {
-        error("newline or a source name are expected, but got %s", tok2s(tok));
+        errort(tok, "newline or a source name are expected, but got %s", tok2s(tok));
     }
     File *f = current_file();
     f->line = line;
@@ -798,11 +797,11 @@ static void read_line() {
 // source file information. This function reads them. Flags are ignored.
 static void read_linemarker(Token *tok) {
     if (!is_digit_sequence(tok->sval))
-        error("line number expected, but got %s", tok2s(tok));
+        errort(tok, "line number expected, but got %s", tok2s(tok));
     int line = atoi(tok->sval);
     tok = lex();
     if (tok->kind != TSTRING)
-        error("file name expected, but got %s", tok2s(tok));
+        errort(tok, "filename expected, but got %s", tok2s(tok));
     char *filename = tok->sval;
     do {
         tok = lex();
@@ -816,7 +815,7 @@ static void read_linemarker(Token *tok) {
  * #-directive
  */
 
-static void read_directive() {
+static void read_directive(Token *hash) {
     Token *tok = lex();
     if (tok->kind == TNEWLINE)
         return;
@@ -828,25 +827,25 @@ static void read_directive() {
         goto err;
     char *s = tok->sval;
     if (!strcmp(s, "define"))            read_define();
-    else if (!strcmp(s, "elif"))         read_elif();
-    else if (!strcmp(s, "else"))         read_else();
-    else if (!strcmp(s, "endif"))        read_endif(tok);
-    else if (!strcmp(s, "error"))        read_error();
+    else if (!strcmp(s, "elif"))         read_elif(hash);
+    else if (!strcmp(s, "else"))         read_else(hash);
+    else if (!strcmp(s, "endif"))        read_endif(hash);
+    else if (!strcmp(s, "error"))        read_error(hash);
     else if (!strcmp(s, "if"))           read_if();
     else if (!strcmp(s, "ifdef"))        read_ifdef();
     else if (!strcmp(s, "ifndef"))       read_ifndef();
-    else if (!strcmp(s, "import"))       read_include(tok, true);
-    else if (!strcmp(s, "include"))      read_include(tok, false);
-    else if (!strcmp(s, "include_next")) read_include_next(tok);
+    else if (!strcmp(s, "import"))       read_include(hash, tok->file, true);
+    else if (!strcmp(s, "include"))      read_include(hash, tok->file, false);
+    else if (!strcmp(s, "include_next")) read_include_next(hash, tok->file);
     else if (!strcmp(s, "line"))         read_line();
     else if (!strcmp(s, "pragma"))       read_pragma();
     else if (!strcmp(s, "undef"))        read_undef();
-    else if (!strcmp(s, "warning"))      read_warning();
+    else if (!strcmp(s, "warning"))      read_warning(hash);
     else goto err;
     return;
 
   err:
-    error("unsupported preprocessor directive: %s", tok2s(tok));
+    errort(hash, "unsupported preprocessor directive: %s", tok2s(tok));
 }
 
 /*
@@ -894,7 +893,7 @@ static void handle_pragma_macro(Token *tmpl) {
     expect('(');
     Token *operand = read_token();
     if (operand->kind != TSTRING)
-        error("_Pragma takes a string literal, but got %s", tok2s(operand));
+        errort(operand, "_Pragma takes a string literal, but got %s", tok2s(operand));
     expect(')');
     parse_pragma_operand(operand);
     make_token_pushback(tmpl, TNUMBER, "1");
@@ -1008,7 +1007,7 @@ Token *read_token() {
     for (;;) {
         tok = read_expand();
         if (tok->bol && is_keyword(tok, '#') && tok->hideset == NULL) {
-            read_directive();
+            read_directive(tok);
             continue;
         }
         assert(tok->kind < MIN_CPP_TOKEN);

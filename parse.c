@@ -110,21 +110,6 @@ enum {
 };
 
 /*
- * Error
- */
-
-static char *token_pos(Token *tok) {
-    File *f = tok->file;
-    if (!f)
-        return "(unknown)";
-    char *name = f->name ? f->name : "(unknown)";
-    return format("%s:%d:%d", name, tok->line, tok->column);
-}
-
-#define errort(tok, ...) errorf(__FILE__ ":" STR(__LINE__), token_pos(tok), __VA_ARGS__)
-#define warnt(tok, ...)  warnf(__FILE__ ":" STR(__LINE__), token_pos(tok), __VA_ARGS__)
-
-/*
  * Source location
  */
 

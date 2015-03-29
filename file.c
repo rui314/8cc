@@ -96,7 +96,7 @@ static int get() {
     if (c == '\n') {
         f->line++;
         f->column = 1;
-    } else {
+    } else if (c != EOF) {
         f->column++;
     }
     return c;

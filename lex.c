@@ -202,14 +202,16 @@ void skip_cond_incl() {
         }
         if (c != '#' || !bol)
             continue;
+        int column = current_file()->column - 1;
         Token *tok = lex();
         if (tok->kind != TIDENT)
             continue;
         if (!nest && (is_ident(tok, "else") || is_ident(tok, "elif") || is_ident(tok, "endif"))) {
             unget_token(tok);
-            Token *sharp = make_keyword('#');
-            sharp->bol = true;
-            unget_token(sharp);
+            Token *hash = make_keyword('#');
+            hash->bol = true;
+            hash->column = column;
+            unget_token(hash);
             return;
         }
         if (is_ident(tok, "if") || is_ident(tok, "ifdef") || is_ident(tok, "ifndef"))

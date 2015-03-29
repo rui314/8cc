@@ -34,3 +34,11 @@ void warnf(char *line, char *pos, char *fmt, ...) {
     if (warning_is_error)
         exit(1);
 }
+
+char *token_pos(Token *tok) {
+    File *f = tok->file;
+    if (!f)
+        return "(unknown)";
+    char *name = f->name ? f->name : "(unknown)";
+    return format("%s:%d:%d", name, tok->line, tok->column);
+}
