@@ -13,7 +13,7 @@ static char *get_timestamp() {
     struct stat s;
     stat(__FILE__, &s);
     setlocale(LC_ALL, "C");
-    strftime(buf, 30, "%a %b %d %T %Y", localtime(&s.st_mtime));
+    strftime(buf, 30, "%a %b %e %T %Y", localtime(&s.st_mtime));
     return buf;
 }
 
@@ -25,9 +25,7 @@ static void special() {
     expect(24, strlen(__TIMESTAMP__));
     expect(0, __INCLUDE_LEVEL__);
     expect_string("test/macro.c", __BASE_FILE__);
-#ifdef __TIMESTAMP__
     expect_string(get_timestamp(), __TIMESTAMP__);
-#endif
 }
 
 static void include() {
