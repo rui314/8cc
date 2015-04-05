@@ -306,6 +306,14 @@ static int read_universal_char(int len) {
 static int read_escaped_char() {
     Pos p = get_pos(-1);
     int c = readc();
+    // This switch-cases is an interesting example of magical aspects
+    // of self-hosting compilers. Here, we teach the compiler about
+    // escaped sequences using escaped sequences themselves.
+    // This is a tautology. The information about their real character
+    // codes is not present in the source code but propagated from
+    // a compiler compiling the source code.
+    // See "Reflections on Trusting Trust" by Ken Thompson for more info.
+    // http://cm.bell-labs.com/who/ken/trust.html
     switch (c) {
     case '\'': case '"': case '?': case '\\':
         return c;
