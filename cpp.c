@@ -326,8 +326,6 @@ static void unget_all(Vector *tokens) {
 // This is "expand" function in the Dave Prosser's document.
 static Token *read_expand_newline() {
     Token *tok = lex();
-    if (tok->kind == TEOF)
-        return tok;
     if (tok->kind != TIDENT)
         return tok;
     char *name = tok->sval;
