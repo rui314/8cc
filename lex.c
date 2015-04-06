@@ -379,6 +379,12 @@ static Token *read_ident(char c) {
             buf_write(b, c);
             continue;
         }
+        // C11 6.4.2.1: \u or \U characters (universal-character-name)
+        // are allowed to be part of identifiers.
+        if (c == '\\' && (peek() == 'u' || peek() == 'U')) {
+            write_utf8(b, read_escaped_char());
+            continue;
+        }
         unreadc(c);
         buf_write(b, '\0');
         return make_ident(buf_body(b));

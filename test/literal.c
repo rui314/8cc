@@ -77,6 +77,7 @@ static void test_mbstring() {
 #ifdef __8cc__
     int 日本語 = 3;
     expect(3, 日本語);
+    expect(3, 日\u672C\U00008A9E);
 #endif
 }
 
