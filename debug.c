@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "8cc.h"
 
@@ -114,12 +113,12 @@ static void do_node2s(Buffer *b, Node *node) {
         case KIND_LDOUBLE:
             buf_printf(b, "%f", node->fval);
             break;
+        case KIND_ARRAY:
+            buf_printf(b, "\"%s\"", quote_cstring(node->sval));
+            break;
         default:
             error("internal error");
         }
-        break;
-    case AST_STRING:
-        buf_printf(b, "\"%s\"", quote_cstring(node->sval));
         break;
     case AST_LABEL:
         buf_printf(b, "%s:", node->label);
@@ -269,8 +268,8 @@ char *node2s(Node *node) {
     return buf_body(b);
 }
 
-static char *encoding_prefix(Token *tok) {
-    switch (tok->enc) {
+static char *encoding_prefix(int enc) {
+    switch (enc) {
     case ENC_CHAR16: return "u";
     case ENC_CHAR32: return "U";
     case ENC_UTF8:   return "u8";
@@ -292,17 +291,17 @@ char *tok2s(Token *tok) {
 #include "keyword.inc"
 #undef keyword
 #undef op
-        default: return format("%c", tok->c);
+        default: return format("%c", tok->id);
         }
     case TCHAR:
         return format("%s'%s'",
-                      encoding_prefix(tok),
+                      encoding_prefix(tok->enc),
                       quote_char(tok->c));
     case TNUMBER:
         return tok->sval;
     case TSTRING:
         return format("%s\"%s\"",
-                      encoding_prefix(tok),
+                      encoding_prefix(tok->enc),
                       quote_cstring(tok->sval));
     case TEOF:
         return "(eof)";

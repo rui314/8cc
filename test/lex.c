@@ -1,12 +1,11 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
 #define stringify(x) %:x
 #define paste(x, y) x%:%:y
 
-static void digraph(void) {
+static void digraph() {
     // These tests don't conform to the C standard.
     // N1570 6.4.6.3 says that the digraphs behave the same
     // as the corresponding tokens except for their spellings.
@@ -27,23 +26,23 @@ static void digraph(void) {
 #endif
 }
 
-static void escape(void) {
+static void escape() {
     int value = 10;
     expect(10, val\
 ue);
     expect_string("a   bc", "a\   bc");
 }
 
-static void whitespace(void) {
+static void whitespace() {
     expect_string("x y", stringify(xy));
 }
 
-static void newline(void) {
+static void newline() {
      
 #
 }
 
-static void dollar(void) {
+static void dollar() {
     int $ = 1;
     expect(1, $);
     int $2 = 2;
@@ -52,7 +51,7 @@ static void dollar(void) {
     expect(3, a$);
 }
 
-void testmain(void) {
+void testmain() {
     print("lexer");
     digraph();
     escape();

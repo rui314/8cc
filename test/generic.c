@@ -1,33 +1,37 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include <stdbool.h>
 #include "test.h"
 
 #ifdef __8cc__
 
-static void test_basic(void) {
+static void test_basic() {
     expect(1, _Generic(5, int: 1, float: 2));
     expectd(3.0, _Generic(5.0, int: 1, float: 2.0, double: 3.0));
 }
 
-static void test_arith(void) {
+static void test_arith() {
     typedef signed char schar;
     typedef unsigned char uchar;
+    typedef unsigned short ushort;
     typedef unsigned int uint;
     typedef unsigned long ulong;
     typedef long long llong;
     typedef unsigned long long ullong;
     typedef long double ldouble;
 
-    enum { B, SC, UC, I, U, L, UL, LL, ULL, F, D, LD };
+    enum { B, SC, UC, S, US, I, U, L, UL, LL, ULL, F, D, LD };
 
-#define T(x)                                                                 \
-    _Generic(x, bool:B, schar:SC, uchar:UC, int:I, uint:U, long:L, ulong:UL, \
-             llong:LL, ullong:ULL, float:F, double:D, ldouble:LD)
+#define T(x)                                                        \
+    _Generic(x, bool:B, schar:SC, uchar:UC, short:S, ushort:US,     \
+             int:I, uint:U, long:L, ulong:UL, llong:LL, ullong:ULL, \
+             float:F, double:D, ldouble:LD)
     expect(B, T((bool)0));
     expect(SC, T((schar)0));
     expect(UC, T((uchar)0));
+    expect(I, T('a'));
+    expect(US, T(u'a'));
+    expect(U, T(U'a'));
     expect(I, T(0));
     expect(U, T(0U));
     expect(L, T(0L));
@@ -82,7 +86,7 @@ static void test_arith(void) {
 #undef T
 }
 
-static void test_default(void) {
+static void test_default() {
     expect(1, _Generic(5, default: 1, float: 2));
     expectd(3.0, _Generic(5.0, int: 1, float: 2.0, default: 3.0));
 }
@@ -101,7 +105,7 @@ static void test_array() {
     expect(23, _Generic((int*)NULL, int[1]: 22, default: 23));
 }
 
-void testmain(void) {
+void testmain() {
     print("_Generic");
     test_basic();
     test_arith();
@@ -112,7 +116,7 @@ void testmain(void) {
 
 #else
 
-void testmain(void) {
+void testmain() {
     print("_Generic");
 }
 

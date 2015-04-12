@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
@@ -15,7 +14,7 @@ int test_if9(void) { if (0+1) return 'i'; return 0; }
 int test_if10(void) { if (1-1) return 0; return 'j'; }
 int test_if11(void) { if (0.5) return 'k'; return 0; }
 
-static void test_if(void) {
+static void test_if() {
     expect('a', test_if1());
     expect('b', test_if2());
     expect('c', test_if3());
@@ -29,7 +28,7 @@ static void test_if(void) {
     expect('k', test_if11());
 }
 
-static void test_for(void) {
+static void test_for() {
     int i;
     int acc = 0;
     for (i = 0; i < 5; i++) {
@@ -67,7 +66,7 @@ static void test_for(void) {
     expect(68, i);
 }
 
-static void test_while(void) {
+static void test_while() {
     int acc = 0;
     int i = 0;
     while (i <= 100)
@@ -102,7 +101,7 @@ static void test_while(void) {
     expect(67, i);
 }
 
-static void test_do(void) {
+static void test_do() {
     int acc = 0;
     int i = 0;
     do {
@@ -135,7 +134,7 @@ static void test_do(void) {
     expect(72, i);
 }
 
-static void test_switch(void) {
+static void test_switch() {
     int a = 0;
     switch (1+2) {
     case 0: fail("0");
@@ -198,7 +197,7 @@ static void test_switch(void) {
         ;
 }
 
-static void test_goto(void) {
+static void test_goto() {
     int acc = 0;
     goto x;
     acc = 5;
@@ -217,7 +216,7 @@ static void test_goto(void) {
     ;
 }
 
-static void test_label(void) {
+static void test_label() {
     int x = 0;
     if (1)
       L1: x++;
@@ -240,7 +239,7 @@ static void test_label(void) {
     expect(8, z);
 }
 
-static void test_computed_goto(void) {
+static void test_computed_goto() {
     struct { void *x, *y, *z, *a; } t = { &&x, &&y, &&z, &&a };
     int acc = 0;
     goto *t.x;
@@ -264,13 +263,13 @@ static void test_computed_goto(void) {
     ;
 }
 
-static void test_logor(void) {
+static void test_logor() {
     expect(1, 0 || 3);
     expect(1, 5 || 0);
     expect(0, 0 || 0);
 }
 
-void testmain(void) {
+void testmain() {
     print("control flow");
     test_if();
     test_for();

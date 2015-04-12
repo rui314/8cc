@@ -1,10 +1,9 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 #include <stdbool.h>
 
-int t1(void) {
+int t1() {
     return 77;
 }
 
@@ -25,7 +24,7 @@ int t4a(int *p) {
     return *p;
 }
 
-static void t4(void) {
+static void t4() {
     int a[] = { 98 };
     expect(98, t4a(a));
 }
@@ -42,7 +41,7 @@ static void t5b(int p[]) {
     expect(97, *p);
 }
 
-static void t5(void) {
+static void t5() {
     int a[] = {1, 2, 3};
     int *p = a;
     *p = 99; p = p + 1;
@@ -53,7 +52,7 @@ static void t5(void) {
 }
 
 int t6();
-int t6(void) {
+int t6() {
     return 3;
 }
 
@@ -66,7 +65,7 @@ int t8(int a, ...) {
     expect(23, a);
 }
 
-static void t9(void) {
+static void t9() {
     return;
 }
 
@@ -74,7 +73,7 @@ int t10(int a, double b) {
     return a + b;
 }
 
-int ptrtest1(void) {
+int ptrtest1() {
     return 55;
 }
 
@@ -86,7 +85,11 @@ float ptrtest3(float a) {
     return a * 2;
 }
 
-static void func_ptr_call(void) {
+int ptrtest4(int (f)(int), int x) {
+    return f(x);
+}
+
+static void func_ptr_call() {
     expectf(4, ptrtest3(2));
     int (*p1)(void) = ptrtest1;
     expect(55, p1());
@@ -96,14 +99,15 @@ static void func_ptr_call(void) {
     expectf(4, p3(2));
     int (*p4)(void) = &ptrtest1;
     expect(55, (**p4)());
+    expect(10, ptrtest4(ptrtest2, 5));
 }
 
-static void func_name(void) {
+static void func_name() {
     expect_string("func_name", __func__);
     expect_string("func_name", __FUNCTION__);
 }
 
-static int local_static2(void) {
+static int local_static2() {
     static int x = 1;
     static char y[] = "2";
     static int z;
@@ -111,24 +115,24 @@ static int local_static2(void) {
     return x++ + (y[0] - '0') + z;
 }
 
-static void local_static3(void) {
+static void local_static3() {
     static int x = 5;
     static char y[] = "8";
     static int z;
     z = 100;
 }
 
-static void local_static(void) {
+static void local_static() {
     expect(6, local_static2());
     expect(7, local_static2());
     local_static3();
     expect(8, local_static2());
 }
 
-static void empty(void) {
+static void empty() {
 }
 
-static void empty2(void) {
+static void empty2() {
     ;;;
 }
 
@@ -138,7 +142,7 @@ bool booltest2(int x) {
     return x;
 }
 
-static void test_bool(void) {
+static void test_bool() {
     expect(0, booltest1(256));
     expect(1, booltest1(257));
     expect(1, booltest2(512));
@@ -151,15 +155,19 @@ int sum(MyType x) {
     return x.a + x.b + x.c + x.d;
 }
 
-static void test_struct(void) {
+static void test_struct() {
     expect(14, sum((MyType){ 2, 3, 4, 5 }));
 }
 
-static void test_funcdesg(void) {
+static void test_funcdesg() {
     test_funcdesg;
 }
 
-void testmain(void) {
+// _Alignas is a declaration specifier containing parentheses.
+// Make sure the compiler doesn't interpret it as a function definition.
+static _Alignas(32) char char32;
+
+void testmain() {
     print("function");
 
     expect(77, t1());

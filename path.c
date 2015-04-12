@@ -1,5 +1,4 @@
-// Copyright 2014 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2014 Rui Ueyama. Released under the MIT license.
 
 #include <errno.h>
 #include <limits.h>
@@ -11,7 +10,6 @@
 static char *clean(char *p) {
     assert(*p == '/');
     char buf[PATH_MAX];
-    int level = 0;
     char *q = buf;
     *q++ = '/';
     for (;;) {
@@ -25,21 +23,19 @@ static char *clean(char *p) {
         }
         if (!memcmp("../", p, 3)) {
             p += 3;
-            if (level == 0)
+            if (q == buf + 1)
                 continue;
             for (q--; q[-1] != '/'; q--);
-            level--;
             continue;
         }
         while (*p != '/' && *p != '\0')
             *q++ = *p++;
         if (*p == '/') {
             *q++ = *p++;
-            level++;
             continue;
         }
         *q = '\0';
-        return format("%s", buf);
+        return strdup(buf);
     }
 }
 

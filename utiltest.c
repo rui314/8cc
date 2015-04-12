@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include <string.h>
 #include "8cc.h"
@@ -31,7 +30,7 @@ static void assert_int2(int line, long a, long b) {
         error("%d: Expected %ld but got %ld", line, a, b);
 }
 
-static void test_buf(void) {
+static void test_buf() {
     Buffer *b = make_buffer();
     buf_write(b, 'a');
     buf_write(b, 'b');
@@ -44,7 +43,7 @@ static void test_buf(void) {
     assert_string(".0123456789", buf_body(b2));
 }
 
-static void test_list(void) {
+static void test_list() {
     Vector *list = make_vector();
     assert_int(0, vec_len(list));
     vec_push(list, (void *)1);
@@ -79,7 +78,7 @@ static void test_list(void) {
     assert_int(2, (long)vec_get(list4, 1));
 }
 
-static void test_map(void) {
+static void test_map() {
     Map *m = make_map();
     assert_null(map_get(m, "abc"));
 
@@ -106,7 +105,7 @@ static void test_map(void) {
     }
 }
 
-static void test_map_stack(void) {
+static void test_map_stack() {
     Map *m1 = make_map();
     map_put(m1, "x", (void *)1);
     map_put(m1, "y", (void *)2);
@@ -119,7 +118,7 @@ static void test_map_stack(void) {
     assert_int(1, (int)(intptr_t)map_get(m1, "x"));
 }
 
-static void test_dict(void) {
+static void test_dict() {
     Dict *dict = make_dict();
     assert_null(dict_get(dict, "abc"));
     dict_put(dict, "abc", (void *)50);
@@ -129,7 +128,7 @@ static void test_dict(void) {
     assert_int(2, vec_len(dict_keys(dict)));
 }
 
-static void test_set(void) {
+static void test_set() {
     Set *s = NULL;
     assert_int(0, set_has(s, "abc"));
     s = set_add(s, "abc");
@@ -148,7 +147,7 @@ static void test_set(void) {
     assert_int(0, set_has(set_intersection(s, t), "DEF"));
 }
 
-static void test_path(void) {
+static void test_path() {
     assert_string("/abc", fullpath("/abc"));
     assert_string("/abc/def", fullpath("/abc/def"));
     assert_string("/abc/def", fullpath("/abc///def"));
@@ -158,8 +157,8 @@ static void test_path(void) {
     assert_string("/xyz", fullpath("/abc/def/../../../../xyz"));
 }
 
-static void test_file(void) {
-    push_stream_string("abc");
+static void test_file() {
+    stream_push(make_file_string("abc"));
     assert_int('a', readc());
     assert_int('b', readc());
     unreadc('b');

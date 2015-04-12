@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 /*
  * Vectors are containers of void pointers that can change in size.
@@ -34,7 +33,7 @@ static Vector *do_make_vector(int size) {
     return r;
 }
 
-Vector *make_vector(void) {
+Vector *make_vector() {
     return do_make_vector(0);
 }
 

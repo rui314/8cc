@@ -1,9 +1,8 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
-void testmain(void) {
+void testmain() {
     print("comparison operators");
     expect(1, 1 < 2);
     expect(0, 2 < 1);

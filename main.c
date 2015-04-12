@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include <libgen.h>
 #include <stdlib.h>
@@ -19,8 +18,8 @@ static bool dontlink;
 static Buffer *cppdefs;
 static Vector *tmpfiles = &EMPTY_VECTOR;
 
-static void usage(void) {
-    fprintf(stderr,
+static void usage(int exitcode) {
+    fprintf(exitcode ? stderr : stdout,
             "Usage: 8cc [ -E ][ -a ] [ -h ] <file>\n\n"
             "\n"
             "  -I<path>          add to include path\n"
@@ -33,7 +32,6 @@ static void usage(void) {
             "  -fdump-ast        print AST\n"
             "  -fdump-stack      Print stacktrace\n"
             "  -fno-dump-source  Do not emit source code as assembly comment\n"
-            "  -d cpp            print tokens for debugging\n"
             "  -o filename       Output to the specified file\n"
             "  -g                Do nothing at this moment\n"
             "  -Wall             Enable all warnings\n"
@@ -44,17 +42,16 @@ static void usage(void) {
             "  -h                print this help\n"
             "\n"
             "One of -a, -c, -E or -S must be specified.\n\n");
-    exit(1);
+    exit(exitcode);
 }
 
-static void delete_temp_files(void) {
+static void delete_temp_files() {
     for (int i = 0; i < vec_len(tmpfiles); i++)
         unlink(vec_get(tmpfiles, i));
 }
 
 static char *base(char *path) {
-    char *buf = format("%s", path);
-    return basename(buf);
+    return basename(strdup(path));
 }
 
 static char *replace_suffix(char *filename, char suffix) {
@@ -66,7 +63,7 @@ static char *replace_suffix(char *filename, char suffix) {
     return r;
 }
 
-static FILE *open_asmfile(void) {
+static FILE *open_asmfile() {
     if (dumpasm) {
         asmfile = outfile ? outfile : replace_suffix(base(infile), 's');
     } else {
@@ -90,17 +87,6 @@ static void parse_warnings_arg(char *s) {
         error("unknown -W option: %s", s);
 }
 
-static void parse_debug_arg(char *s) {
-    char *tok, *save;
-    while ((tok = strtok_r(s, ",", &save)) != NULL) {
-        s = NULL;
-        if (!strcmp(tok, "cpp"))
-            debug_cpp = true;
-        else
-            error("Unknown debug parameter: %s", tok);
-    }
-}
-
 static void parse_f_arg(char *s) {
     if (!strcmp(s, "dump-ast"))
         dumpast = true;
@@ -109,7 +95,7 @@ static void parse_f_arg(char *s) {
     else if (!strcmp(s, "no-dump-source"))
         dumpsource = false;
     else
-        usage();
+        usage(1);
 }
 
 static void parse_m_arg(char *s) {
@@ -139,32 +125,31 @@ static void parseopt(int argc, char **argv) {
             buf_printf(cppdefs, "#undef %s\n", optarg);
             break;
         case 'W': parse_warnings_arg(optarg); break;
-        case 'a': dumpast = true; break;
         case 'c': dontlink = true; break;
-        case 'd': parse_debug_arg(optarg); break;
         case 'f': parse_f_arg(optarg); break;
         case 'm': parse_m_arg(optarg); break;
         case 'g': break;
         case 'o': outfile = optarg; break;
         case 'w': enable_warning = false; break;
         case 'h':
+            usage(0);
         default:
-            usage();
+            usage(1);
         }
     }
     if (optind != argc - 1)
-        usage();
+        usage(1);
 
     if (!dumpast && !cpponly && !dumpasm && !dontlink)
         error("One of -a, -c, -E or -S must be specified");
     infile = argv[optind];
 }
 
-char *get_base_file(void) {
+char *get_base_file() {
     return infile;
 }
 
-static void preprocess(void) {
+static void preprocess() {
     for (;;) {
         Token *tok = read_token();
         if (tok->kind == TEOF)
@@ -189,7 +174,7 @@ int main(int argc, char **argv) {
     parse_init();
     set_output_file(open_asmfile());
     if (buf_len(cppdefs) > 0)
-        cpp_eval(buf_body(cppdefs));
+        read_from_string(buf_body(cppdefs));
 
     if (cpponly)
         preprocess();

@@ -1,9 +1,8 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
-static void test_bool(void) {
+static void test_bool() {
     _Bool v = 3;
     expect(1, v);
     v = 5;
@@ -14,13 +13,13 @@ static void test_bool(void) {
     expect(0, v);
 }
 
-static void test_float(void) {
+static void test_float() {
     double a = 4.0;
     float b = a;
     expectf(4, b);
 }
 
-void testmain(void) {
+void testmain() {
     print("type conversion");
     test_bool();
     test_float();

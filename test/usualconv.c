@@ -1,10 +1,9 @@
-// Copyright 2014 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2014 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 #include <stdbool.h>
 
-static void test_usual_conv(void) {
+static void test_usual_conv() {
     expect(1, sizeof(bool));
     expect(1, sizeof((char)0));
 
@@ -16,7 +15,7 @@ static void test_usual_conv(void) {
     expect(8, sizeof((char)0 + (double)0));
 }
 
-void testmain(void) {
+void testmain() {
     print("usual conversion");
     test_usual_conv();
 }

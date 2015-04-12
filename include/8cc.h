@@ -1,3 +1,5 @@
+// Copyright 2014 Rui Ueyama. Released under the MIT license.
+
 #define _LP64 1
 #define __8cc__ 1
 #define __ELF__ 1
@@ -13,10 +15,13 @@
 #define __SIZEOF_SHORT__ 2
 #define __SIZEOF_SIZE_T__ 8
 #define __STDC_HOSTED__ 1
+#define __STDC_ISO_10646__ 201103L
 #define __STDC_NO_ATOMICS__ 1
 #define __STDC_NO_COMPLEX__ 1
 #define __STDC_NO_THREADS__ 1
 #define __STDC_NO_VLA__ 1
+#define __STDC_UTF_16__ 1
+#define __STDC_UTF_32__ 1
 #define __STDC_VERSION__ 201112L
 #define __STDC__ 1
 #define __amd64 1
@@ -38,3 +43,6 @@
 #define __signed__ signed
 #define __typeof__ typeof
 #define __volatile__ volatile
+
+typedef unsigned short char16_t;
+typedef unsigned int char32_t;

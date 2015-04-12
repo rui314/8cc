@@ -1,10 +1,9 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include <stdarg.h>
 #include "test.h"
 
-static void test_builtin(void) {
+static void test_builtin() {
 #ifdef __8cc__
     expect(0, __builtin_reg_class((int *)0));
     expect(1, __builtin_reg_class((float *)0));
@@ -53,13 +52,13 @@ char *fmt(char *fmt, ...) {
     return buf;
 }
 
-static void test_va_list(void) {
+static void test_va_list() {
     expect_string("", fmt(""));
     expect_string("3", fmt("%d", 3));
     expect_string("3,1.0,6,2.0,abc", fmt("%d,%.1f,%d,%.1f,%s", 3, 1.0, 6, 2.0, "abc"));
 }
 
-void testmain(void) {
+void testmain() {
     print("varargs");
     test_builtin();
     test_int(1, 2, 3, 5, 8);

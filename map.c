@@ -1,5 +1,4 @@
-// Copyright 2014 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2014 Rui Ueyama. Released under the MIT license.
 
 // This is an implementation of hash table.
 
@@ -62,7 +61,7 @@ static void maybe_rehash(Map *m) {
     m->nused = m->nelem;
 }
 
-Map *make_map(void) {
+Map *make_map() {
     return do_make_map(NULL, INIT_SIZE);
 }
 

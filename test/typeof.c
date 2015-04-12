@@ -1,16 +1,15 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
-static void test_basic(void) {
+static void test_basic() {
     typeof(int) a = 5;
     expect(5, a);
     typeof(a) b = 6;
     expect(6, b);
 }
 
-static void test_array(void) {
+static void test_array() {
     char a[] = "abc";
     typeof(a) b = "de";
     expect_string("de", b);
@@ -24,12 +23,12 @@ static void test_array(void) {
     expect('z', z);
 }
 
-static void test_alt(void) {
+static void test_alt() {
     __typeof__(int) a = 10;
     expect(10, a);
 }
 
-void testmain(void) {
+void testmain() {
     print("typeof");
     test_basic();
     test_array();

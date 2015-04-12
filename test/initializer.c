@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
@@ -13,7 +12,7 @@ static void verify_short(short *expected, short *got, int len) {
         expect(expected[i], got[i]);
 }
 
-static void test_array(void) {
+static void test_array() {
     int x[] = { 1, 3, 5 };
     expect(1, x[0]);
     expect(3, x[1]);
@@ -37,25 +36,25 @@ static void test_array(void) {
     expect(3, a[0]);
 }
 
-static void test_string(void) {
+static void test_string() {
     char s[] = "abc";
     expect_string("abc", s);
     char t[] = { "def" };
     expect_string("def", t);
 }
 
-static void test_struct(void) {
+static void test_struct() {
     int we[] = { 1, 0, 0, 0, 2, 0, 0, 0 };
     struct { int a[3]; int b; } w[] = { { 1 }, 2 };
     verify(we, &w, 8);
 }
 
-static void test_primitive(void) {
+static void test_primitive() {
     int a = { 59 };
     expect(59, a);
 }
 
-static void test_nested(void) {
+static void test_nested() {
     struct {
         struct {
             struct { int a; int b; } x;
@@ -68,7 +67,7 @@ static void test_nested(void) {
     expect(10, v.w.y.c[7]);
 }
 
-static void test_array_designator(void) {
+static void test_array_designator() {
     int v[3] = { [1] = 5 };
     expect(0, v[0]);
     expect(5, v[1]);
@@ -94,7 +93,7 @@ static void test_array_designator(void) {
     expect(3, x3[2]);
 }
 
-static void test_struct_designator(void) {
+static void test_struct_designator() {
     struct { int x; int y; } v1 = { .y = 1, .x = 5 };
     expect(5, v1.x);
     expect(1, v1.y);
@@ -107,7 +106,7 @@ static void test_struct_designator(void) {
     expect(17, v3.z);
 }
 
-static void test_complex_designator(void) {
+static void test_complex_designator() {
     struct { struct { int a, b; } x[3]; } y[] = {
         [1].x[0].b = 5, 6, 7, 8, 9,
         [0].x[2].b = 10, 11
@@ -136,7 +135,7 @@ static void test_complex_designator(void) {
     expect(0, y3.b[2]);
 }
 
-static void test_zero(void) {
+static void test_zero() {
     struct tag { int x, y; };
     struct tag v0 = (struct tag){ 6 };
     expect(6, v0.x);
@@ -155,7 +154,7 @@ static void test_zero(void) {
 }
 
 
-static void test_typedef(void) {
+static void test_typedef() {
     typedef int A[];
     A a = { 1, 2 };
     A b = { 3, 4, 5 };
@@ -163,7 +162,7 @@ static void test_typedef(void) {
     expect(3, sizeof(b) / sizeof(*b));
 }
 
-static void test_excessive(void) {
+static void test_excessive() {
 #ifdef __8cc__
 #pragma disable_warning
 #endif
@@ -180,7 +179,7 @@ static void test_excessive(void) {
 #endif
 }
 
-void testmain(void) {
+void testmain() {
     print("initializer");
 
     test_array();

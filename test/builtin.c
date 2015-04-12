@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 // This test depends on the stack frame and code layout and does not
 // run with gcc -O2.
@@ -8,16 +7,16 @@
 
 #ifdef __8cc__
 
-static void *test_return_address_sub2(void) {
+static void *test_return_address_sub2() {
     return __builtin_return_address(1);
 }
 
-static void *test_return_address_sub1(void) {
+static void *test_return_address_sub1() {
     expect((long)__builtin_return_address(0), (long)test_return_address_sub2());
     return __builtin_return_address(0);
 }
 
-static void test_return_address(void) {
+static void test_return_address() {
     void *ptr;
  L1:
     ptr = test_return_address_sub1();
@@ -29,7 +28,7 @@ static void test_return_address(void) {
 static void test_return_address() {}
 #endif
 
-void testmain(void) {
+void testmain() {
     print("builtin");
     test_return_address();
 }

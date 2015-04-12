@@ -1,3 +1,5 @@
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
+
 #include "test.h"
 
 static void many_ints(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9) {
@@ -34,7 +36,7 @@ static void mixed(float v01, int v02, float v03, int v04, float v05, int v06, fl
     expectf(37.0, v37); expect(38, v38); expectf(39.0, v39); expect(40, v40);
 }
 
-void testmain(void) {
+void testmain() {
     print("function argument");
 
     many_ints(1, 2, 3, 4, 5, 6, 7, 8, 9);

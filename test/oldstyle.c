@@ -1,5 +1,4 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 
@@ -24,7 +23,7 @@ double b;
     return a + b;
 }
 
-void testmain(void) {
+void testmain() {
     print("K&R");
     expect(3, no_declaration());
     expect(7, oldstyle1(3, 4));

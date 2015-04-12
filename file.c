@@ -1,5 +1,4 @@
-// Copyright 2014 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2014 Rui Ueyama. Released under the MIT license.
 
 /*
  * This file provides character input stream for C source code.
@@ -17,28 +16,41 @@
  * Trigraphs are not supported by design.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include "8cc.h"
 
 static Vector *files = &EMPTY_VECTOR;
+static Vector *stashed = &EMPTY_VECTOR;
 
-static File *make_file(FILE *file, char *name, bool autopop) {
+File *make_file(FILE *file, char *name) {
     File *r = calloc(1, sizeof(File));
     r->file = file;
     r->name = name;
     r->line = 1;
-    r->autopop = autopop;
+    r->column = 1;
+    struct stat st;
+    if (fstat(fileno(file), &st) == -1)
+        error("fstat failed: %s", strerror(errno));
+    r->mtime = st.st_mtime;
     return r;
 }
 
-static File *make_file_string(char *s, bool autopop) {
+File *make_file_string(char *s) {
     File *r = calloc(1, sizeof(File));
     r->line = 1;
-    r->autopop = autopop;
+    r->column = 1;
     r->p = s;
     return r;
+}
+
+static void close_file(File *f) {
+    if (f->file)
+        fclose(f->file);
 }
 
 static int readc_file(File *f) {
@@ -71,7 +83,7 @@ static int readc_string(File *f) {
     return c;
 }
 
-static int get(void) {
+static int get() {
     File *f = vec_tail(files);
     int c;
     if (f->buflen > 0) {
@@ -83,23 +95,21 @@ static int get(void) {
     }
     if (c == '\n') {
         f->line++;
-        f->column = 0;
-    } else {
+        f->column = 1;
+    } else if (c != EOF) {
         f->column++;
     }
     return c;
 }
 
-int readc(void) {
+int readc() {
     for (;;) {
         int c = get();
         if (c == EOF) {
-            File *f = vec_tail(files);
-            if (f->autopop) {
-                vec_pop(files);
-                continue;
-            }
-            return c;
+            if (vec_len(files) == 1)
+                return c;
+            close_file(vec_pop(files));
+            continue;
         }
         if (c != '\\')
             return c;
@@ -112,46 +122,43 @@ int readc(void) {
 }
 
 void unreadc(int c) {
-    if (c < 0)
+    if (c == EOF)
         return;
     File *f = vec_tail(files);
     assert(f->buflen < sizeof(f->buf) / sizeof(f->buf[0]));
     f->buf[f->buflen++] = c;
     if (c == '\n') {
-        f->column = 0;
+        f->column = 1;
         f->line--;
     } else {
         f->column--;
     }
 }
 
-File *current_file(void) {
+File *current_file() {
     return vec_tail(files);
 }
 
-void insert_stream(FILE *file, char *name) {
-    vec_push(files, make_file(file, name, true));
+void stream_push(File *f) {
+    vec_push(files, f);
 }
 
-void push_stream(FILE *file, char *name) {
-    vec_push(files, make_file(file, name, false));
-}
-
-void push_stream_string(char *s) {
-    vec_push(files, make_file_string(s, false));
-}
-
-void pop_stream(void) {
-    vec_pop(files);
-}
-
-int stream_depth(void) {
+int stream_depth() {
     return vec_len(files);
 }
 
-char *input_position(void) {
+char *input_position() {
     if (vec_len(files) == 0)
         return "(unknown)";
     File *f = vec_tail(files);
     return format("%s:%d:%d", f->name, f->line, f->column);
+}
+
+void stream_stash(File *f) {
+    vec_push(stashed, files);
+    files = make_vector1(f);
+}
+
+void stream_unstash() {
+    files = vec_pop(stashed);
 }

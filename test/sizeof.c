@@ -1,10 +1,9 @@
-// Copyright 2012 Rui Ueyama <rui314@gmail.com>
-// This program is free software licensed under the MIT license.
+// Copyright 2012 Rui Ueyama. Released under the MIT license.
 
 #include "test.h"
 #include <stdbool.h>
 
-static void test_primitives(void) {
+static void test_primitives() {
     expect(1, sizeof(void));
     expect(1, sizeof(test_primitives));
     expect(1, sizeof(char));
@@ -15,21 +14,21 @@ static void test_primitives(void) {
     expect(8, sizeof(long));
 }
 
-static void test_pointers(void) {
+static void test_pointers() {
     expect(8, sizeof(char *));
     expect(8, sizeof(short *));
     expect(8, sizeof(int *));
     expect(8, sizeof(long *));
 }
 
-static void test_unsigned(void) {
+static void test_unsigned() {
     expect(1, sizeof(unsigned char));
     expect(2, sizeof(unsigned short));
     expect(4, sizeof(unsigned int));
     expect(8, sizeof(unsigned long));
 }
 
-static void test_literals(void) {
+static void test_literals() {
     expect(4, sizeof 1);
     expect(4, sizeof('a'));
     expect(4, sizeof(1.0f));
@@ -38,14 +37,14 @@ static void test_literals(void) {
     expect(8, sizeof(1.0));
 }
 
-static void test_arrays(void) {
+static void test_arrays() {
     expect(1, sizeof(char[1]));
     expect(7, sizeof(char[7]));
     expect(30, sizeof(char[3][10]));
     expect(32, sizeof(int[4][2]));
 }
 
-static void test_vars(void) {
+static void test_vars() {
     char a[] = { 1, 2, 3 };
     expect(3, sizeof(a));
     char b[] = "abc";
@@ -63,7 +62,7 @@ static void test_vars(void) {
     expect(4, sizeof((int)a));
 }
 
-static void test_struct(void) {
+static void test_struct() {
     expect(1, sizeof(struct { char a; }));
     expect(3, sizeof(struct { char a[3]; }));
     expect(5, sizeof(struct { char a[5]; }));
@@ -73,12 +72,12 @@ static void test_struct(void) {
     expect(24, sizeof(struct { struct { char a; double b; } x; char c; }));
 }
 
-static void test_constexpr(void) {
+static void test_constexpr() {
     char a[sizeof(char[4])];
     expect(4, sizeof(a));
 }
 
-void testmain(void) {
+void testmain() {
     print("sizeof");
     test_primitives();
     test_pointers();
