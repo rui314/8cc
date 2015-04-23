@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # Copyright 2015 Rui Ueyama. Released under the MIT license.
 
 # This file contains negative tests.
