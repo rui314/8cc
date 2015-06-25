@@ -55,14 +55,14 @@ static Token *read_expand(void);
  */
 
 static CondIncl *make_cond_incl(bool wastrue) {
-    CondIncl *r = malloc(sizeof(CondIncl));
+    CondIncl *r = calloc(1, sizeof(CondIncl));
     r->ctx = IN_THEN;
     r->wastrue = wastrue;
     return r;
 }
 
 static Macro *make_macro(Macro *tmpl) {
-    Macro *r = malloc(sizeof(Macro));
+    Macro *r = calloc(1, sizeof(Macro));
     *r = *tmpl;
     return r;
 }
@@ -81,7 +81,7 @@ static Macro *make_special_macro(SpecialMacroHandler *fn) {
 }
 
 static Token *make_macro_token(int position, bool is_vararg) {
-    Token *r = malloc(sizeof(Token));
+    Token *r = calloc(1, sizeof(Token));
     r->kind = TMACRO_PARAM;
     r->is_vararg = is_vararg;
     r->hideset = NULL;
@@ -92,7 +92,7 @@ static Token *make_macro_token(int position, bool is_vararg) {
 }
 
 static Token *copy_token(Token *tok) {
-    Token *r = malloc(sizeof(Token));
+    Token *r = calloc(1, sizeof(Token));
     *r = *tok;
     return r;
 }

@@ -18,7 +18,7 @@
 #include "8cc.h"
 
 Set *set_add(Set *s, char *v) {
-    Set *r = malloc(sizeof(Set));
+    Set *r = calloc(1, sizeof(Set));
     r->next = s;
     r->v = v;
     return r;

@@ -20,7 +20,7 @@ static uint32_t hash(char *p) {
 }
 
 static Map *do_make_map(Map *parent, int size) {
-    Map *r = malloc(sizeof(Map));
+    Map *r = calloc(1, sizeof(Map));
     r->parent = parent;
     r->key = calloc(size, sizeof(char *));
     r->val = calloc(size, sizeof(void *));

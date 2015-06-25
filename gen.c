@@ -645,7 +645,7 @@ static void emit_fill_holes(Vector *inits, int off, int totalsize) {
     // If at least one of the fields in a variable are initialized,
     // unspecified fields has to be initialized with 0.
     int len = vec_len(inits);
-    Node **buf = malloc(len * sizeof(Node *));
+    Node **buf = calloc(len, sizeof(Node *));
     for (int i = 0; i < len; i++)
         buf[i] = vec_get(inits, i);
     qsort(buf, len, sizeof(Node *), cmpinit);
@@ -784,7 +784,7 @@ static char **split(char *buf) {
         p++;
     }
     p = buf;
-    char **r = malloc(sizeof(char *) * len + 1);
+    char **r = calloc(len + 1, sizeof(char *));
     int i = 0;
     while (*p) {
         if (p[0] == '\r' && p[1] == '\n') {
@@ -809,7 +809,7 @@ static char **read_source_file(char *file) {
         return NULL;
     struct stat st;
     fstat(fileno(fp), &st);
-    char *buf = malloc(st.st_size + 1);
+    char *buf = calloc(1, st.st_size + 1);
     if (fread(buf, 1, st.st_size, fp) != st.st_size)
         return NULL;
     fclose(fp);
