@@ -1960,6 +1960,7 @@ static Type *read_declarator(char **rname, Type *basety, Vector *params, int ctx
         // Here, we pass a dummy object to get "pointer to <something>" first,
         // continue reading to get "function returning int", and then combine them.
         Type *stub = make_stub_type();
+        *stub = *basety;
         Type *t = read_declarator(rname, stub, params, ctx);
         expect(')');
         *stub = *read_declarator_tail(basety, params);
