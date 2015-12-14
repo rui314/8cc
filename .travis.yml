@@ -1,0 +1,8 @@
+language: c
+compiler: clang
+
+script:
+  - make
+  - make testtest
+  - make test
+  - make fulltest
