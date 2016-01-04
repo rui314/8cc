@@ -29,6 +29,7 @@ static void usage(int exitcode) {
             "  -S                Stop before assembly (default)\n"
             "  -c                Do not run linker (default)\n"
             "  -U name           Undefine name\n"
+            "  -a                print AST\n"
             "  -fdump-ast        print AST\n"
             "  -fdump-stack      Print stacktrace\n"
             "  -fno-dump-source  Do not emit source code as assembly comment\n"
@@ -124,6 +125,7 @@ static void parseopt(int argc, char **argv) {
         case 'U':
             buf_printf(cppdefs, "#undef %s\n", optarg);
             break;
+        case 'a': dumpast = true; break;
         case 'W': parse_warnings_arg(optarg); break;
         case 'c': dontlink = true; break;
         case 'f': parse_f_arg(optarg); break;
