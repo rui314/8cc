@@ -55,7 +55,7 @@ static Token *read_expand(void);
  */
 
 static CondIncl *make_cond_incl(bool wastrue) {
-    CondIncl *r = malloc(sizeof(CondIncl));
+    CondIncl *r = calloc(1, sizeof(CondIncl));
     r->ctx = IN_THEN;
     r->wastrue = wastrue;
     return r;
