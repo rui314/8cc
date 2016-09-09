@@ -339,7 +339,7 @@ static Type *copy_type(Type *ty) {
 }
 
 static Type *make_numtype(int kind, bool usig) {
-    Type *r = malloc(sizeof(Type));
+    Type *r = calloc(1, sizeof(Type));
     r->kind = kind;
     r->usig = usig;
     if (kind == KIND_VOID)         r->size = r->align = 0;
