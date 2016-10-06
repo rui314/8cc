@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdnoreturn.h>
