@@ -985,7 +985,7 @@ static Token *maybe_convert_keyword(Token *tok) {
 }
 
 // Reads from a string as if the string is a content of input file.
-// Convenient for evaluating small string snippet contaiing preprocessor macros.
+// Convenient for evaluating small string snippet containing preprocessor macros.
 void read_from_string(char *buf) {
     stream_stash(make_file_string(buf));
     Vector *toplevels = read_toplevels();
