@@ -759,7 +759,7 @@ static void emit_literal(Node *node) {
             node->slabel = make_label();
             emit_noindent(".data");
             emit_label(node->slabel);
-            emit(".string \"%s\"", quote_cstring_len(node->sval, node->ty->size));
+            emit(".string \"%s\"", quote_cstring_len(node->sval, node->ty->size - 1));
             emit_noindent(".text");
         }
         emit("lea %s(#rip), #rax", node->slabel);
