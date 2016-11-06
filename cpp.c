@@ -704,7 +704,7 @@ static void read_include(Token *hash, File *file, bool isimport) {
         if (try_include(dir, filename, isimport))
             return;
     }
-    for (int i = vec_len(std_include_path) - 1; i >= 0; i--)
+    for (int i = 0; i < vec_len(std_include_path); i++)
         if (try_include(vec_get(std_include_path, i), filename, isimport))
             return;
   err:
@@ -725,13 +725,13 @@ static void read_include_next(Token *hash, File *file) {
         goto err;
     }
     char *cur = fullpath(file->name);
-    int i = vec_len(std_include_path) - 1;
-    for (; i >= 0; i--) {
+    int i = 0;
+    for (; i < vec_len(std_include_path); i++) {
         char *dir = vec_get(std_include_path, i);
         if (!strcmp(cur, fullpath(format("%s/%s", dir, filename))))
             break;
     }
-    for (i--; i >= 0; i--)
+    for (i++; i < vec_len(std_include_path); i++)
         if (try_include(vec_get(std_include_path, i), filename, false))
             return;
   err:
@@ -935,12 +935,12 @@ static void init_keywords() {
 }
 
 static void init_predefined_macros() {
-    vec_push(std_include_path, "/usr/include/x86_64-linux-gnu");
-    vec_push(std_include_path, "/usr/include/linux");
-    vec_push(std_include_path, "/usr/include");
-    vec_push(std_include_path, "/usr/local/include");
-    vec_push(std_include_path, "/usr/local/lib/8cc/include");
     vec_push(std_include_path, BUILD_DIR "/include");
+    vec_push(std_include_path, "/usr/local/lib/8cc/include");
+    vec_push(std_include_path, "/usr/local/include");
+    vec_push(std_include_path, "/usr/include");
+    vec_push(std_include_path, "/usr/include/linux");
+    vec_push(std_include_path, "/usr/include/x86_64-linux-gnu");
 
     define_special_macro("__DATE__", handle_date_macro);
     define_special_macro("__TIME__", handle_time_macro);
