@@ -163,6 +163,16 @@ static void test_funcdesg() {
     test_funcdesg;
 }
 
+typedef int (*t6_t)(void);
+
+static t6_t retfunc() {
+  return &t6;
+}
+
+static t6_t retfunc2() {
+  return t6;
+}
+
 // _Alignas is a declaration specifier containing parentheses.
 // Make sure the compiler doesn't interpret it as a function definition.
 static _Alignas(32) char char32;
@@ -190,4 +200,6 @@ void testmain() {
     test_bool();
     test_struct();
     test_funcdesg();
+    expect(3, retfunc()());
+    expect(3, retfunc2()());
 }
