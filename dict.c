@@ -4,7 +4,7 @@
 #include "8cc.h"
 
 Dict *make_dict() {
-    Dict *r = malloc(sizeof(Dict));
+    Dict *r = calloc(1, sizeof(Dict));
     r->map = make_map();
     r->key = make_vector();
     return r;

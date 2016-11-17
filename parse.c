@@ -115,7 +115,7 @@ enum {
 
 static void mark_location() {
     Token *tok = peek();
-    source_loc = malloc(sizeof(SourceLoc));
+    source_loc = calloc(1, sizeof(SourceLoc));
     source_loc->file = tok->file->name;
     source_loc->line = tok->line;
 }
@@ -141,7 +141,7 @@ static char *make_static_label(char *name) {
 }
 
 static Case *make_case(int beg, int end, char *label) {
-    Case *r = malloc(sizeof(Case));
+    Case *r = calloc(1, sizeof(Case));
     r->beg = beg;
     r->end = end;
     r->label = label;
@@ -153,7 +153,7 @@ static Map *env() {
 }
 
 static Node *make_ast(Node *tmpl) {
-    Node *r = malloc(sizeof(Node));
+    Node *r = calloc(1, sizeof(Node));
     *r = *tmpl;
     r->sourceLoc = source_loc;
     return r;
@@ -327,13 +327,13 @@ static Node *ast_label_addr(char *label) {
 }
 
 static Type *make_type(Type *tmpl) {
-    Type *r = malloc(sizeof(Type));
+    Type *r = calloc(1, sizeof(Type));
     *r = *tmpl;
     return r;
 }
 
 static Type *copy_type(Type *ty) {
-    Type *r = malloc(sizeof(Type));
+    Type *r = calloc(1, sizeof(Type));
     memcpy(r, ty, sizeof(Type));
     return r;
 }
@@ -487,7 +487,7 @@ static bool next_token(int kind) {
 }
 
 void *make_pair(void *first, void *second) {
-    void **r = malloc(sizeof(void *) * 2);
+    void **r = calloc(2, sizeof(void *));
     r[0] = first;
     r[1] = second;
     return r;

@@ -71,7 +71,7 @@ static void mark() {
 }
 
 static Token *make_token(Token *tmpl) {
-    Token *r = malloc(sizeof(Token));
+    Token *r = calloc(1, sizeof(Token));
     *r = *tmpl;
     r->hideset = NULL;
     File *f = current_file();
