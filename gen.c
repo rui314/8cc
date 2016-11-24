@@ -810,8 +810,10 @@ static char **read_source_file(char *file) {
     struct stat st;
     fstat(fileno(fp), &st);
     char *buf = malloc(st.st_size + 1);
-    if (fread(buf, 1, st.st_size, fp) != st.st_size)
+    if (fread(buf, 1, st.st_size, fp) != st.st_size) {
+        fclose(fp);
         return NULL;
+    }
     fclose(fp);
     buf[st.st_size] = '\0';
     return split(buf);
