@@ -13,7 +13,12 @@ $(OBJS) utiltest.o main.o: 8cc.h keyword.inc
 utiltest: 8cc.h utiltest.o $(OBJS)
 	cc -o $@ utiltest.o $(OBJS) $(LDFLAGS)
 
-test/%.o: test/%.c
+ifeq ($(CC),$(ECC))
+TEST_DEP := $(CC)
+else
+TEST_DEP :=
+endif
+test/%.o: test/%.c $(TEST_DEP)
 	$(CC) $(CFLAGS) -w -o $@ -c $<
 
 test/%.bin: test/%.o test/testmain.o
