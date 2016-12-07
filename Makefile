@@ -13,13 +13,8 @@ $(OBJS) utiltest.o main.o: 8cc.h keyword.inc
 utiltest: 8cc.h utiltest.o $(OBJS)
 	cc -o $@ utiltest.o $(OBJS) $(LDFLAGS)
 
-ifeq ($(CC),$(ECC))
-TEST_DEP := $(CC)
-else
-TEST_DEP :=
-endif
-test/%.o: test/%.c $(TEST_DEP)
-	$(CC) $(CFLAGS) -w -o $@ -c $<
+test/%.o: test/%.c $(ECC)
+	$(ECC) -w -o $@ -c $<
 
 test/%.bin: test/%.o test/testmain.o
 	cc -o $@ $< test/testmain.o $(LDFLAGS)
@@ -27,8 +22,8 @@ test/%.bin: test/%.o test/testmain.o
 self: 8cc cleanobj
 	$(MAKE) CC=$(ECC) CFLAGS= 8cc
 
-test: 8cc
-	$(MAKE) CC=$(ECC) CFLAGS= utiltest $(TESTS)
+test: 8cc $(TESTS)
+	$(MAKE) CC=$(ECC) CFLAGS= utiltest
 	./utiltest
 	./test/ast.sh
 	./test/negative.py
