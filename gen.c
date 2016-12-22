@@ -677,7 +677,7 @@ static void emit_decl_init(Vector *inits, int off, int totalsize) {
 
 static void emit_pre_inc_dec(Node *node, char *op) {
     emit_expr(node->operand);
-    emit("%s $1, #rax", op);
+    emit("%s $%d, #rax", op, node->ty->ptr ? node->ty->ptr->size : 1);
     emit_store(node->operand);
 }
 
@@ -685,7 +685,7 @@ static void emit_post_inc_dec(Node *node, char *op) {
     SAVE;
     emit_expr(node->operand);
     push("rax");
-    emit("%s $1, #rax", op);
+    emit("%s $%d, #rax", op, node->ty->ptr ? node->ty->ptr->size : 1);
     emit_store(node->operand);
     pop("rax");
 }
