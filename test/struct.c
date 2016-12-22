@@ -310,6 +310,26 @@ static void empty_struct() {
     expect(0, sizeof(union tag16));
 }
 
+static void incdec_struct() {
+    struct incdec {
+	int x, y;
+    } a[] = { { 1, 2 }, { 3, 4 } }, *p = a;
+    expect(1, p->x);
+    expect(2, p->y);
+    p++;
+    expect(3, p->x);
+    expect(4, p->y);
+    p--;
+    expect(1, p->x);
+    expect(2, p->y);
+    ++p;
+    expect(3, p->x);
+    expect(4, p->y);
+    --p;
+    expect(1, p->x);
+    expect(2, p->y);
+}
+
 void testmain() {
     print("struct");
     t1();
