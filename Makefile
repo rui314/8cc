@@ -1,4 +1,8 @@
 CFLAGS=-Wall -Wno-strict-aliasing -std=gnu11 -g -I. -O0
+ifeq ($(USEGC), true)
+    CFLAGS+=-DUSEGC=1
+    LDFLAGS+=-lgc
+endif
 OBJS=cpp.o debug.o dict.o gen.o lex.o vector.o parse.o buffer.o map.o \
      error.o path.o file.o set.o encoding.o
 TESTS := $(patsubst %.c,%.bin,$(filter-out test/testmain.c,$(wildcard test/*.c)))

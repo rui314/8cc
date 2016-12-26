@@ -11,6 +11,14 @@
 #include <stdnoreturn.h>
 #include <time.h>
 
+// Boehm garbage collector
+#ifdef USEGC
+    #include <gc.h>
+    #define malloc GC_MALLOC
+    #define realloc GC_REALLOC
+    #define calloc(m,n) GC_MALLOC((m)*(n))
+#endif
+
 enum {
     TIDENT,
     TKEYWORD,

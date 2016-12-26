@@ -20,8 +20,14 @@ Compiler is not a long-running process.
 It will never run out of memory unless you give an
 unrealistically large source file.
 
-If we really need to free memory, we could use Boehm garbage
-collector. I don't see that need at this moment though.
+8cc supports the use of the Boehm garbage collector,
+though it is disabled by default.
+
+If you wish to use the Boehm garbage collector:
+
+- install it on ubuntu ```apt-get install libgc-dev```
+- install it on arch linux ```pacman -S gc```
+- build 8cc with ```make USEGC=true```
 
 # Backend
 

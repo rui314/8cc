@@ -165,6 +165,9 @@ static void preprocess() {
 }
 
 int main(int argc, char **argv) {
+    #ifdef USEGC
+        GC_INIT();
+    #endif
     setbuf(stdout, NULL);
     if (atexit(delete_temp_files))
         perror("atexit");
