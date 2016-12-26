@@ -119,12 +119,21 @@ static char *get_int_reg(Type *ty, char r) {
     }
 }
 
-static char *get_load_inst(Type *ty) {
+static char *get_load_inst(Type *ty, char **dest) {
+    *dest = "rax";
+
     switch (ty->size) {
-    case 1: return "movsbq";
-    case 2: return "movswq";
-    case 4: return "movslq";
-    case 8: return "mov";
+    case 1: return ty->usig ? "movzbq" : "movsbq";
+    case 2: return ty->usig ? "movzwq" : "movswq";
+    case 4: {
+        if (ty->usig) {
+            *dest = "eax";
+            return "mov";
+        }
+
+        return "movslq";
+    }
+    case 8: return "movq";
     default:
         error("Unknown data size: %s: %d", ty2s(ty), ty->size);
     }
@@ -226,8 +235,9 @@ static void emit_gload(Type *ty, char *label, int off) {
             emit("lea %s(#rip), #rax", label);
         return;
     }
-    char *inst = get_load_inst(ty);
-    emit("%s %s+%d(#rip), #rax", inst, label, off);
+    char *dest;
+    char *inst = get_load_inst(ty, &dest);
+    emit("%s %s+%d(#rip), #%s", inst, label, off, dest);
     maybe_emit_bitshift_load(ty);
 }
 
@@ -266,8 +276,9 @@ static void emit_lload(Type *ty, char *base, int off) {
     } else if (ty->kind == KIND_DOUBLE || ty->kind == KIND_LDOUBLE) {
         emit("movsd %d(#%s), #xmm0", off, base);
     } else {
-        char *inst = get_load_inst(ty);
-        emit("%s %d(#%s), #rax", inst, off, base);
+        char *dest;
+        char *inst = get_load_inst(ty, &dest);
+        emit("%s %d(#%s), #%s", inst, off, base, dest);
         maybe_emit_bitshift_load(ty);
     }
 }
