@@ -647,7 +647,6 @@ int eval_intexpr(Node *node, Node **addr) {
             return 0;
         }
         goto error;
-        goto error;
     case AST_DEREF:
         if (node->operand->ty->kind == KIND_PTR)
             return eval_intexpr(node->operand, addr);
