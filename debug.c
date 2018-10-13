@@ -28,7 +28,7 @@ static char *do_ty2s(Dict *dict, Type *ty) {
     case KIND_ARRAY:
         return format("[%d]%s", ty->len, do_ty2s(dict, ty->ptr));
     case KIND_STRUCT: {
-        char *kind = ty->is_struct ? "struct" : "union";
+        char *kind = ty->is_struct ? " struct " : " union ";
         if (dict_get(dict, format("%p", ty)))
             return format("(%s)", kind);
         dict_put(dict, format("%p", ty), (void *)1);
