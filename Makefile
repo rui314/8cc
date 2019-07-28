@@ -10,8 +10,12 @@ override CFLAGS += -DBUILD_DIR='"$(shell pwd)"'
 
 $(OBJS) utiltest.o main.o: 8cc.h keyword.inc
 
-utiltest: 8cc.h utiltest.o $(OBJS)
+utiltest: utiltest.o $(OBJS)
 	cc -o $@ utiltest.o $(OBJS) $(LDFLAGS)
+
+$(filter %.o,$(OBJS)): %.o: %.c
+utiltest.o: utiltest.c
+main.o: main.c
 
 test/%.o: test/%.c $(ECC)
 	$(ECC) -w -o $@ -c $<
