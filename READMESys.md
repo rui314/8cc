@@ -1,4 +1,4 @@
-8cc C Compiler
+8cc C SysCompiler
 ==============
 
 8cc is a compiler for the C programming language.
