@@ -1,6 +1,9 @@
 8cc C Compiler
 ==============
 
+Note: 8cc is no longer an active project. The successor is
+[chibicc](https://github.com/rui314/chibicc).
+
 8cc is a compiler for the C programming language.
 It's intended to support all C11 language features
 while keeping the code as small and simple as possible.
