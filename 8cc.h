@@ -1,4 +1,5 @@
 // Copyright 2012 Rui Ueyama. Released under the MIT license.
+//name-abhishek parmar,india
 
 #ifndef EIGHTCC_H
 #define EIGHTCC_H
