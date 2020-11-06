@@ -812,6 +812,7 @@ static char **read_source_file(char *file) {
     char *buf = malloc(st.st_size + 1);
     if (fread(buf, 1, st.st_size, fp) != st.st_size) {
         fclose(fp);
+        free(buf);
         return NULL;
     }
     fclose(fp);
