@@ -285,7 +285,7 @@ static bool is_valid_ucn(unsigned int c) {
     return 0xA0 <= c || c == '$' || c == '@' || c == '`';
 }
 
-// Reads \u or \U escape sequences. len is 4 or 8, respecitvely.
+// Reads \u or \U escape sequences. len is 4 or 8, respectively.
 static int read_universal_char(int len) {
     Pos p = get_pos(-2);
     unsigned int r = 0;
