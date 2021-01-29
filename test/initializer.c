@@ -47,6 +47,11 @@ static void test_struct() {
     int we[] = { 1, 0, 0, 0, 2, 0, 0, 0 };
     struct { int a[3]; int b; } w[] = { { 1 }, 2 };
     verify(we, &w, 8);
+
+    struct foo { int a; int b; } f = { 1, 2 };
+    struct { struct foo f; } b = { f };
+    expect(b.f.a, 1);
+    expect(b.f.b, 2);
 }
 
 static void test_primitive() {

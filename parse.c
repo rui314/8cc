@@ -1635,8 +1635,9 @@ static void skip_to_brace() {
 }
 
 static void read_initializer_elem(Vector *inits, Type *ty, int off, bool designated) {
+    bool ident = (peek()-> kind == TIDENT);
     next_token('=');
-    if (ty->kind == KIND_ARRAY || ty->kind == KIND_STRUCT) {
+    if (!ident && (ty->kind == KIND_ARRAY || ty->kind == KIND_STRUCT)) {
         read_initializer_list(inits, ty, off, designated);
     } else if (next_token('{')) {
         read_initializer_elem(inits, ty, off, true);
