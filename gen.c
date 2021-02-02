@@ -232,6 +232,7 @@ static void emit_gload(Type *ty, char *label, int off) {
 }
 
 static void emit_intcast(Type *ty) {
+    SAVE;
     switch(ty->kind) {
     case KIND_BOOL:
     case KIND_CHAR:
@@ -273,6 +274,7 @@ static void emit_lload(Type *ty, char *base, int off) {
 }
 
 static void maybe_convert_bool(Type *ty) {
+    SAVE;
     if (ty->kind == KIND_BOOL) {
         emit("test #rax, #rax");
         emit("setne #al");
@@ -560,6 +562,7 @@ static void emit_binop(Node *node) {
 }
 
 static void emit_save_literal(Node *node, Type *totype, int off) {
+    SAVE;
     switch (totype->kind) {
     case KIND_BOOL:  emit("movb $%d, %d(#rbp)", !!node->ival, off); break;
     case KIND_CHAR:  emit("movb $%d, %d(#rbp)", node->ival, off); break;
@@ -589,6 +592,7 @@ static void emit_save_literal(Node *node, Type *totype, int off) {
 }
 
 static void emit_addr(Node *node) {
+    SAVE;
     switch (node->kind) {
     case AST_LVAR:
         ensure_lvar_init(node);
@@ -613,6 +617,7 @@ static void emit_addr(Node *node) {
 }
 
 static void emit_copy_struct(Node *left, Node *right) {
+    SAVE;
     push("rcx");
     push("r11");
     emit_addr(right);
@@ -642,6 +647,7 @@ static int cmpinit(const void *x, const void *y) {
 }
 
 static void emit_fill_holes(Vector *inits, int off, int totalsize) {
+    SAVE;
     // If at least one of the fields in a variable are initialized,
     // unspecified fields has to be initialized with 0.
     int len = vec_len(inits);
@@ -661,6 +667,7 @@ static void emit_fill_holes(Vector *inits, int off, int totalsize) {
 }
 
 static void emit_decl_init(Vector *inits, int off, int totalsize) {
+    SAVE;
     emit_fill_holes(inits, off, totalsize);
     for (int i = 0; i < vec_len(inits); i++) {
         Node *node = vec_get(inits, i);
@@ -676,6 +683,7 @@ static void emit_decl_init(Vector *inits, int off, int totalsize) {
 }
 
 static void emit_pre_inc_dec(Node *node, char *op) {
+    SAVE;
     emit_expr(node->operand);
     emit("%s $%d, #rax", op, node->ty->ptr ? node->ty->ptr->size : 1);
     emit_store(node->operand);
@@ -702,6 +710,7 @@ static void set_reg_nums(Vector *args) {
 }
 
 static void emit_je(char *label) {
+    SAVE;
     emit("test #rax, #rax");
     emit("je %s", label);
 }
@@ -865,6 +874,7 @@ static void emit_gvar(Node *node) {
 }
 
 static void emit_builtin_return_address(Node *node) {
+    SAVE;
     push("r11");
     assert(vec_len(node->args) == 1);
     emit_expr(vec_head(node->args));
@@ -885,6 +895,7 @@ static void emit_builtin_return_address(Node *node) {
 // Set the register class for parameter passing to RAX.
 // 0 is INTEGER, 1 is SSE, 2 is MEMORY.
 static void emit_builtin_reg_class(Node *node) {
+    SAVE;
     Node *arg = vec_get(node->args, 0);
     assert(arg->ty->kind == KIND_PTR);
     Type *ty = arg->ty->ptr;
@@ -992,6 +1003,7 @@ static void pop_float_args(int nfloats) {
 }
 
 static void maybe_booleanize_retval(Type *ty) {
+    SAVE;
     if (ty->kind == KIND_BOOL) {
         emit("movzx #al, #rax");
     }
@@ -1271,6 +1283,7 @@ static void emit_padding(Node *node, int off) {
 }
 
 static void emit_data_addr(Node *operand, int depth) {
+    SAVE;
     switch (operand->kind) {
     case AST_LVAR: {
         char *label = make_label();
@@ -1290,6 +1303,7 @@ static void emit_data_addr(Node *operand, int depth) {
 }
 
 static void emit_data_charptr(char *s, int depth) {
+    SAVE;
     char *label = make_label();
     emit(".data %d", depth + 1);
     emit_label(label);
@@ -1299,6 +1313,7 @@ static void emit_data_charptr(char *s, int depth) {
 }
 
 static void emit_data_primtype(Type *ty, Node *val, int depth) {
+    SAVE;
     switch (ty->kind) {
     case KIND_FLOAT: {
         float f = val->fval;
@@ -1420,6 +1435,7 @@ static void emit_global_var(Node *v) {
 }
 
 static int emit_regsave_area() {
+    SAVE;
     emit("sub $%d, #rsp", REGAREA_SIZE);
     emit("mov #rdi, (#rsp)");
     emit("mov #rsi, 8(#rsp)");
