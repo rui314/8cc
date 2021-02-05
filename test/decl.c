@@ -4,7 +4,8 @@
 
 static void t1() {
     int a = 1;
-    expect(3, a + 2);
+    int ((b)) = 2;
+    expect(5, a + b + 2);
 }
 
 static void t2() {
