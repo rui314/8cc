@@ -13,7 +13,8 @@
 #include <time.h>
 #include <unistd.h>
 #include "8cc.h"
-
+// print sth
+// print sth
 static Map *macros = &EMPTY_MAP;
 static Map *once = &EMPTY_MAP;
 static Map *keywords = &EMPTY_MAP;
@@ -49,11 +50,10 @@ static Macro *make_special_macro(SpecialMacroHandler *fn);
 static void define_obj_macro(char *name, Token *value);
 static void read_directive(Token *hash);
 static Token *read_expand(void);
-
-/*
+/* aaaaa
  * Constructors
+ * bbbbbb
  */
-
 static CondIncl *make_cond_incl(bool wastrue) {
     CondIncl *r = calloc(1, sizeof(CondIncl));
     r->ctx = IN_THEN;
