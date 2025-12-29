@@ -1498,7 +1498,6 @@ static void emit_func_prologue(Node *func) {
     for (int i = 0; i < vec_len(func->localvars); i++) {
         Node *v = vec_get(func->localvars, i);
         int size = align(v->ty->size, 8);
-        assert(size % 8 == 0);
         off -= size;
         v->loff = off;
         localarea += size;
