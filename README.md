@@ -1,87 +1,125 @@
-8cc C Compiler
-==============
+Html
+Copy code
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIO OF KOTA - Deeni Tanzeem</title>
 
-Note: 8cc is no longer an active project. The successor is
-[chibicc](https://github.com/rui314/chibicc).
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f4f9f4;
+}
 
-8cc is a compiler for the C programming language.
-It's intended to support all C11 language features
-while keeping the code as small and simple as possible.
+header {
+    background: #0b6623;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
 
-The compiler is able to compile itself.
-You can see its code both as an implementation of the C language
-and as an example of what this compiler is able to compile.
+nav {
+    background: #145a32;
+    padding: 10px;
+    text-align: center;
+}
 
-8cc's source code is carefully written to be as concise and easy-to-read
-as possible, so that the source code becomes good study material
-to learn about various techniques used in compilers.
-You may find the lexer, the preprocessor and the parser are
-already useful to learn how C source code is processed at each stage.
+nav a {
+    color: white;
+    text-decoration: none;
+    margin: 0 15px;
+    font-weight: bold;
+}
 
-It's not an optimizing compiler.
-Generated code is usually 2x or more slower than GCC.
-I plan to implement a reasonable level of optimization in the future.
+nav a:hover {
+    color: gold;
+}
 
-8cc supports x86-64 Linux only. I have no plan to make it portable until
-I fix all known miscompilations and implement an optimization pass.
-As of 2015, I'm using Ubuntu 14 as my development platform.
-It should work on other x86-64 Linux distributions though.
+.hero {
+    padding: 60px 20px;
+    text-align: center;
+    background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1509228627152-72ae9ae6848d');
+    background-size: cover;
+    color: white;
+}
 
-Note: Do not have high expectations on this compiler.
-If you try to compile a program other than the compiler itself,
-there's a good chance to see compile errors or miscompilations.
-This is basically a one-man project, and I have spent only a few
-months of my spare time so far.
+.section {
+    padding: 40px 20px;
+    text-align: center;
+}
 
-Build
------
+.section h2 {
+    color: #0b6623;
+}
 
-Run make to build:
+.donation {
+    background: #eaf7ea;
+    padding: 40px;
+}
 
-    make
+footer {
+    background: #0b6623;
+    color: white;
+    text-align: center;
+    padding: 15px;
+}
+button {
+    background: gold;
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+button:hover {
+    background: orange;
+}
+</style>
 
-8cc comes with unit tests. To run the tests, give "test" as an argument:
+</head>
+<body>
 
-    make test
+<header>
+    <h1>SIO OF KOTA</h1>
+    <p>Serving the Ummah with Faith & Dedication</p>
+</header>
 
-The following target builds 8cc three times to verify that
-stage1 compiler can build stage2, and stage2 can build stage3.
-It then compares stage2 and stage3 binaries byte-by-byte to verify
-that we reach a fixed point.
+<nav>
+    <a href="#">Home</a>
+    <a href="#">About</a>
+    <a href="#">Activities</a>
+    <a href="#">Donation</a>
+    <a href="#">Contact</a>
+</nav>
 
-    make fulltest
+<div class="hero">
+    <h2>Welcome to SIO OF KOTA</h2>
+    <p>Hamari tanzeem ka maqsad deeni taleem aur samaj ki khidmat karna hai.</p>
+    <button>Join Us</button>
+</div>
 
-Author
-------
+<div class="section">
+    <h2>About Us</h2>
+    <p>SIO OF KOTA ek deeni tanzeem hai jo Quran aur Sunnah ki roshni me
+    youth ko tarbiyat aur rehnumai deti hai.</p>
+</div>
 
-Rui Ueyama <rui314@gmail.com>
+<div class="section">
+    <h2>Our Activities</h2>
+    <p>Dars-e-Quran | Youth Programs | Social Work | Educational Support</p>
+</div>
 
+<div class="donation">
+    <h2>Support Our Mission</h2>
+    <p>Aapka chhota sa donation bhi ek bada farq la sakta hai.</p>
+    <button>Donate Now</button>
+</div>
 
-Links for C compiler development
---------------------------------
+<footer>
+    <p>© 2026 SIO OF KOTA | All Rights Reserved</p>
+</footer>
 
-Besides popular books about compiler, such as the Dragon Book,
-I found the following books/documents are very useful
-to develop a C compiler.
-Note that the standard draft versions are very close to the ratified versions.
-You can practically use them as the standard documents.
-
--   LCC: A Retargetable C Compiler: Design and Implementation
-    http://www.amazon.com/dp/0805316701,
-    https://github.com/drh/lcc
-
--   TCC: Tiny C Compiler
-    http://bellard.org/tcc/,
-    http://repo.or.cz/w/tinycc.git/tree
-
--   C99 standard final draft
-    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1124.pdf
-
--   C11 standard final draft
-    http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf
-
--   Dave Prosser's C Preprocessing Algorithm
-    http://www.spinellis.gr/blog/20060626/
-
--   The x86-64 ABI
-    http://www.x86-64.org/documentation/abi.pdf
+</body>
+</html>
