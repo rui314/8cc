@@ -152,6 +152,10 @@ static Map *env() {
     return localenv ? localenv : globalenv;
 }
 
+static bool islocalenv() {
+return localenv ? true : false;
+}
+
 static Node *make_ast(Node *tmpl) {
     Node *r = malloc(sizeof(Node));
     *r = *tmpl;
@@ -2057,8 +2061,8 @@ static Type *read_decl_spec(int *rsclass) {
         case KTYPEDEF:  if (sclass) goto err; sclass = S_TYPEDEF; break;
         case KEXTERN:   if (sclass) goto err; sclass = S_EXTERN; break;
         case KSTATIC:   if (sclass) goto err; sclass = S_STATIC; break;
-        case KAUTO:     if (sclass) goto err; sclass = S_AUTO; break;
-        case KREGISTER: if (sclass) goto err; sclass = S_REGISTER; break;
+        case KAUTO:     if (sclass) goto err; sclass = S_AUTO; if(!islocalenv()) warnt(tok,"auto specifer should not  at the global scope"); break;
+        case KREGISTER: if (sclass) goto err; sclass = S_REGISTER; if(!islocalenv()) warnt(tok,"register specifer should not  at the global scope");  break; 
         case KCONST:    break;
         case KVOLATILE: break;
         case KINLINE:   break;

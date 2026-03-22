@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "8cc.h"
+#include<stdio.h>
 
 bool enable_warning = true;
 bool warning_is_error = false;
